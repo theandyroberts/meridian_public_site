@@ -111,18 +111,20 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
   });
 
   const set = (patch: Partial<Filters>) => {
-    const next = { ...filters, ...patch };
-    setFilters(next);
-    const sp = new URLSearchParams();
-    if (next.q) sp.set("q", next.q);
-    if (next.shotType) sp.set("shotType", next.shotType);
-    if (next.timeOfDay) sp.set("timeOfDay", next.timeOfDay);
-    if (next.weather) sp.set("weather", next.weather);
-    if (next.speedBand) sp.set("speedBand", next.speedBand);
-    if (next.stage) sp.set("stage", next.stage);
-    if (next.imuOnly) sp.set("imu", "1");
-    if (next.tag) sp.set("tag", next.tag);
-    router.replace(`/browse${sp.size ? `?${sp}` : ""}`, { scroll: false });
+    setFilters((prev) => {
+      const next = { ...prev, ...patch };
+      const sp = new URLSearchParams();
+      if (next.q) sp.set("q", next.q);
+      if (next.shotType) sp.set("shotType", next.shotType);
+      if (next.timeOfDay) sp.set("timeOfDay", next.timeOfDay);
+      if (next.weather) sp.set("weather", next.weather);
+      if (next.speedBand) sp.set("speedBand", next.speedBand);
+      if (next.stage) sp.set("stage", next.stage);
+      if (next.imuOnly) sp.set("imu", "1");
+      if (next.tag) sp.set("tag", next.tag);
+      router.replace(`/browse${sp.size ? `?${sp}` : ""}`, { scroll: false });
+      return next;
+    });
   };
 
   const active =

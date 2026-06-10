@@ -86,10 +86,10 @@ export function SyncedPlayer({ plate }: { plate: Plate }) {
         <video
           ref={masterRef}
           src={plate.renditions.stitchedPreview}
-          poster={plate.renditions.poster}
           muted
           loop
           playsInline
+          preload="metadata"
           onClick={togglePlay}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         />
