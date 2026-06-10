@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.env
+.env.local
+*.log
+.DS_Store
+sample-data/drops/
+sample-data/audit.jsonl
+sample-data/reservations.jsonl
+web/public/media/

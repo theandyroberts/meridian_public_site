@@ -1,0 +1,20 @@
+{
+  "name": "@platelab/pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@platelab/shared": "*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "scripts": {
+    "generate": "tsx src/demo/generate.ts",
+    "ingest": "tsx src/cli.ts ingest",
+    "ingest:all": "tsx src/cli.ts ingest-all",
+    "test": "tsx --test test/*.test.ts"
+  }
+}

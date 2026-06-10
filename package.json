@@ -1,0 +1,16 @@
+{
+  "name": "platelab",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "pipeline",
+    "web"
+  ],
+  "scripts": {
+    "demo:generate": "npm run generate -w pipeline",
+    "demo:ingest": "npm run ingest:all -w pipeline",
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "test": "npm test -w pipeline"
+  }
+}
