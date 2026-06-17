@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --ink: #0E0E10; --paper: #F4F1EA; --orange: #C56B3E; --grey: #8A8780;
+    --sans: "Helvetica Neue", Arial, sans-serif;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+  }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: var(--sans); color: var(--ink); }
+  .slide {
+    width: 13.333in; height: 7.5in; background: var(--paper);
+    position: relative; overflow: hidden; page-break-after: always;
+    padding: 0.72in 0.8in;
+  }
+  .slide:last-child { page-break-after: auto; }
+  .mono { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.18em; }
+  .accent { color: var(--orange); }
+  .grey { color: var(--grey); }
+
+  /* header lockup */
+  .lockup { display: flex; align-items: center; gap: 14px; }
+  .wordmark { line-height: 1; }
+  .wordmark .the { font-family: var(--mono); font-size: 9px; letter-spacing: 0.3em; color: var(--orange); }
+  .wordmark .name { font-size: 19px; font-weight: 700; letter-spacing: 0.06em; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; }
+  .topbar .mono { font-size: 11px; color: var(--grey); }
+
+  /* slide 1 */
+  .cover h1 { font-size: 58px; font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; max-width: 15.5in; margin-top: 1.05in; }
+  .cover h1 em { font-style: normal; color: var(--orange); }
+  .cover .horizon { position: absolute; left: 0.8in; right: 0.8in; bottom: 1.55in; height: 4px; background: var(--orange); }
+  .cover .descriptor { position: absolute; left: 0.8in; bottom: 1.05in; font-size: 13px; color: var(--grey); }
+  .cover .pageno { position: absolute; right: 0.8in; bottom: 1.0in; font-size: 12px; color: var(--grey); }
+
+  /* section header */
+  .kicker { font-size: 12px; color: var(--orange); }
+  h2.title { font-size: 38px; font-weight: 700; letter-spacing: -0.015em; margin-top: 10px; }
+
+  /* slide 2 cards */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 44px; }
+  .card { border: 1.5px solid #ddd7ca; border-top: 5px solid var(--orange); padding: 22px 18px 24px; height: 4.0in; background: #fffef9; }
+  .card .num { font-size: 40px; font-weight: 700; color: var(--orange); line-height: 1; }
+  .card h3 { font-size: 21px; font-weight: 700; margin: 10px 0 16px; }
+  .card ul { list-style: none; }
+  .card li { font-size: 13.5px; line-height: 1.45; color: #2c2c30; padding-left: 16px; position: relative; margin-bottom: 11px; }
+  .card li::before { content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; background: var(--orange); }
+
+  /* slide 3 */
+  .split { display: grid; grid-template-columns: 1fr 1.15fr; gap: 30px; margin-top: 40px; height: 4.2in; }
+  .price-panel { background: var(--ink); color: var(--paper); padding: 38px 34px; display: flex; flex-direction: column; }
+  .price-panel .label { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; color: var(--grey); }
+  .price-panel .amount { font-size: 64px; font-weight: 700; letter-spacing: -0.02em; margin: 8px 0 2px; }
+  .price-panel .amount .per { font-size: 24px; color: var(--orange); }
+  .price-panel .sub { font-size: 14px; color: #c8c4ba; margin-bottom: 28px; }
+  .price-panel .pt { border-top: 1px solid #2a2a30; padding: 16px 0; font-size: 15px; }
+  .price-panel .pt b { color: var(--orange); font-weight: 700; }
+  .right-stack { display: flex; flex-direction: column; gap: 18px; }
+  .right-stack .item { border-left: 4px solid var(--orange); padding: 4px 0 4px 18px; }
+  .right-stack .item h4 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .right-stack .item p { font-size: 13.5px; color: #46453f; line-height: 1.45; }
+  .statstrip { position: absolute; left: 0.8in; right: 0.8in; bottom: 0.78in; display: flex; justify-content: space-between; border-top: 3px solid var(--orange); padding-top: 14px; }
+  .statstrip div { text-align: center; }
+  .statstrip .big { font-size: 22px; font-weight: 700; }
+  .statstrip .cap { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.14em; font-size: 10px; color: var(--grey); margin-top: 3px; }
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1 -->
+<section class="slide cover">
+  <div class="topbar">
+    <div class="lockup">
+      <svg width="42" height="42" viewBox="0 0 100 100" aria-hidden="true">
+        <defs>
+          <clipPath id="t"><rect x="0" y="0" width="100" height="50"/></clipPath>
+          <clipPath id="b"><rect x="0" y="50" width="100" height="50"/></clipPath>
+        </defs>
+        <g clip-path="url(#t)" stroke="#C56B3E" fill="none">
+          <ellipse cx="50" cy="50" rx="17" ry="45" stroke-width="1.6"/>
+          <ellipse cx="50" cy="50" rx="33" ry="45" stroke-width="1.4"/>
+          <ellipse cx="50" cy="28" rx="36" ry="9" stroke-width="1.5"/>
+          <ellipse cx="50" cy="40" rx="43" ry="11" stroke-width="1.5"/>
+        </g>
+        <g clip-path="url(#b)" stroke="#8A8780" fill="none">
+          <ellipse cx="50" cy="50" rx="17" ry="45" stroke-width="1.4"/>
+          <ellipse cx="50" cy="50" rx="33" ry="45" stroke-width="1.2"/>
+          <ellipse cx="50" cy="60" rx="43" ry="11" stroke-width="1.4"/>
+          <ellipse cx="50" cy="72" rx="36" ry="9" stroke-width="1.4"/>
+        </g>
+        <circle cx="50" cy="50" r="45" fill="none" stroke="#0E0E10" stroke-width="4"/>
+        <line x1="5" y1="50" x2="95" y2="50" stroke="#C56B3E" stroke-width="5"/>
+        <circle cx="50" cy="50" r="4.5" fill="#C56B3E"/>
+      </svg>
+      <div class="wordmark">
+        <div class="the">THE</div>
+        <div class="name">PLATE LAB</div>
+      </div>
+    </div>
+    <div class="mono">The site · why it sells</div>
+  </div>
+
+  <h1>The only driving-plate library built around <em>how art directors actually search.</em></h1>
+
+  <div class="horizon"></div>
+  <div class="descriptor mono">360×180 ENVIRONMENTS · VFX · LED VOLUMES · VIRTUAL PRODUCTION</div>
+  <div class="pageno mono">01 / 03</div>
+</section>
+
+<!-- SLIDE 2 -->
+<section class="slide">
+  <div class="kicker mono">The buyer's path</div>
+  <h2 class="title">Four steps from brief to booked</h2>
+
+  <div class="cards">
+    <div class="card">
+      <div class="num">1</div>
+      <h3>Find it fast</h3>
+      <ul>
+        <li>Instant facet filters — shot type, time, weather, speed, location</li>
+        <li>Search reaches inside the footage: tags + detected objects</li>
+        <li>Every filtered view is a shareable link</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="num">2</div>
+      <h3>Trust the shot</h3>
+      <ul>
+        <li>Stitched view + 9-camera grid, frame-locked together</li>
+        <li>The full sky tier most libraries skip</li>
+        <li>Detected objects listed with confidence</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="num">3</div>
+      <h3>Fit your stage</h3>
+      <ul>
+        <li>LED volume / green screen / projection badges</li>
+        <li>Real specs: 3840×1920, Log3G10, 9× Komodo 6K</li>
+        <li>GPS route + IMU telemetry for matchmove</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="num">4</div>
+      <h3>Lock it in</h3>
+      <ul>
+        <li>Transparent $8k/min pricing — no quote wall</li>
+        <li>One-click 72-hour reserve hold</li>
+        <li>Custom delivery built to your volume</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 3 -->
+<section class="slide">
+  <div class="kicker mono">Why it holds up</div>
+  <h2 class="title">A real catalog, priced without friction</h2>
+
+  <div class="split">
+    <div class="price-panel">
+      <div class="label">License, pro stitched</div>
+      <div class="amount">$8,000<span class="per"> / min</span></div>
+      <div class="sub">Prorated to the second after a one-minute minimum.</div>
+      <div class="pt"><b>One-click</b> 72-hour reserve hold</div>
+      <div class="pt"><b>No</b> "request a quote" wall</div>
+      <div class="pt"><b>Custom</b> volumetric-stage delivery on request</div>
+    </div>
+
+    <div class="right-stack">
+      <div class="item">
+        <h4>Your footage stays protected</h4>
+        <p>Every preview is watermarked; original masters are never web-served. Screening access uses signed, expiring links.</p>
+      </div>
+      <div class="item">
+        <h4>Defensible chain of custody</h4>
+        <p>Each plate is fingerprinted (sha256) at ingest, with a full per-stage audit trail behind it.</p>
+      </div>
+      <div class="item">
+        <h4>The catalog builds itself</h4>
+        <p>Automatic SKUs, AI object labeling, descriptions, and technical specs generated on every drop — so the library scales.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="statstrip">
+    <div><div class="big">9 cameras</div><div class="cap">+ full sky tier</div></div>
+    <div><div class="big">360×180</div><div class="cap">equirect environments</div></div>
+    <div><div class="big">GPS + IMU</div><div class="cap">on every take</div></div>
+    <div><div class="big accent">Find → book</div><div class="cap">in minutes, not days</div></div>
+  </div>
+</section>
+
+</body>
+</html>
