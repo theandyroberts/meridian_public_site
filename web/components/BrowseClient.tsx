@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Plate } from "@platelab/shared";
 import {
@@ -111,21 +111,23 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
   });
 
   const set = (patch: Partial<Filters>) => {
-    setFilters((prev) => {
-      const next = { ...prev, ...patch };
-      const sp = new URLSearchParams();
-      if (next.q) sp.set("q", next.q);
-      if (next.shotType) sp.set("shotType", next.shotType);
-      if (next.timeOfDay) sp.set("timeOfDay", next.timeOfDay);
-      if (next.weather) sp.set("weather", next.weather);
-      if (next.speedBand) sp.set("speedBand", next.speedBand);
-      if (next.stage) sp.set("stage", next.stage);
-      if (next.imuOnly) sp.set("imu", "1");
-      if (next.tag) sp.set("tag", next.tag);
-      router.replace(`/browse${sp.size ? `?${sp}` : ""}`, { scroll: false });
-      return next;
-    });
+    setFilters((prev) => ({ ...prev, ...patch }));
   };
+
+  // Mirror the active filters into the URL. Done in an effect, not inside the
+  // state updater, so we never trigger a Router update during render.
+  useEffect(() => {
+    const sp = new URLSearchParams();
+    if (filters.q) sp.set("q", filters.q);
+    if (filters.shotType) sp.set("shotType", filters.shotType);
+    if (filters.timeOfDay) sp.set("timeOfDay", filters.timeOfDay);
+    if (filters.weather) sp.set("weather", filters.weather);
+    if (filters.speedBand) sp.set("speedBand", filters.speedBand);
+    if (filters.stage) sp.set("stage", filters.stage);
+    if (filters.imuOnly) sp.set("imu", "1");
+    if (filters.tag) sp.set("tag", filters.tag);
+    router.replace(`/browse${sp.size ? `?${sp}` : ""}`, { scroll: false });
+  }, [filters, router]);
 
   const active =
     !!filters.q ||
