@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Plate } from "@platelab/shared";
 import {
@@ -98,6 +98,21 @@ function FacetGroup({
 export function BrowseClient({ plates }: { plates: Plate[] }) {
   const router = useRouter();
   const params = useSearchParams();
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Arriving from the home hero search (focus=1): take focus so the user's
+  // keystrokes flow straight into this field, cursor parked after any text
+  // already carried over via ?q=.
+  useEffect(() => {
+    if (params.get("focus") !== "1") return;
+    const el = searchRef.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [filters, setFilters] = useState<Filters>({
     q: params.get("q") ?? "",
@@ -148,6 +163,7 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
     <div className="browse-layout">
       <aside className="filter-rail">
         <input
+          ref={searchRef}
           className="search-input"
           placeholder="SEARCH PLATES, TAGS, OBJECTS…"
           value={filters.q}

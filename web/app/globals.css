@@ -116,6 +116,55 @@ body::before {
 .hero .hero-meta div { display: grid; gap: 6px; }
 .hero .hero-meta strong { font-size: 22px; font-weight: 600; }
 
+/* ── hero search hand-off ── */
+.hero-search-block { margin-top: 48px; max-width: 760px; }
+.hero-search-copy { color: var(--paper-60); font-size: 16px; max-width: 56ch; margin-bottom: 16px; }
+.hero-search {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--ink-2);
+  border: 1px solid var(--hairline-strong);
+  padding: 6px 6px 6px 18px;
+  cursor: text;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.hero-search:focus-within {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 1px var(--orange), 0 0 32px var(--orange-soft);
+}
+.hero-search-label {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--orange);
+  flex: none;
+}
+.hero-search-input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--paper);
+  font-family: var(--font-grotesk);
+  font-size: clamp(18px, 2.4vw, 26px);
+  padding: 12px 0;
+}
+.hero-search-input::placeholder { color: var(--paper-38); }
+.hero-search-hint {
+  flex: none;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--paper-38);
+  padding-right: 16px;
+}
+.hero-search:focus-within .hero-search-hint { color: var(--orange); }
+@media (max-width: 720px) {
+  .hero-search-hint { display: none; }
+  .hero-search-input { font-size: 18px; }
+}
+
 .hero-globe {
   position: absolute;
   right: -40px;

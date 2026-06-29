@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCatalog } from "@/lib/catalog";
 import { GlobeMark } from "@/components/Logo";
+import { HeroSearch } from "@/components/HeroSearch";
 import { PlateCard } from "@/components/PlateCard";
 import { PER_MINUTE_USD, formatUsd } from "@platelab/shared";
 
@@ -45,6 +46,14 @@ export default function HomePage() {
               <strong>GPS + IMU</strong>
               <span className="mono dimmer">u-blox F9R RTK telemetry</span>
             </div>
+          </div>
+
+          <div className="hero-search-block">
+            <p className="hero-search-copy">
+              Find your environment. Search the catalog by location, time of
+              day, weather, road type, or whatever needs to be in frame.
+            </p>
+            <HeroSearch />
           </div>
         </div>
       </section>

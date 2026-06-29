@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="wrap">
             <Logo />
             <nav className="site-nav">
-              <Link href="/browse">Browse plates</Link>
+              <Link href="/browse">Search plates</Link>
               <Link href="/browse?stage=led-volume">LED volume</Link>
               <a className="cta mono" href="mailto:plates@theplatelab.com">
                 Book a capture
