@@ -41,7 +41,14 @@ jobs:
               "$DEPLOY_USER@$DEPLOY_HOST" deploy
 
       - name: Health check
+        # Poll the live URL — tolerates the few seconds Next.js takes to come
+        # back up after the pm2 restart, and transient curl/connection errors
+        # (which curl --retry won't retry on its own).
         run: |
-          code=$(curl -s -o /dev/null -w "%{http_code}" --retry 5 --retry-delay 3 https://platelab.note15.com/)
-          echo "https://platelab.note15.com/ -> HTTP $code"
-          test "$code" = "200"
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://platelab.note15.com/ || true)
+            echo "attempt $i: https://platelab.note15.com/ -> HTTP ${code:-000}"
+            [ "$code" = "200" ] && { echo "healthy"; exit 0; }
+            sleep 5
+          done
+          echo "site did not return 200 after retries"; exit 1
