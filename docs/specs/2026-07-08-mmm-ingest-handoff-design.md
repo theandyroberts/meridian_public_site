@@ -31,7 +31,7 @@ format natively — MMM does not repackage for TPL.
 | Transport | rsync over SSH into a server inbox (Approach 1) — resumable, no upload code |
 | Coordination | announce → upload → poll handshake via a small HTTP API; MMM does not mark upload complete until TPL acknowledges (per MMM feature spec) |
 | Identity | MMM's **`stockClipId`** (e.g. `SPH-STK-20260708-GLENDORA-001-CLIP-0001`) is the immutable library key. TPL assigns an **opaque retail SKU** and returns the `{stockClipId, sku}` pair. |
-| SKU scheme | **Opaque sequential** — `PL-<n>` (e.g. `PL-100042`), a brand prefix plus a meaningless monotonic number. No dates, locations, or take identity encoded. **This replaces TPL's current `PL<yy><jjj>-<nnnn>` scheme**, which encodes year/julian-day and violates the no-magic-numbers rule for the retail site. The `stockClipId` on the catalog entry carries all provenance. |
+| SKU scheme | **Opaque random** — `PL-<6 random digits>` (e.g. `PL-483920`), drawn uniformly from 100000–999999, collision-checked, never reused. No dates, locations, or take identity encoded — and no sequence: sequential serials leak catalog size and growth rate to anyone who sees two SKUs (the German tank problem). **This replaces TPL's current `PL<yy><jjj>-<nnnn>` scheme**, which encodes year/julian-day and violates the no-magic-numbers rule for the retail site. The `stockClipId` on the catalog entry carries all provenance. |
 | Package shape | MMM's **day-level handoff root** (`spheris.stock.website_handoff.v1`) transferred as-is; TPL adapts internally |
 | Publish gate | Plates land as **draft**; team is notified by email; a human publishes |
 | Compute | Ingest (transcode, labeling, renditions) runs on the TPL server; VPS is right-sized for it (see Sizing) |
@@ -125,9 +125,11 @@ otherwise) and the day's PTGui `.pts` file. Neither blocks ingest.
 - `stockClipId` is stored verbatim on the catalog entry (`mmm.stockClipId`,
   required for new entries) — the permanent library↔catalog link. Duplicate
   `stockClipId` ingest is rejected (`409`) once a clip has reached draft/live.
-- TPL assigns the retail SKU at ingest: `PL-<n>`, monotonic counter starting
-  at 100000, no semantic content. The counter lives with the catalog data and
-  survives redeploys.
+- TPL assigns the retail SKU at ingest: `PL-<6 random digits>` (uniform in
+  100000–999999), collision-checked against every SKU ever issued — including
+  rejected/removed plates, so identifiers are never recycled. The issued-SKU
+  ledger lives with the catalog data and survives redeploys. 900k identifiers
+  is decades of headroom; widen to 8 digits if the space ever tightens.
 - The catalog schema (`shared/`) gains `mmm.stockClipId`, the new SKU format,
   and `status: "draft" | "live"`. The existing demo plates (old
   `PL<yy><jjj>-<nnnn>` SKUs) are demo data — regenerate or renumber; no
