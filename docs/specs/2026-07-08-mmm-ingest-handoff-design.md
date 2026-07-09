@@ -31,7 +31,7 @@ format natively — MMM does not repackage for TPL.
 | Transport | rsync over SSH into a server inbox (Approach 1) — resumable, no upload code |
 | Coordination | announce → upload → poll handshake via a small HTTP API; MMM does not mark upload complete until TPL acknowledges (per MMM feature spec) |
 | Identity | MMM's **`stockClipId`** (e.g. `SPH-STK-20260708-GLENDORA-001-CLIP-0001`) is the immutable library key. TPL assigns an **opaque retail SKU** and returns the `{stockClipId, sku}` pair. |
-| SKU scheme | **Opaque random** — `PL-<6 random digits>` (e.g. `PL-483920`), drawn uniformly from 100000–999999, collision-checked, never reused. No dates, locations, or take identity encoded — and no sequence: sequential serials leak catalog size and growth rate to anyone who sees two SKUs (the German tank problem). **This replaces TPL's current `PL<yy><jjj>-<nnnn>` scheme**, which encodes year/julian-day and violates the no-magic-numbers rule for the retail site. The `stockClipId` on the catalog entry carries all provenance. |
+| SKU scheme | **Opaque random + check digit** — `PL-<6 random digits><Damm check digit>` (e.g. `PL-4839208`), base drawn uniformly from 100000–999999, collision-checked, never reused. No dates, locations, or take identity encoded — and no sequence: sequential serials leak catalog size and growth rate to anyone who sees two SKUs (the German tank problem). The trailing Damm check digit catches any single mistyped digit and any adjacent transposition, so a fat-fingered SKU is rejected instead of resolving to the wrong plate. **This replaces TPL's current `PL<yy><jjj>-<nnnn>` scheme**, which encodes year/julian-day and violates the no-magic-numbers rule for the retail site. The `stockClipId` on the catalog entry carries all provenance. |
 | Package shape | MMM's **day-level handoff root** (`spheris.stock.website_handoff.v1`) transferred as-is; TPL adapts internally |
 | Publish gate | Plates land as **draft**; team is notified by email; a human publishes |
 | Compute | Ingest (transcode, labeling, renditions) runs on the TPL server; VPS is right-sized for it (see Sizing) |
@@ -62,8 +62,8 @@ Example exchange:
 > ready."
 > MMM rsyncs the handoff root, then: "done sending `t-0042`."
 > MMM polls: per-clip states, finishing at e.g.
-> `{stockClipId: "SPH-STK-20260708-GLENDORA-001-CLIP-0001", sku: "PL-483920",
-> state: "draft", preview: "/plate/PL-483920?sig=…"}`
+> `{stockClipId: "SPH-STK-20260708-GLENDORA-001-CLIP-0001", sku: "PL-4839208",
+> state: "draft", preview: "/plate/PL-4839208?sig=…"}`
 
 ## Components
 
@@ -125,11 +125,18 @@ otherwise) and the day's PTGui `.pts` file. Neither blocks ingest.
 - `stockClipId` is stored verbatim on the catalog entry (`mmm.stockClipId`,
   required for new entries) — the permanent library↔catalog link. Duplicate
   `stockClipId` ingest is rejected (`409`) once a clip has reached draft/live.
-- TPL assigns the retail SKU at ingest: `PL-<6 random digits>` (uniform in
-  100000–999999), collision-checked against every SKU ever issued — including
-  rejected/removed plates, so identifiers are never recycled. The issued-SKU
-  ledger lives with the catalog data and survives redeploys. 900k identifiers
-  is decades of headroom; widen to 8 digits if the space ever tightens.
+- TPL assigns the retail SKU at ingest: a 6-digit random base (uniform in
+  100000–999999) plus a trailing **Damm check digit** computed over the base —
+  7 digits total, e.g. base `483920` → `PL-4839208`. Collision-checked against
+  every SKU ever issued — including rejected/removed plates, so identifiers
+  are never recycled. The issued-SKU ledger lives with the catalog data and
+  survives redeploys. 900k identifiers is decades of headroom; widen the base
+  if the space ever tightens.
+- Every surface that accepts a typed SKU (search, admin actions, CLI, future
+  order entry) validates the check digit before lookup and rejects invalid
+  SKUs outright — a mistyped SKU errors instead of silently resolving to the
+  wrong plate. The Damm implementation lives in `shared/` next to the SKU
+  generator so validation and generation cannot drift.
 - The catalog schema (`shared/`) gains `mmm.stockClipId`, the new SKU format,
   and `status: "draft" | "live"`. The existing demo plates (old
   `PL<yy><jjj>-<nnnn>` SKUs) are demo data — regenerate or renumber; no
