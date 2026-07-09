@@ -185,24 +185,45 @@ updated by atomic rename (write temp + rename). The API routes and daemon
 share it through the filesystem — no database at this volume. The daemon
 catches up on restart; nothing is lost if it is down while packages arrive.
 
-### 6. Draft → live
+### 6. Admin dashboard — the single source of truth
 
-- Public site (home, browse, plate detail) filters to `status: "live"`.
-- Drafts are viewable via signed preview links (reuse the existing HMAC
-  screener pattern), included in the notification email.
-- Approval UI: `/admin/drafts` — lists pending plates with watermarked preview
-  and generated title/description, with **Publish** and **Reject** actions.
-  Access via HMAC-signed expiring links; the email carries a fresh link.
-  Reject moves the entry out of the catalog and records why.
-- CLI fallback: `npx -w pipeline tsx src/cli.ts approve <sku>` /
-  `reject <sku>`.
+TPL owns the handoff: a transfer is not successful until TPL says it is, and
+TPL says it **on the dashboard**. Emails and the MMM-facing API are
+notifications and machine mirrors of the same state — never a separate
+version of the truth. The dashboard, the status API, and the daemon all read
+and write one state store (the per-transfer JSON files + the catalog), so
+they cannot disagree.
+
+`/admin` (server-rendered pages on the existing Next app):
+
+- **Handoffs** (`/admin/handoffs`) — every transfer, newest first: state,
+  announced size vs received, clip progress (`7/12 drafted, 1 failed`),
+  timestamps per state change. Drill into a handoff for the per-clip table:
+  stockClipId, state, SKU, failure stage + message, link to its audit-log
+  entries. Failed clips have a **Retry** action (re-runs ingest from the
+  archived package after a fix — e.g. a daemon bug or transient ffmpeg
+  failure); handoff-level failures have **Re-verify** for after a re-send.
+- **Drafts** (`/admin/drafts`) — pending plates with watermarked preview and
+  generated title/description; **Publish** and **Reject** actions. Reject
+  moves the entry out of the catalog and records why.
+- Auth: single admin password (lives in `/home/andy/.platelab-env`) exchanged
+  for a session cookie. One team, one credential; no user management. The
+  notification email deep-links into the dashboard.
+- CLI fallback for everything the dashboard does (`cli.ts approve|reject|
+  retry <id>`) — the dashboard is the primary interface, not the only one.
+
+Public site (home, browse, plate detail) filters to `status: "live"`; drafts
+render only through the admin session or HMAC-signed preview links.
 
 ### 7. Notification
 
+Notifications point at the dashboard; they never carry state of their own.
 Pluggable notify hook fired per handoff completion (drafts + failures in one
-summary) and on handoff-level failure. V1: **email to the team**; SMTP
-settings live in `/home/andy/.platelab-env`; falls back to a log line when
-unconfigured. The hook is one module — other channels can be added later.
+summary) and on handoff-level failure. V1: **email to the team** with a
+one-line outcome (`12 clips: 11 drafted, 1 failed`) and a deep link to the
+handoff's dashboard page. SMTP settings live in `/home/andy/.platelab-env`;
+falls back to a log line when unconfigured. The hook is one module — other
+channels can be added later.
 
 ## Failure handling
 
@@ -262,9 +283,10 @@ disk to the expected shoot cadence before first real use.
 ## Testing
 
 - Unit: handoff manifest validation, camera number→position adapter,
-  asset-type routing, SKU counter, transfer state machine,
-  announce/uploaded/status routes (auth, disk guard, idempotency, duplicate
-  stockClipId).
+  asset-type routing, SKU generation + Damm validation, transfer state
+  machine, announce/uploaded/status routes (auth, disk guard incl. burst
+  reservations, idempotency, duplicate stockClipId), admin auth and
+  publish/reject/retry actions.
 - Integration: synthetic MMM handoff root (built to the v1 schemas) through
   daemon → draft entries in a temp catalog.
 - Manual acceptance: real handoff from MMM through to a published plate.
