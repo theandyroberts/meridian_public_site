@@ -1,15 +1,14 @@
 import path from "node:path";
 import {
-  makeSku,
-  nextSequence,
   priceForDuration,
   PER_MINUTE_USD,
   MINIMUM_MINUTES,
   type Plate,
+  type PlateStatus,
 } from "@platelab/shared";
 import { audit } from "./audit.js";
 import { PUBLIC_MEDIA } from "./paths.js";
-import { discover } from "./stages/discover.js";
+import { discover, type Drop } from "./stages/discover.js";
 import { probe } from "./stages/probe.js";
 import { sha256File } from "./stages/checksum.js";
 import { loadTelemetry } from "./stages/telemetry.js";
@@ -17,46 +16,62 @@ import { labelDrop } from "./stages/label.js";
 import { describePlate } from "./stages/describe.js";
 import { buildRenditions } from "./stages/renditions.js";
 import { uploadRenditions } from "./stages/upload.js";
-import { loadCatalog, publishPlate } from "./stages/publish.js";
+import { publishPlate } from "./stages/publish.js";
+import { assignSku } from "./mmm/skuLedger.js";
+
+export interface IngestOpts {
+  sku?: string;
+  status?: PlateStatus;
+  stockClipId?: string;
+}
+
+export async function ingestDrop(dropDir: string, opts: IngestOpts = {}): Promise<Plate> {
+  return ingestDiscovered(discover(dropDir), opts);
+}
 
 /**
- * Ingest one drop directory end to end. Stages are sequential and each is
+ * Ingest one discovered drop end to end. Stages are sequential and each is
  * audited; a failure leaves the catalog untouched (publish is last + atomic).
  */
-export async function ingestDrop(dropDir: string): Promise<Plate> {
+export async function ingestDiscovered(drop: Drop, opts: IngestOpts = {}): Promise<Plate> {
   const t0 = Date.now();
-  audit("ingest.start", { dropDir });
+  audit("ingest.start", { dropDir: drop.dir });
 
-  const drop = discover(dropDir);
-  // Master of record: the stitch when MLS recorded one, else the front camera.
   const masterFile = drop.stitchedMaster ?? drop.cameraFiles.A;
+  if (!masterFile) throw new Error(`${drop.dir}: no master (stitched or cam A)`);
   const probed = await probe(masterFile);
-  audit("ingest.probe", { dropDir, ...probed });
+  audit("ingest.probe", { dropDir: drop.dir, ...probed });
 
-  const catalog = loadCatalog();
-  const sequence = nextSequence(drop.meta.shootDate, catalog.plates.map((p) => p.sku));
-  const sku = makeSku(drop.meta.shootDate, sequence);
-  audit("ingest.sku", { dropDir, sku });
+  const sku = opts.sku ?? assignSku();
+  const status = opts.status ?? "live";
+  audit("ingest.sku", { dropDir: drop.dir, sku, status });
 
   const masterSha256 = await sha256File(masterFile);
   audit("ingest.checksum", { sku, masterSha256 });
 
-  const telemetry = loadTelemetry(drop.telemetryPath);
+  const telemetry = drop.telemetryPath ? loadTelemetry(drop.telemetryPath) : undefined;
   const labels = await labelDrop(masterFile, probed.durationSec, drop.meta);
   audit("ingest.label", { sku, labeler: labels.labeler, count: labels.objects.length });
 
-  const described = await describePlate(drop.meta, labels, telemetry, probed.durationSec);
+  const described = await describePlate(
+    drop.meta,
+    labels,
+    telemetry ?? { gps: undefined, imu: { collected: false }, speedBand: undefined },
+    probed.durationSec,
+  );
   audit("ingest.describe", { sku, describer: described.describer });
 
   const renditions = await buildRenditions(drop, sku, path.join(PUBLIC_MEDIA, sku));
   const uploaded = await uploadRenditions(sku, renditions, [
     ...(drop.stitchedMaster ? [drop.stitchedMaster] : []),
-    ...Object.values(drop.cameraFiles),
+    ...Object.values(drop.cameraFiles).filter((f): f is string => !!f),
   ]);
   audit("ingest.upload", { sku, mode: uploaded.mode });
 
   const plate: Plate = {
     sku,
+    status,
+    ...(opts.stockClipId ? { mmm: { stockClipId: opts.stockClipId } } : {}),
     title: described.title,
     description: described.description,
     shootDate: drop.meta.shootDate,
@@ -76,12 +91,11 @@ export async function ingestDrop(dropDir: string): Promise<Plate> {
     timeOfDay: drop.meta.timeOfDay,
     weather: drop.meta.weather,
     season: drop.meta.season,
-    speedBand: telemetry.speedBand,
+    ...(telemetry ? { speedBand: telemetry.speedBand, gps: telemetry.gps } : {}),
     tags: labels.tags,
     objects: labels.objects,
     location: drop.meta.location,
-    gps: telemetry.gps,
-    imu: telemetry.imu,
+    imu: telemetry ? telemetry.imu : { collected: false },
     stageCompat: drop.meta.stageCompat,
     availability: "available",
     pricing: {

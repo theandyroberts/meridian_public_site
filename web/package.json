@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@platelab/shared": "*",
@@ -16,6 +17,7 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/react": "^19.1.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
 }

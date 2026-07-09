@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { run } from "../exec.js";
-import { CAMERA_IDS, CAMERA_POSITIONS, type CameraId } from "@platelab/shared";
+import { CAMERA_POSITIONS, type CameraId } from "@platelab/shared";
 import type { Drop } from "./discover.js";
 
 /**
@@ -69,8 +69,11 @@ async function encodeRingPano(
   font: string,
   sku: string,
 ): Promise<void> {
+  if (!drop.stitchedMaster && !drop.cameraFiles.A) {
+    throw new Error("ring pano needs camera files");
+  }
   const order: CameraId[] = ["E", "F", "A", "B", "C", "D"];
-  const inputs = order.flatMap((id) => ["-i", drop.cameraFiles[id]]);
+  const inputs = order.flatMap((id) => ["-i", drop.cameraFiles[id] as string]);
   const scaled = order
     .map((_, i) => `[${i}:v]scale=480:270,${PREVIEW_GRADE}[s${i}]`)
     .join(";");
@@ -117,19 +120,33 @@ export async function buildRenditions(
   }
 
   const cameraPreviews = {} as Record<CameraId, string>;
-  for (const id of CAMERA_IDS) {
+  for (const [id, file] of Object.entries(drop.cameraFiles) as [CameraId, string][]) {
     const dst = path.join(outDir, `cam_${id}_preview.mp4`);
     const label = `${id} · ${CAMERA_POSITIONS[id].toUpperCase()}`;
-    await encodePreview(drop.cameraFiles[id], dst, 480, watermarkFilter(font, sku, label));
+    await encodePreview(file, dst, 480, watermarkFilter(font, sku, label));
     cameraPreviews[id] = dst;
   }
 
   const poster = path.join(outDir, "poster.jpg");
   const posterSrc = drop.stitchedMaster ?? drop.cameraFiles.A;
-  await run("ffmpeg", [
-    "-v", "error", "-ss", "1", "-i", posterSrc,
-    "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
-  ]);
+  if (!posterSrc) throw new Error("buildRenditions: no stitched master or camera A for poster");
+  // Seek 1s in for a representative frame, but very short sources (e.g. test
+  // fixtures) have no frame at/after t=1s — fall back to the first frame.
+  try {
+    await run("ffmpeg", [
+      "-v", "error", "-ss", "1", "-i", posterSrc,
+      "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
+    ]);
+  } catch (err) {
+    // Log the original failure before falling back to frame 0 — if the source
+    // is genuinely corrupt, this first error carries the real signature and
+    // shouldn't be lost behind a (possibly unrelated) retry failure.
+    console.warn(`buildRenditions: poster seek at t=1s failed, retrying at t=0: ${(err as Error).message}`);
+    await run("ffmpeg", [
+      "-v", "error", "-i", posterSrc,
+      "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
+    ]);
+  }
 
   return { dir: outDir, stitchedPreview, cameraPreviews, poster };
 }

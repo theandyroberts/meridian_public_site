@@ -1,8 +1,8 @@
-import type { Plate } from "@platelab/shared";
+import type { Plate, Gps } from "@platelab/shared";
 
 /** Route drawn from the F9R telemetry path — orientation cue, not survey data. */
-export function GpsPanel({ plate }: { plate: Plate }) {
-  const { gps, imu } = plate;
+export function GpsPanel({ gps, plate }: { gps: Gps; plate: Plate }) {
+  const { imu } = plate;
   const lats = gps.path.map((p) => p.lat);
   const lons = gps.path.map((p) => p.lon);
   const minLat = Math.min(...lats);

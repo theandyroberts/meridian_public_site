@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidSku } from "./sku";
 
 /**
  * The Plate Lab catalog schema.
@@ -25,6 +26,8 @@ export const WEATHER = ["clear", "cloudy", "rain", "fog", "snow"] as const;
 export const SEASONS = ["spring", "summer", "fall", "winter"] as const;
 
 export const SPEED_BANDS = ["stopped", "city", "highway", "fast"] as const;
+
+export const PLATE_STATUS = ["draft", "live"] as const;
 
 export const STAGE_COMPAT = ["led-volume", "green-screen", "projection"] as const;
 
@@ -85,7 +88,7 @@ export const renditionsSchema = z.object({
 });
 
 export const plateSchema = z.object({
-  sku: z.string().regex(/^PL\d{5}-\d{4}$/),
+  sku: z.string().refine(isValidSku, "invalid SKU (format or check digit)"),
   title: z.string().min(1),
   description: z.string().min(1),
   shootDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -105,7 +108,7 @@ export const plateSchema = z.object({
   timeOfDay: z.enum(TIMES_OF_DAY),
   weather: z.enum(WEATHER),
   season: z.enum(SEASONS),
-  speedBand: z.enum(SPEED_BANDS),
+  speedBand: z.enum(SPEED_BANDS).optional(),
   tags: z.array(z.string()),
   objects: z.array(objectLabelSchema),
 
@@ -115,8 +118,12 @@ export const plateSchema = z.object({
     region: z.string(),
     country: z.string(),
   }),
-  gps: gpsSchema,
+  gps: gpsSchema.optional(),
   imu: imuSchema,
+
+  status: z.enum(PLATE_STATUS).default("live"),
+  /** Definitive library↔catalog link. MMM's immutable stock clip ID. */
+  mmm: z.object({ stockClipId: z.string().min(1) }).optional(),
 
   stageCompat: z.array(z.enum(STAGE_COMPAT)),
   availability: z.enum(AVAILABILITY),
@@ -151,6 +158,7 @@ export type Catalog = z.infer<typeof catalogSchema>;
 export type ShotType = (typeof SHOT_TYPES)[number];
 export type TimeOfDay = (typeof TIMES_OF_DAY)[number];
 export type SpeedBand = (typeof SPEED_BANDS)[number];
+export type PlateStatus = (typeof PLATE_STATUS)[number];
 
 export function speedBandForAvg(avgMph: number): SpeedBand {
   if (avgMph < 3) return "stopped";

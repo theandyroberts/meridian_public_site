@@ -39,8 +39,9 @@ export interface Drop {
   dir: string;
   /** Absent when MLS recording wasn't running — preview pano is built from the ring. */
   stitchedMaster?: string;
-  cameraFiles: Record<CameraId, string>;
-  telemetryPath: string;
+  /** Partial when the drop is stitched-only (MMM live-stitch fallback). */
+  cameraFiles: Partial<Record<CameraId, string>>;
+  telemetryPath?: string;
   calibrationPath?: string;
   meta: DropMeta;
 }
@@ -59,7 +60,7 @@ export function discover(dir: string): Drop {
   const stitchedMaster = findOne(dir, ["stitched.mov", "stitched.mp4"]);
 
   const entries = fs.readdirSync(dir);
-  const cameraFiles = {} as Record<CameraId, string>;
+  const cameraFiles: Partial<Record<CameraId, string>> = {};
   const missing: string[] = [];
   for (const id of CAMERA_IDS) {
     // Explicit cam_<id> name, else the Spheris/RED convention: the clip's
@@ -72,10 +73,17 @@ export function discover(dir: string): Drop {
     if (file) cameraFiles[id] = file;
     else missing.push(id);
   }
-  if (missing.length) throw new Error(`${dir}: missing cameras ${missing.join(",")}`);
+
+  // A drop is ingestible with all 9 cameras, or with a stitched master alone
+  // (MMM captured_live_stitch fallback — no per-camera previews).
+  if (missing.length > 0 && Object.keys(cameraFiles).length > 0 && !stitchedMaster) {
+    throw new Error(`${dir}: missing cameras ${missing.join(",")}`);
+  }
+  if (missing.length === CAMERA_IDS.length && !stitchedMaster) {
+    throw new Error(`${dir}: no media — need 9 cameras or a stitched master`);
+  }
 
   const telemetryPath = findOne(dir, ["telemetry.json"]);
-  if (!telemetryPath) throw new Error(`${dir}: missing telemetry.json`);
 
   const metaPath = findOne(dir, ["meta.json"]);
   if (!metaPath) throw new Error(`${dir}: missing meta.json`);

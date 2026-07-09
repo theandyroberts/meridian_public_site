@@ -5,9 +5,11 @@
   "type": "module",
   "dependencies": {
     "@platelab/shared": "*",
+    "nodemailer": "^9.0.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   },
@@ -15,6 +17,7 @@
     "generate": "tsx src/demo/generate.ts",
     "ingest": "tsx src/cli.ts ingest",
     "ingest:all": "tsx src/cli.ts ingest-all",
+    "daemon": "tsx src/daemon.ts",
     "test": "tsx --test test/*.test.ts"
   }
 }
