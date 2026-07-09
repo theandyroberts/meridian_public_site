@@ -137,7 +137,11 @@ export async function buildRenditions(
       "-v", "error", "-ss", "1", "-i", posterSrc,
       "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
     ]);
-  } catch {
+  } catch (err) {
+    // Log the original failure before falling back to frame 0 — if the source
+    // is genuinely corrupt, this first error carries the real signature and
+    // shouldn't be lost behind a (possibly unrelated) retry failure.
+    console.warn(`buildRenditions: poster seek at t=1s failed, retrying at t=0: ${(err as Error).message}`);
     await run("ffmpeg", [
       "-v", "error", "-i", posterSrc,
       "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,

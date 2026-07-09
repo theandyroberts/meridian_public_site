@@ -73,11 +73,19 @@ export async function processTransfer(transferId: string): Promise<void> {
   for (const clipRec of current.clips.filter((c) => c.state === "queued")) {
     const clip = manifest.clips.find((c) => c.stock_clip_id === clipRec.stockClipId);
     if (!clip) continue;
+    if (catalogIds.has(clip.stock_clip_id)) {
+      setClip(transferId, clip.stock_clip_id, {
+        state: "failed",
+        error: { stage: "duplicate", message: "stockClipId already in catalog" },
+      });
+      audit("daemon.clip.failed", {
+        transferId, stockClipId: clip.stock_clip_id, stage: "duplicate",
+        message: "stockClipId already in catalog",
+      });
+      continue;
+    }
     setClip(transferId, clip.stock_clip_id, { state: "verifying" });
     try {
-      if (catalogIds.has(clip.stock_clip_id)) {
-        throw new ClipAdaptError("no_publishable_asset", "duplicate stockClipId — already in catalog");
-      }
       const { drop, stockClipId } = adaptClip(handoffDir, clip);
       setClip(transferId, stockClipId, { state: "ingesting" });
       const plate = await ingestDiscovered(drop, {
@@ -116,9 +124,38 @@ function pruneArchive(): void {
   }
 }
 
+/**
+ * A daemon crash mid-processing can leave a transfer stuck in "verifying" or
+ * "ingesting" forever, since the poll loop only re-picks "uploaded" transfers.
+ * Run once at startup: reset any clips stuck in "verifying"/"ingesting" back
+ * to "queued" (draft/failed/excluded are left untouched) and put the transfer
+ * back to "uploaded" so the loop re-picks it.
+ *
+ * Known rare edge: a crash between publishPlate() writing the plate to the
+ * catalog and the clip-state write persisting "draft" will re-run that clip
+ * on recovery, which trips the duplicate check in processTransfer and yields
+ * a visible failed(duplicate) on the dashboard. That's an acceptable outcome
+ * for a human to resolve — consistent with the dashboard-as-source-of-truth
+ * design, rather than trying to make recovery perfectly transactional here.
+ */
+export function recoverStale(): void {
+  const stuckStates = new Set(["verifying", "ingesting"]);
+  for (const t of listTransfers(TRANSFERS_DIR)) {
+    if (!stuckStates.has(t.state)) continue;
+    updateTransfer(TRANSFERS_DIR, t.transferId, (rec) => ({
+      ...rec,
+      state: "uploaded",
+      clips: rec.clips.map((c) =>
+        stuckStates.has(c.state) ? { ...c, state: "queued" } : c),
+    }));
+    audit("daemon.recover.stale", { transferId: t.transferId });
+  }
+}
+
 export async function runDaemon(): Promise<never> {
   audit("daemon.start", { pid: process.pid });
   pruneArchive();
+  recoverStale();
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const next = listTransfers(TRANSFERS_DIR)
