@@ -14,3 +14,6 @@ web/data/sku-ledger.json
 web/tsconfig.tsbuildinfo
 sample-data/transfers/
 ingest-inbox/
+sample-data/reference/
+pipeline/stitch/.venv/
+pipeline/stitch/reports/
