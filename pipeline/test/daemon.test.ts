@@ -44,6 +44,21 @@ test("daemon processes an uploaded handoff end to end into draft plates", async 
   assert.equal(plate.mmm.stockClipId, CLIP);
   // package archived out of incoming
   assert.equal(fs.existsSync(dir), false);
+
+  // Regression: retry re-runs ingest from the archived package (INBOX_ARCHIVE/<transferId>)
+  // once the handoff dir has already been moved out of INBOX_INCOMING.
+  const badId = bad.stockClipId;
+  updateTransfer(TRANSFERS_DIR, rec.transferId, (r) => ({
+    ...r,
+    state: "uploaded",
+    error: undefined,
+    clips: r.clips.map((c) => (c.stockClipId === badId ? { ...c, state: "queued", error: undefined } : c)),
+  }));
+
+  await assert.doesNotReject(() => processTransfer(rec.transferId));
+
+  const retried = getTransfer(TRANSFERS_DIR, rec.transferId)!;
+  assert.equal(retried.state, "complete");
 });
 
 test("daemon fails a transfer on checksum mismatch and moves the package to failed", async (t) => {

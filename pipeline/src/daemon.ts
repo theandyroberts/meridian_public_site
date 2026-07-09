@@ -29,7 +29,11 @@ function setClip(id: string, stockClipId: string, patch: Partial<ClipRecord>): v
 export async function processTransfer(transferId: string): Promise<void> {
   const rec = getTransfer(TRANSFERS_DIR, transferId);
   if (!rec) return;
-  const handoffDir = path.join(INBOX_INCOMING, rec.handoffId);
+  const handoffDir = [
+    path.join(INBOX_INCOMING, rec.handoffId),
+    path.join(INBOX_ARCHIVE, rec.transferId),
+  ].find(fs.existsSync) ?? path.join(INBOX_INCOMING, rec.handoffId);
+  const alreadyArchived = handoffDir === path.join(INBOX_ARCHIVE, rec.transferId);
 
   updateTransfer(TRANSFERS_DIR, transferId, { state: "verifying" });
   audit("daemon.verify.start", { transferId, handoffId: rec.handoffId });
@@ -104,7 +108,7 @@ export async function processTransfer(transferId: string): Promise<void> {
 
   const final = updateTransfer(TRANSFERS_DIR, transferId, { state: "complete" });
   fs.mkdirSync(INBOX_ARCHIVE, { recursive: true });
-  if (fs.existsSync(handoffDir)) {
+  if (!alreadyArchived && fs.existsSync(handoffDir)) {
     fs.renameSync(handoffDir, path.join(INBOX_ARCHIVE, transferId));
   }
   audit("daemon.complete", {
