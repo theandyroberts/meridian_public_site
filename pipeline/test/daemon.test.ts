@@ -61,7 +61,55 @@ test("daemon processes an uploaded handoff end to end into draft plates", async 
   assert.equal(retried.state, "complete");
 });
 
-test("daemon fails a transfer on checksum mismatch and moves the package to failed", async (t) => {
+test("daemon isolates a checksum failure to one clip; sibling still drafts and handoff completes", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tpl-daemon-"));
+  process.env.PLATELAB_ROOT = root;
+  const { makeHandoff } = await import("./helpers/makeHandoff.js");
+  const { createTransfer, updateTransfer, getTransfer } = await import("@platelab/shared/server");
+  const { processTransfer } = await import("../src/daemon.js");
+  const { INBOX_INCOMING, INBOX_ARCHIVE, TRANSFERS_DIR } = await import("../src/paths.js");
+
+  const handoffId = "SPH-STK-20260708-GLENDORA-002-web";
+  const CLIP_BAD = "SPH-STK-20260708-GLENDORA-002-CLIP-0001";
+  const CLIP_GOOD = "SPH-STK-20260708-GLENDORA-002-CLIP-0002";
+  const dir = path.join(INBOX_INCOMING, handoffId);
+  fs.mkdirSync(dir, { recursive: true });
+  // Checksum verification only runs against real asset files, so both clips
+  // must have actual assets on disk (not "unavailable") to exercise this.
+  await makeHandoff(dir, { clips: [{ stockClipId: CLIP_BAD }, { stockClipId: CLIP_GOOD }] });
+
+  const manifestPath = path.join(dir, "website_handoff_manifest.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const badClip = manifest.clips.find((c: any) => c.stock_clip_id === CLIP_BAD);
+  const assetAbsPath = path.join(dir, badClip.assets[0].package_relative_path);
+  fs.appendFileSync(assetAbsPath, Buffer.from("corruption"));
+
+  const rec = createTransfer(TRANSFERS_DIR, {
+    handoffId, bytes: 1000, manifestSha256: "0".repeat(64), clipCount: 2,
+  });
+  updateTransfer(TRANSFERS_DIR, rec.transferId, { state: "uploaded" });
+
+  await processTransfer(rec.transferId);
+
+  const done = getTransfer(TRANSFERS_DIR, rec.transferId)!;
+  // Manifest-level parse succeeded; per-clip checksum failure does not fail
+  // the whole handoff — the transfer still completes.
+  assert.equal(done.state, "complete");
+
+  const bad = done.clips.find((c) => c.stockClipId === CLIP_BAD)!;
+  assert.equal(bad.state, "failed");
+  assert.equal(bad.error!.stage, "checksum");
+
+  const good = done.clips.find((c) => c.stockClipId === CLIP_GOOD)!;
+  assert.equal(good.state, "draft");
+  assert.match(good.sku!, /^PL-\d{7}$/);
+
+  // Handoff archives normally (not moved to failed/).
+  assert.equal(fs.existsSync(dir), false);
+  assert.ok(fs.existsSync(path.join(INBOX_ARCHIVE, rec.transferId)), "package archived normally");
+});
+
+test("daemon fails the whole handoff on manifest corruption and moves the package to failed", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tpl-daemon-"));
   process.env.PLATELAB_ROOT = root;
   const { makeHandoff } = await import("./helpers/makeHandoff.js");
@@ -69,19 +117,15 @@ test("daemon fails a transfer on checksum mismatch and moves the package to fail
   const { processTransfer } = await import("../src/daemon.js");
   const { INBOX_INCOMING, INBOX_FAILED, TRANSFERS_DIR } = await import("../src/paths.js");
 
-  const handoffId = "SPH-STK-20260708-GLENDORA-002-web";
-  const CLIP = "SPH-STK-20260708-GLENDORA-002-CLIP-0001";
+  const handoffId = "SPH-STK-20260708-GLENDORA-005-web";
+  const CLIP = "SPH-STK-20260708-GLENDORA-005-CLIP-0001";
   const dir = path.join(INBOX_INCOMING, handoffId);
   fs.mkdirSync(dir, { recursive: true });
-  // Checksum verification only runs against real asset files, so this clip must
-  // have actual assets on disk (not "unavailable") for us to corrupt one.
   await makeHandoff(dir, { clips: [{ stockClipId: CLIP }] });
 
+  // Mangle the manifest so it fails schema validation.
   const manifestPath = path.join(dir, "website_handoff_manifest.json");
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-  const assetRelPath = manifest.clips[0].assets[0].package_relative_path;
-  const assetAbsPath = path.join(dir, assetRelPath);
-  fs.appendFileSync(assetAbsPath, Buffer.from("corruption"));
+  fs.writeFileSync(manifestPath, "{ not valid json");
 
   const rec = createTransfer(TRANSFERS_DIR, {
     handoffId, bytes: 1000, manifestSha256: "0".repeat(64), clipCount: 1,
@@ -92,7 +136,7 @@ test("daemon fails a transfer on checksum mismatch and moves the package to fail
 
   const done = getTransfer(TRANSFERS_DIR, rec.transferId)!;
   assert.equal(done.state, "failed");
-  assert.equal(done.error!.code, "checksum");
+  assert.equal(done.error!.code, "manifest");
   assert.equal(fs.existsSync(dir), false);
   const failedEntries = fs.existsSync(INBOX_FAILED) ? fs.readdirSync(INBOX_FAILED) : [];
   assert.ok(failedEntries.some((e) => e.includes(rec.transferId)), "package moved under INBOX_FAILED");

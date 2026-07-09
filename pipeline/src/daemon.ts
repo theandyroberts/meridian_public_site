@@ -8,7 +8,7 @@ import { audit } from "./audit.js";
 import {
   TRANSFERS_DIR, INBOX_INCOMING, INBOX_ARCHIVE, INBOX_FAILED,
 } from "./paths.js";
-import { verifyHandoff, HandoffVerifyError } from "./mmm/verify.js";
+import { parseManifest, verifyClipAssets, HandoffVerifyError } from "./mmm/verify.js";
 import { adaptClip, ClipAdaptError } from "./mmm/adapter.js";
 import { assignSku } from "./mmm/skuLedger.js";
 import { ingestDiscovered } from "./ingest.js";
@@ -40,7 +40,7 @@ export async function processTransfer(transferId: string): Promise<void> {
 
   let manifest;
   try {
-    manifest = await verifyHandoff(handoffDir);
+    manifest = parseManifest(handoffDir);
   } catch (err) {
     const e = err as HandoffVerifyError;
     updateTransfer(TRANSFERS_DIR, transferId, {
@@ -90,6 +90,7 @@ export async function processTransfer(transferId: string): Promise<void> {
     }
     setClip(transferId, clip.stock_clip_id, { state: "verifying" });
     try {
+      await verifyClipAssets(handoffDir, clip);
       const { drop, stockClipId } = adaptClip(handoffDir, clip);
       setClip(transferId, stockClipId, { state: "ingesting" });
       const plate = await ingestDiscovered(drop, {
@@ -98,7 +99,9 @@ export async function processTransfer(transferId: string): Promise<void> {
       setClip(transferId, stockClipId, { state: "draft", sku: plate.sku });
       audit("daemon.clip.draft", { transferId, stockClipId, sku: plate.sku });
     } catch (err) {
-      const stage = err instanceof ClipAdaptError ? err.stage : "ingest";
+      const stage = err instanceof HandoffVerifyError ? err.code
+        : err instanceof ClipAdaptError ? err.stage
+        : "ingest";
       setClip(transferId, clip.stock_clip_id, {
         state: "failed", error: { stage, message: (err as Error).message },
       });
