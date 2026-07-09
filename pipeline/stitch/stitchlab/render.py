@@ -168,7 +168,15 @@ def cmd_stitch(args) -> int:
         )
         tags = json.loads(probe.stdout)["streams"][0]
         metrics["master_color_tags"] = tags
-        if tags.get("color_space") != "bt709" or tags.get("color_range") != "tv":
+        # ProRes colr atoms carry primaries/transfer/matrix but no range field;
+        # ProRes is limited-range by convention. Require the three colr tags
+        # (kills the bt601-guess trap); accept an absent range tag.
+        if (
+            tags.get("color_space") != "bt709"
+            or tags.get("color_primaries") != "bt709"
+            or tags.get("color_transfer") != "bt709"
+            or tags.get("color_range") not in (None, "", "tv")
+        ):
             raise RuntimeError(f"master colorimetry tags wrong/missing: {tags}")
         timings["render_full_s"] = time.perf_counter() - t0
         metrics["achieved_fps_full"] = n_done / timings["render_full_s"]

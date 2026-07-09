@@ -22,6 +22,13 @@ def main() -> int:
     s.add_argument("--full", action="store_true", help="render every aligned frame to ProRes + preview mp4")
     s.add_argument("--fps-report", action="store_true", help="(fps is always reported in metrics.json)")
 
+    r = sub.add_parser("report", help="build the human sign-off review report for a --full run")
+    r.add_argument("--run", required=True, help="run dir containing metrics.json + master + preview")
+
+    a = sub.add_parser("approve", help="mark a run approved for site promotion")
+    a.add_argument("run", help="run dir")
+    a.add_argument("--by", required=True, help="approver name")
+
     args = ap.parse_args()
     if args.cmd == "gate":
         ok = Gate(args.pts, args.stills, args.gold, args.out).run()
@@ -30,6 +37,14 @@ def main() -> int:
         from .render import cmd_stitch
 
         return cmd_stitch(args)
+    if args.cmd == "report":
+        from .report import cmd_report
+
+        return cmd_report(args)
+    if args.cmd == "approve":
+        from .report import cmd_approve
+
+        return cmd_approve(args)
     return 2
 
 
