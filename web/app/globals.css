@@ -177,9 +177,6 @@ body::before {
 @media (max-width: 1180px) { .hero-globe { opacity: 0.12; } }
 
 /* panoramic strip — equirect previews edge to edge */
-.pano-strip { border-top: 2px solid var(--orange); border-bottom: 1px solid var(--hairline); }
-.pano-strip .strip { display: flex; }
-.pano-strip video, .pano-strip img { width: 33.34%; aspect-ratio: 21 / 9; object-fit: cover; display: block; }
 
 .section-head {
   display: flex;

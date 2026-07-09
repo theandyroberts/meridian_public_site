@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
 export default function HomePage() {
   const plates = getLivePlates();
   const featured = plates.slice(0, 6);
-  const strip = plates.slice(0, 3);
 
   return (
     <main>
@@ -59,17 +58,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {strip.length > 0 && (
-        <section className="pano-strip" aria-label="Recent captures">
-          <div className="strip">
-            {strip.map((p) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={p.sku} src={p.renditions.poster} alt={p.title} />
-            ))}
-          </div>
-        </section>
-      )}
 
       <section className="wrap">
         <div className="section-head">
