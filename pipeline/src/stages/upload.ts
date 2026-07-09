@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { run } from "../exec.js";
 import { PUBLIC_MEDIA } from "../paths.js";
-import { CAMERA_IDS, type CameraId } from "@platelab/shared";
+import { type CameraId } from "@platelab/shared";
 import type { RenditionPaths } from "./renditions.js";
 
 /**
@@ -54,7 +54,10 @@ export async function uploadRenditions(
       mode,
       stitchedPreviewUrl: `${base}/stitched_preview.mp4`,
       cameraPreviewUrls: Object.fromEntries(
-        CAMERA_IDS.map((id) => [id, `${base}/cam_${id}_preview.mp4`]),
+        (Object.keys(renditions.cameraPreviews) as CameraId[]).map((id) => [
+          id,
+          `${base}/cam_${id}_preview.mp4`,
+        ]),
       ) as Record<CameraId, string>,
       posterUrl: `${base}/poster.jpg`,
     };
@@ -71,7 +74,10 @@ export async function uploadRenditions(
     mode,
     stitchedPreviewUrl: `${base}/stitched_preview.mp4`,
     cameraPreviewUrls: Object.fromEntries(
-      CAMERA_IDS.map((id) => [id, `${base}/cam_${id}_preview.mp4`]),
+      (Object.keys(renditions.cameraPreviews) as CameraId[]).map((id) => [
+        id,
+        `${base}/cam_${id}_preview.mp4`,
+      ]),
     ) as Record<CameraId, string>,
     posterUrl: `${base}/poster.jpg`,
   };

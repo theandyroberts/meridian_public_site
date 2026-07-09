@@ -8,6 +8,10 @@ import type { TelemetrySummary } from "./telemetry.js";
  * human-reviewed before a plate is featured.
  */
 
+/** Telemetry may be entirely absent (stitched-only drops with no sidecar). */
+export type DescribeTelemetry = Partial<Pick<TelemetrySummary, "gps" | "speedBand">> &
+  Pick<TelemetrySummary, "imu">;
+
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -15,7 +19,7 @@ function cap(s: string): string {
 export function templateDescription(
   meta: DropMeta,
   labels: LabelResult,
-  telemetry: TelemetrySummary,
+  telemetry: DescribeTelemetry,
   durationSec: number,
 ): { title: string; description: string } {
   const dur = Math.round(durationSec);
@@ -24,10 +28,13 @@ export function templateDescription(
     .map((o) => o.label)
     .join(", ");
   const title = `${meta.location.name} — ${cap(meta.timeOfDay)} ${cap(meta.shotType)}`;
+  const speedClause = telemetry.gps
+    ? ` at an average ${telemetry.gps.avgSpeedMph} mph`
+    : "";
   const description =
     `${cap(meta.timeOfDay)} ${meta.shotType} plate along ${meta.location.name}, ` +
-    `${meta.location.city}. ${dur}s of pro-stitched 360×180 coverage at an average ` +
-    `${telemetry.gps.avgSpeedMph} mph${top ? `, passing ${top}` : ""}. ` +
+    `${meta.location.city}. ${dur}s of pro-stitched 360×180 coverage${speedClause}` +
+    `${top ? `, passing ${top}` : ""}. ` +
     `${meta.weather === "clear" ? "Clean light" : cap(meta.weather) + " conditions"}, ` +
     `captured on the Spheris 9-camera array with full sky tier for reflections and ` +
     `LED-dome work.`;
@@ -37,7 +44,7 @@ export function templateDescription(
 export async function describePlate(
   meta: DropMeta,
   labels: LabelResult,
-  telemetry: TelemetrySummary,
+  telemetry: DescribeTelemetry,
   durationSec: number,
 ): Promise<{ title: string; description: string; describer: string }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;

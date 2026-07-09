@@ -1,347 +1,341 @@
 {
-  "generatedAt": "2026-06-10T06:08:18.791Z",
+  "generatedAt": "2026-07-09T06:09:07.250Z",
   "plates": [
     {
-      "sku": "PL26123-0001",
-      "title": "Mateo St at 6th — Arts District — Dawn Urban",
-      "description": "Dawn urban plate along Mateo St at 6th — Arts District, Los Angeles. 148s of pro-stitched 360×180 coverage at an average 7.7 mph, passing traffic light, street signs, speed limit sign, bridge arches. Cloudy conditions, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
-      "shootDate": "2026-05-03",
+      "sku": "PL-2288724",
+      "title": "Route 66, Mojave Desert — Day Rural",
+      "description": "Day rural plate along Route 66, Mojave Desert, Amboy. 94s of pro-stitched 360×180 coverage at an average 71.2 mph, passing desert, mountains, power lines, open road. Clean light, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
+      "shootDate": "2026-06-10",
       "rig": "Mercy01",
       "media": {
-        "durationSec": 147.75,
+        "durationSec": 94,
         "fps": 24,
         "stitchedResolution": "3840x1920",
         "colorPipeline": "Log3G10 / REDWideGamutRGB",
-        "masterFormat": "ProRes 4444 12-bit equirect · pro stitch on delivery",
+        "masterFormat": "ProRes 4444 12-bit equirect",
         "cameraOriginals": "9x RED Komodo 6K R3D",
-        "timecode": "06:31:02:12"
+        "timecode": "11:21:40:00"
       },
-      "shotType": "urban",
-      "timeOfDay": "dawn",
-      "weather": "cloudy",
-      "season": "spring",
-      "speedBand": "city",
+      "shotType": "rural",
+      "timeOfDay": "day",
+      "weather": "clear",
+      "season": "summer",
+      "speedBand": "fast",
       "tags": [
-        "urban",
-        "dawn",
-        "cloudy",
-        "spring",
-        "los angeles",
-        "traffic light",
-        "street signs",
-        "speed limit sign",
-        "bridge arches",
-        "crosswalk",
-        "power lines"
+        "rural",
+        "day",
+        "clear",
+        "summer",
+        "amboy",
+        "desert",
+        "mountains",
+        "power lines",
+        "open road",
+        "heat shimmer"
       ],
       "objects": [
         {
-          "label": "traffic light",
-          "confidence": 0.93
+          "label": "desert",
+          "confidence": 0.67
         },
         {
-          "label": "street signs",
-          "confidence": 0.63
-        },
-        {
-          "label": "speed limit sign",
-          "confidence": 0.81
-        },
-        {
-          "label": "bridge arches",
-          "confidence": 0.85
-        },
-        {
-          "label": "crosswalk",
-          "confidence": 0.95
+          "label": "mountains",
+          "confidence": 0.64
         },
         {
           "label": "power lines",
           "confidence": 0.66
+        },
+        {
+          "label": "open road",
+          "confidence": 0.84
+        },
+        {
+          "label": "heat shimmer",
+          "confidence": 0.71
         }
       ],
       "location": {
-        "name": "Mateo St at 6th — Arts District",
-        "city": "Los Angeles",
+        "name": "Route 66, Mojave Desert",
+        "city": "Amboy",
         "region": "CA",
         "country": "USA"
       },
       "gps": {
-        "source": "u-blox F9R RTK (sample route)",
+        "source": "u-blox F9R RTK",
         "start": {
-          "lat": 34.0345,
-          "lon": -118.233
+          "lat": 34.953,
+          "lon": -115.5631
         },
         "end": {
-          "lat": 34.036493,
-          "lon": -118.228069
+          "lat": 34.958598,
+          "lon": -115.530964
         },
         "path": [
           {
-            "lat": 34.0345,
-            "lon": -118.233
+            "lat": 34.953,
+            "lon": -115.5631
           },
           {
-            "lat": 34.03453,
-            "lon": -118.232926
+            "lat": 34.953059,
+            "lon": -115.562759
           },
           {
-            "lat": 34.034578,
-            "lon": -118.232806
+            "lat": 34.953183,
+            "lon": -115.56205
           },
           {
-            "lat": 34.034625,
-            "lon": -118.232691
+            "lat": 34.953243,
+            "lon": -115.561704
           },
           {
-            "lat": 34.034669,
-            "lon": -118.232581
+            "lat": 34.953367,
+            "lon": -115.560993
           },
           {
-            "lat": 34.034745,
-            "lon": -118.232393
+            "lat": 34.953432,
+            "lon": -115.560621
           },
           {
-            "lat": 34.034791,
-            "lon": -118.23228
+            "lat": 34.953559,
+            "lon": -115.559893
           },
           {
-            "lat": 34.034837,
-            "lon": -118.232165
+            "lat": 34.953622,
+            "lon": -115.559532
           },
           {
-            "lat": 34.034898,
-            "lon": -118.232015
+            "lat": 34.953753,
+            "lon": -115.558779
           },
           {
-            "lat": 34.034933,
-            "lon": -118.23193
+            "lat": 34.953817,
+            "lon": -115.558408
           },
           {
-            "lat": 34.034961,
-            "lon": -118.23186
+            "lat": 34.953943,
+            "lon": -115.557687
           },
           {
-            "lat": 34.034986,
-            "lon": -118.231797
+            "lat": 34.954008,
+            "lon": -115.557315
           },
           {
-            "lat": 34.034997,
-            "lon": -118.231771
+            "lat": 34.954135,
+            "lon": -115.556585
           },
           {
-            "lat": 34.035003,
-            "lon": -118.231755
+            "lat": 34.954196,
+            "lon": -115.556237
           },
           {
-            "lat": 34.035005,
-            "lon": -118.231749
+            "lat": 34.954318,
+            "lon": -115.555532
           },
           {
-            "lat": 34.035006,
-            "lon": -118.231747
+            "lat": 34.95438,
+            "lon": -115.555179
           },
           {
-            "lat": 34.035013,
-            "lon": -118.231732
+            "lat": 34.954496,
+            "lon": -115.554513
           },
           {
-            "lat": 34.035019,
-            "lon": -118.231716
+            "lat": 34.954554,
+            "lon": -115.554182
           },
           {
-            "lat": 34.035036,
-            "lon": -118.231675
+            "lat": 34.95467,
+            "lon": -115.553513
           },
           {
-            "lat": 34.035064,
-            "lon": -118.231604
+            "lat": 34.954726,
+            "lon": -115.553195
           },
           {
-            "lat": 34.035097,
-            "lon": -118.231523
+            "lat": 34.954835,
+            "lon": -115.552569
           },
           {
-            "lat": 34.035129,
-            "lon": -118.231444
+            "lat": 34.954891,
+            "lon": -115.552244
           },
           {
-            "lat": 34.035198,
-            "lon": -118.231273
+            "lat": 34.955,
+            "lon": -115.55162
           },
           {
-            "lat": 34.035242,
-            "lon": -118.231165
+            "lat": 34.955053,
+            "lon": -115.551316
           },
           {
-            "lat": 34.035297,
-            "lon": -118.231029
+            "lat": 34.955164,
+            "lon": -115.550679
           },
           {
-            "lat": 34.035364,
-            "lon": -118.230863
+            "lat": 34.955219,
+            "lon": -115.550361
           },
           {
-            "lat": 34.035413,
-            "lon": -118.23074
+            "lat": 34.955328,
+            "lon": -115.54974
           },
           {
-            "lat": 34.035447,
-            "lon": -118.230657
+            "lat": 34.955384,
+            "lon": -115.549413
           },
           {
-            "lat": 34.0355,
-            "lon": -118.230526
+            "lat": 34.9555,
+            "lon": -115.548748
           },
           {
-            "lat": 34.035517,
-            "lon": -118.230484
+            "lat": 34.955557,
+            "lon": -115.548424
           },
           {
-            "lat": 34.035538,
-            "lon": -118.230432
+            "lat": 34.955675,
+            "lon": -115.547745
           },
           {
-            "lat": 34.035546,
-            "lon": -118.230412
+            "lat": 34.955737,
+            "lon": -115.547391
           },
           {
-            "lat": 34.035554,
-            "lon": -118.230391
+            "lat": 34.955857,
+            "lon": -115.546699
           },
           {
-            "lat": 34.035554,
-            "lon": -118.230391
+            "lat": 34.955919,
+            "lon": -115.546347
           },
           {
-            "lat": 34.035561,
-            "lon": -118.230376
+            "lat": 34.956047,
+            "lon": -115.545608
           },
           {
-            "lat": 34.035561,
-            "lon": -118.230376
+            "lat": 34.95611,
+            "lon": -115.545246
           },
           {
-            "lat": 34.035579,
-            "lon": -118.230331
+            "lat": 34.956237,
+            "lon": -115.544521
           },
           {
-            "lat": 34.03559,
-            "lon": -118.230304
+            "lat": 34.956303,
+            "lon": -115.544143
           },
           {
-            "lat": 34.035616,
-            "lon": -118.230239
+            "lat": 34.956432,
+            "lon": -115.543402
           },
           {
-            "lat": 34.03566,
-            "lon": -118.23013
+            "lat": 34.956494,
+            "lon": -115.543042
           },
           {
-            "lat": 34.035704,
-            "lon": -118.230022
+            "lat": 34.956624,
+            "lon": -115.542301
           },
           {
-            "lat": 34.035746,
-            "lon": -118.229916
+            "lat": 34.956688,
+            "lon": -115.541933
           },
           {
-            "lat": 34.035821,
-            "lon": -118.229731
+            "lat": 34.95681,
+            "lon": -115.541231
           },
           {
-            "lat": 34.035868,
-            "lon": -118.229616
+            "lat": 34.956872,
+            "lon": -115.540876
           },
           {
-            "lat": 34.035915,
-            "lon": -118.229498
+            "lat": 34.956995,
+            "lon": -115.540169
           },
           {
-            "lat": 34.035979,
-            "lon": -118.22934
+            "lat": 34.957053,
+            "lon": -115.539836
           },
           {
-            "lat": 34.036017,
-            "lon": -118.229247
+            "lat": 34.957169,
+            "lon": -115.53917
           },
           {
-            "lat": 34.036049,
-            "lon": -118.229168
+            "lat": 34.957228,
+            "lon": -115.538831
           },
           {
-            "lat": 34.036079,
-            "lon": -118.229093
+            "lat": 34.957339,
+            "lon": -115.538191
           },
           {
-            "lat": 34.036092,
-            "lon": -118.22906
+            "lat": 34.957394,
+            "lon": -115.537878
           },
           {
-            "lat": 34.036096,
-            "lon": -118.229051
+            "lat": 34.957507,
+            "lon": -115.537232
           },
           {
-            "lat": 34.036104,
-            "lon": -118.22903
+            "lat": 34.957561,
+            "lon": -115.536919
           },
           {
-            "lat": 34.036105,
-            "lon": -118.229028
+            "lat": 34.957668,
+            "lon": -115.536308
           },
           {
-            "lat": 34.036111,
-            "lon": -118.229015
+            "lat": 34.957723,
+            "lon": -115.535988
           },
           {
-            "lat": 34.036115,
-            "lon": -118.229004
+            "lat": 34.957834,
+            "lon": -115.535354
           },
           {
-            "lat": 34.036129,
-            "lon": -118.22897
+            "lat": 34.957887,
+            "lon": -115.535047
           },
           {
-            "lat": 34.036153,
-            "lon": -118.228911
+            "lat": 34.958,
+            "lon": -115.534399
           },
           {
-            "lat": 34.036182,
-            "lon": -118.228838
+            "lat": 34.958058,
+            "lon": -115.534067
           },
           {
-            "lat": 34.036211,
-            "lon": -118.228767
+            "lat": 34.958171,
+            "lon": -115.533418
           },
           {
-            "lat": 34.036277,
-            "lon": -118.228604
+            "lat": 34.95823,
+            "lon": -115.533081
           },
           {
-            "lat": 34.036319,
-            "lon": -118.2285
+            "lat": 34.958352,
+            "lon": -115.53238
           },
           {
-            "lat": 34.036373,
-            "lon": -118.228365
+            "lat": 34.958411,
+            "lon": -115.532038
           },
           {
-            "lat": 34.036441,
-            "lon": -118.228197
+            "lat": 34.958534,
+            "lon": -115.531334
           },
           {
-            "lat": 34.036493,
-            "lon": -118.228069
+            "lat": 34.958598,
+            "lon": -115.530964
           }
         ],
-        "avgSpeedMph": 7.7,
-        "maxSpeedMph": 16
+        "avgSpeedMph": 71.2,
+        "maxSpeedMph": 79
       },
       "imu": {
-        "collected": true,
-        "source": "F9R ESF-INS",
-        "rateHz": 100
+        "collected": false
       },
+      "status": "live",
       "stageCompat": [
         "led-volume",
         "green-screen",
@@ -350,376 +344,607 @@
       "availability": "available",
       "pricing": {
         "perMinuteUsd": 8000,
-        "totalUsd": 19700,
+        "totalUsd": 12533,
         "minimumMinutes": 1
       },
       "renditions": {
-        "stitchedPreview": "/media/PL26123-0001/stitched_preview.mp4",
+        "stitchedPreview": "/media/PL-2288724/stitched_preview.mp4",
         "cameraPreviews": {
-          "A": "/media/PL26123-0001/cam_A_preview.mp4",
-          "B": "/media/PL26123-0001/cam_B_preview.mp4",
-          "C": "/media/PL26123-0001/cam_C_preview.mp4",
-          "D": "/media/PL26123-0001/cam_D_preview.mp4",
-          "E": "/media/PL26123-0001/cam_E_preview.mp4",
-          "F": "/media/PL26123-0001/cam_F_preview.mp4",
-          "G": "/media/PL26123-0001/cam_G_preview.mp4",
-          "H": "/media/PL26123-0001/cam_H_preview.mp4",
-          "J": "/media/PL26123-0001/cam_J_preview.mp4"
+          "A": "/media/PL-2288724/cam_A_preview.mp4",
+          "B": "/media/PL-2288724/cam_B_preview.mp4",
+          "C": "/media/PL-2288724/cam_C_preview.mp4",
+          "D": "/media/PL-2288724/cam_D_preview.mp4",
+          "E": "/media/PL-2288724/cam_E_preview.mp4",
+          "F": "/media/PL-2288724/cam_F_preview.mp4",
+          "G": "/media/PL-2288724/cam_G_preview.mp4",
+          "H": "/media/PL-2288724/cam_H_preview.mp4",
+          "J": "/media/PL-2288724/cam_J_preview.mp4"
         },
-        "poster": "/media/PL26123-0001/poster.jpg"
+        "poster": "/media/PL-2288724/poster.jpg"
       },
       "security": {
-        "masterSha256": "320f8bc8b7eb99ffff970ecb37a325c4c6d1145de65241a83f3899c2435cc9b6",
+        "masterSha256": "9d6d906769d0dcacbcc0c4780811a09f3b654262ec24dd018558a470e3624408",
         "watermarked": true
       },
-      "ingestedAt": "2026-06-10T06:00:40.954Z"
+      "ingestedAt": "2026-07-09T06:08:19.407Z"
     },
     {
-      "sku": "PL26123-0002",
-      "title": "6th Street Viaduct — Dawn Bridge",
-      "description": "Dawn bridge plate along 6th Street Viaduct, Los Angeles. 68s of pro-stitched 360×180 coverage at an average 29.6 mph, passing bridge arches, power lines, industrial buildings, graffiti. Cloudy conditions, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
-      "shootDate": "2026-05-03",
+      "sku": "PL-2451331",
+      "title": "Pike Street — Day Urban",
+      "description": "Day urban plate along Pike Street, Seattle. 30s of pro-stitched 360×180 coverage at an average 16.8 mph, passing rain, wet pavement, umbrellas, storefronts. Rain conditions, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
+      "shootDate": "2026-06-10",
       "rig": "Mercy01",
       "media": {
-        "durationSec": 68,
+        "durationSec": 30,
         "fps": 24,
         "stitchedResolution": "3840x1920",
         "colorPipeline": "Log3G10 / REDWideGamutRGB",
-        "masterFormat": "ProRes 4444 12-bit equirect · pro stitch on delivery",
+        "masterFormat": "ProRes 4444 12-bit equirect",
         "cameraOriginals": "9x RED Komodo 6K R3D",
-        "timecode": "06:12:44:00"
+        "timecode": "14:02:17:08"
       },
-      "shotType": "bridge",
-      "timeOfDay": "dawn",
-      "weather": "cloudy",
-      "season": "spring",
+      "shotType": "urban",
+      "timeOfDay": "day",
+      "weather": "rain",
+      "season": "fall",
       "speedBand": "city",
       "tags": [
-        "bridge",
-        "dawn",
-        "cloudy",
-        "spring",
-        "los angeles",
-        "bridge arches",
-        "power lines",
-        "industrial buildings",
-        "graffiti",
-        "street lights",
-        "motorcycle",
-        "guardrail"
+        "urban",
+        "day",
+        "rain",
+        "fall",
+        "seattle",
+        "wet pavement",
+        "umbrellas",
+        "storefronts",
+        "crosswalk"
       ],
       "objects": [
         {
-          "label": "bridge arches",
-          "confidence": 0.85
+          "label": "rain",
+          "confidence": 0.62
         },
         {
-          "label": "power lines",
+          "label": "wet pavement",
           "confidence": 0.66
         },
         {
-          "label": "industrial buildings",
-          "confidence": 0.9
+          "label": "umbrellas",
+          "confidence": 0.89
         },
         {
-          "label": "graffiti",
-          "confidence": 0.66
+          "label": "storefronts",
+          "confidence": 0.97
         },
         {
-          "label": "street lights",
-          "confidence": 0.64
-        },
-        {
-          "label": "motorcycle",
-          "confidence": 0.67
-        },
-        {
-          "label": "guardrail",
-          "confidence": 0.65
+          "label": "crosswalk",
+          "confidence": 0.95
         }
       ],
       "location": {
-        "name": "6th Street Viaduct",
-        "city": "Los Angeles",
-        "region": "CA",
+        "name": "Pike Street",
+        "city": "Seattle",
+        "region": "WA",
         "country": "USA"
       },
       "gps": {
-        "source": "u-blox F9R RTK (sample route)",
+        "source": "u-blox F9R RTK",
         "start": {
-          "lat": 34.0338,
-          "lon": -118.2305
+          "lat": 47.6097,
+          "lon": -122.3331
         },
         "end": {
-          "lat": 34.037607,
-          "lon": -118.22186
+          "lat": 47.607635,
+          "lon": -122.3331
         },
         "path": [
           {
-            "lat": 34.0338,
-            "lon": -118.2305
+            "lat": 47.6097,
+            "lon": -122.3331
           },
           {
-            "lat": 34.033853,
-            "lon": -118.23038
+            "lat": 47.609644,
+            "lon": -122.3331
           },
           {
-            "lat": 34.033912,
-            "lon": -118.230247
+            "lat": 47.609574,
+            "lon": -122.3331
           },
           {
-            "lat": 34.033971,
-            "lon": -118.230112
+            "lat": 47.609504,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034027,
-            "lon": -118.229984
+            "lat": 47.609438,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034085,
-            "lon": -118.229853
+            "lat": 47.609369,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034149,
-            "lon": -118.229708
+            "lat": 47.609287,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034284,
-            "lon": -118.229402
+            "lat": 47.609195,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034347,
-            "lon": -118.229258
+            "lat": 47.609106,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034412,
-            "lon": -118.229111
+            "lat": 47.609023,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034481,
-            "lon": -118.228954
+            "lat": 47.608938,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034553,
-            "lon": -118.228791
+            "lat": 47.608843,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034621,
-            "lon": -118.228636
+            "lat": 47.608742,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034685,
-            "lon": -118.228491
+            "lat": 47.608649,
+            "lon": -122.3331
           },
           {
-            "lat": 34.03475,
-            "lon": -118.228345
+            "lat": 47.608565,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034818,
-            "lon": -118.228191
+            "lat": 47.608481,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034885,
-            "lon": -118.228037
+            "lat": 47.608389,
+            "lon": -122.3331
           },
           {
-            "lat": 34.034948,
-            "lon": -118.227895
+            "lat": 47.608298,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035005,
-            "lon": -118.227765
+            "lat": 47.608219,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035123,
-            "lon": -118.227498
+            "lat": 47.608151,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035181,
-            "lon": -118.227366
+            "lat": 47.608083,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035233,
-            "lon": -118.227249
+            "lat": 47.60801,
+            "lon": -122.3331
           },
           {
-            "lat": 34.03528,
-            "lon": -118.227142
+            "lat": 47.607942,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035327,
-            "lon": -118.227033
+            "lat": 47.607888,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035377,
-            "lon": -118.22692
+            "lat": 47.607845,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035425,
-            "lon": -118.226813
+            "lat": 47.607801,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035466,
-            "lon": -118.226719
+            "lat": 47.607752,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035504,
-            "lon": -118.226634
+            "lat": 47.60771,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035544,
-            "lon": -118.226542
+            "lat": 47.607682,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035587,
-            "lon": -118.226445
+            "lat": 47.607661,
+            "lon": -122.3331
           },
           {
-            "lat": 34.035627,
-            "lon": -118.226354
-          },
-          {
-            "lat": 34.035662,
-            "lon": -118.226273
-          },
-          {
-            "lat": 34.035736,
-            "lon": -118.226107
-          },
-          {
-            "lat": 34.035778,
-            "lon": -118.226011
-          },
-          {
-            "lat": 34.035818,
-            "lon": -118.22592
-          },
-          {
-            "lat": 34.035855,
-            "lon": -118.225836
-          },
-          {
-            "lat": 34.035894,
-            "lon": -118.225748
-          },
-          {
-            "lat": 34.035939,
-            "lon": -118.225647
-          },
-          {
-            "lat": 34.035987,
-            "lon": -118.225537
-          },
-          {
-            "lat": 34.036034,
-            "lon": -118.22543
-          },
-          {
-            "lat": 34.036079,
-            "lon": -118.225327
-          },
-          {
-            "lat": 34.036128,
-            "lon": -118.225217
-          },
-          {
-            "lat": 34.036183,
-            "lon": -118.225092
-          },
-          {
-            "lat": 34.036242,
-            "lon": -118.224959
-          },
-          {
-            "lat": 34.036298,
-            "lon": -118.22483
-          },
-          {
-            "lat": 34.036414,
-            "lon": -118.224569
-          },
-          {
-            "lat": 34.036479,
-            "lon": -118.224419
-          },
-          {
-            "lat": 34.036547,
-            "lon": -118.224266
-          },
-          {
-            "lat": 34.036611,
-            "lon": -118.22412
-          },
-          {
-            "lat": 34.036674,
-            "lon": -118.223977
-          },
-          {
-            "lat": 34.036741,
-            "lon": -118.223826
-          },
-          {
-            "lat": 34.036812,
-            "lon": -118.223664
-          },
-          {
-            "lat": 34.036883,
-            "lon": -118.223504
-          },
-          {
-            "lat": 34.036949,
-            "lon": -118.223354
-          },
-          {
-            "lat": 34.037012,
-            "lon": -118.22321
-          },
-          {
-            "lat": 34.037079,
-            "lon": -118.223058
-          },
-          {
-            "lat": 34.037148,
-            "lon": -118.222901
-          },
-          {
-            "lat": 34.037275,
-            "lon": -118.222614
-          },
-          {
-            "lat": 34.037332,
-            "lon": -118.222483
-          },
-          {
-            "lat": 34.037392,
-            "lon": -118.222347
-          },
-          {
-            "lat": 34.037453,
-            "lon": -118.222209
-          },
-          {
-            "lat": 34.037509,
-            "lon": -118.222081
-          },
-          {
-            "lat": 34.037559,
-            "lon": -118.221968
-          },
-          {
-            "lat": 34.037607,
-            "lon": -118.22186
+            "lat": 47.607635,
+            "lon": -122.3331
           }
         ],
-        "avgSpeedMph": 29.6,
-        "maxSpeedMph": 38
+        "avgSpeedMph": 16.8,
+        "maxSpeedMph": 25
       },
       "imu": {
         "collected": true,
         "source": "F9R ESF-INS",
         "rateHz": 100
       },
+      "status": "live",
+      "stageCompat": [
+        "led-volume",
+        "green-screen"
+      ],
+      "availability": "available",
+      "pricing": {
+        "perMinuteUsd": 8000,
+        "totalUsd": 8000,
+        "minimumMinutes": 1
+      },
+      "renditions": {
+        "stitchedPreview": "/media/PL-2451331/stitched_preview.mp4",
+        "cameraPreviews": {
+          "A": "/media/PL-2451331/cam_A_preview.mp4",
+          "B": "/media/PL-2451331/cam_B_preview.mp4",
+          "C": "/media/PL-2451331/cam_C_preview.mp4",
+          "D": "/media/PL-2451331/cam_D_preview.mp4",
+          "E": "/media/PL-2451331/cam_E_preview.mp4",
+          "F": "/media/PL-2451331/cam_F_preview.mp4",
+          "G": "/media/PL-2451331/cam_G_preview.mp4",
+          "H": "/media/PL-2451331/cam_H_preview.mp4",
+          "J": "/media/PL-2451331/cam_J_preview.mp4"
+        },
+        "poster": "/media/PL-2451331/poster.jpg"
+      },
+      "security": {
+        "masterSha256": "a61b613236b34333e4889819139833965ad31c25b0903f7a3c4650ab7d878ab3",
+        "watermarked": true
+      },
+      "ingestedAt": "2026-07-09T06:08:53.352Z"
+    },
+    {
+      "sku": "PL-2887178",
+      "title": "FDR Drive — Dusk Highway",
+      "description": "Dusk highway plate along FDR Drive, New York. 68s of pro-stitched 360×180 coverage at an average 44.8 mph, passing river, skyline, overpass, traffic. Clean light, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
+      "shootDate": "2026-06-10",
+      "rig": "Mercy01",
+      "media": {
+        "durationSec": 68,
+        "fps": 24,
+        "stitchedResolution": "3840x1920",
+        "colorPipeline": "Log3G10 / REDWideGamutRGB",
+        "masterFormat": "ProRes 4444 12-bit equirect",
+        "cameraOriginals": "9x RED Komodo 6K R3D",
+        "timecode": "16:42:18:03"
+      },
+      "shotType": "highway",
+      "timeOfDay": "dusk",
+      "weather": "clear",
+      "season": "spring",
+      "speedBand": "highway",
+      "tags": [
+        "highway",
+        "dusk",
+        "clear",
+        "spring",
+        "new york",
+        "river",
+        "skyline",
+        "overpass",
+        "traffic",
+        "high-rise",
+        "water"
+      ],
+      "objects": [
+        {
+          "label": "river",
+          "confidence": 0.86
+        },
+        {
+          "label": "skyline",
+          "confidence": 0.79
+        },
+        {
+          "label": "overpass",
+          "confidence": 0.83
+        },
+        {
+          "label": "traffic",
+          "confidence": 0.83
+        },
+        {
+          "label": "high-rise",
+          "confidence": 0.66
+        },
+        {
+          "label": "water",
+          "confidence": 0.93
+        }
+      ],
+      "location": {
+        "name": "FDR Drive",
+        "city": "New York",
+        "region": "NY",
+        "country": "USA"
+      },
+      "gps": {
+        "source": "u-blox F9R RTK",
+        "start": {
+          "lat": 40.7061,
+          "lon": -74.0087
+        },
+        "end": {
+          "lat": 40.717226,
+          "lon": -74.001856
+        },
+        "path": [
+          {
+            "lat": 40.7061,
+            "lon": -74.0087
+          },
+          {
+            "lat": 40.706253,
+            "lon": -74.008606
+          },
+          {
+            "lat": 40.706421,
+            "lon": -74.008503
+          },
+          {
+            "lat": 40.706592,
+            "lon": -74.008397
+          },
+          {
+            "lat": 40.706762,
+            "lon": -74.008293
+          },
+          {
+            "lat": 40.706936,
+            "lon": -74.008186
+          },
+          {
+            "lat": 40.707124,
+            "lon": -74.00807
+          },
+          {
+            "lat": 40.707522,
+            "lon": -74.007825
+          },
+          {
+            "lat": 40.707716,
+            "lon": -74.007706
+          },
+          {
+            "lat": 40.707912,
+            "lon": -74.007585
+          },
+          {
+            "lat": 40.708119,
+            "lon": -74.007458
+          },
+          {
+            "lat": 40.708331,
+            "lon": -74.007328
+          },
+          {
+            "lat": 40.708535,
+            "lon": -74.007202
+          },
+          {
+            "lat": 40.708731,
+            "lon": -74.007082
+          },
+          {
+            "lat": 40.708926,
+            "lon": -74.006962
+          },
+          {
+            "lat": 40.709127,
+            "lon": -74.006838
+          },
+          {
+            "lat": 40.709325,
+            "lon": -74.006716
+          },
+          {
+            "lat": 40.709511,
+            "lon": -74.006602
+          },
+          {
+            "lat": 40.709685,
+            "lon": -74.006495
+          },
+          {
+            "lat": 40.710029,
+            "lon": -74.006283
+          },
+          {
+            "lat": 40.710196,
+            "lon": -74.006181
+          },
+          {
+            "lat": 40.710347,
+            "lon": -74.006088
+          },
+          {
+            "lat": 40.710485,
+            "lon": -74.006002
+          },
+          {
+            "lat": 40.710622,
+            "lon": -74.005918
+          },
+          {
+            "lat": 40.710761,
+            "lon": -74.005833
+          },
+          {
+            "lat": 40.710891,
+            "lon": -74.005753
+          },
+          {
+            "lat": 40.711007,
+            "lon": -74.005681
+          },
+          {
+            "lat": 40.711115,
+            "lon": -74.005615
+          },
+          {
+            "lat": 40.711225,
+            "lon": -74.005547
+          },
+          {
+            "lat": 40.711339,
+            "lon": -74.005477
+          },
+          {
+            "lat": 40.711447,
+            "lon": -74.005411
+          },
+          {
+            "lat": 40.711545,
+            "lon": -74.005351
+          },
+          {
+            "lat": 40.711745,
+            "lon": -74.005228
+          },
+          {
+            "lat": 40.711856,
+            "lon": -74.005159
+          },
+          {
+            "lat": 40.711965,
+            "lon": -74.005092
+          },
+          {
+            "lat": 40.712069,
+            "lon": -74.005028
+          },
+          {
+            "lat": 40.712179,
+            "lon": -74.004961
+          },
+          {
+            "lat": 40.712302,
+            "lon": -74.004885
+          },
+          {
+            "lat": 40.712435,
+            "lon": -74.004803
+          },
+          {
+            "lat": 40.712567,
+            "lon": -74.004722
+          },
+          {
+            "lat": 40.7127,
+            "lon": -74.00464
+          },
+          {
+            "lat": 40.712841,
+            "lon": -74.004553
+          },
+          {
+            "lat": 40.712999,
+            "lon": -74.004456
+          },
+          {
+            "lat": 40.713166,
+            "lon": -74.004353
+          },
+          {
+            "lat": 40.713333,
+            "lon": -74.00425
+          },
+          {
+            "lat": 40.713679,
+            "lon": -74.004038
+          },
+          {
+            "lat": 40.713871,
+            "lon": -74.003919
+          },
+          {
+            "lat": 40.714069,
+            "lon": -74.003798
+          },
+          {
+            "lat": 40.714263,
+            "lon": -74.003678
+          },
+          {
+            "lat": 40.714456,
+            "lon": -74.00356
+          },
+          {
+            "lat": 40.714656,
+            "lon": -74.003436
+          },
+          {
+            "lat": 40.714867,
+            "lon": -74.003307
+          },
+          {
+            "lat": 40.715076,
+            "lon": -74.003178
+          },
+          {
+            "lat": 40.715276,
+            "lon": -74.003055
+          },
+          {
+            "lat": 40.715471,
+            "lon": -74.002935
+          },
+          {
+            "lat": 40.715671,
+            "lon": -74.002812
+          },
+          {
+            "lat": 40.715874,
+            "lon": -74.002687
+          },
+          {
+            "lat": 40.716251,
+            "lon": -74.002455
+          },
+          {
+            "lat": 40.716425,
+            "lon": -74.002348
+          },
+          {
+            "lat": 40.716601,
+            "lon": -74.00224
+          },
+          {
+            "lat": 40.716776,
+            "lon": -74.002133
+          },
+          {
+            "lat": 40.716938,
+            "lon": -74.002032
+          },
+          {
+            "lat": 40.717085,
+            "lon": -74.001942
+          },
+          {
+            "lat": 40.717226,
+            "lon": -74.001856
+          }
+        ],
+        "avgSpeedMph": 44.8,
+        "maxSpeedMph": 58
+      },
+      "imu": {
+        "collected": true,
+        "source": "F9R ESF-INS",
+        "rateHz": 100
+      },
+      "status": "live",
       "stageCompat": [
         "led-volume",
         "green-screen",
@@ -732,40 +957,40 @@
         "minimumMinutes": 1
       },
       "renditions": {
-        "stitchedPreview": "/media/PL26123-0002/stitched_preview.mp4",
+        "stitchedPreview": "/media/PL-2887178/stitched_preview.mp4",
         "cameraPreviews": {
-          "A": "/media/PL26123-0002/cam_A_preview.mp4",
-          "B": "/media/PL26123-0002/cam_B_preview.mp4",
-          "C": "/media/PL26123-0002/cam_C_preview.mp4",
-          "D": "/media/PL26123-0002/cam_D_preview.mp4",
-          "E": "/media/PL26123-0002/cam_E_preview.mp4",
-          "F": "/media/PL26123-0002/cam_F_preview.mp4",
-          "G": "/media/PL26123-0002/cam_G_preview.mp4",
-          "H": "/media/PL26123-0002/cam_H_preview.mp4",
-          "J": "/media/PL26123-0002/cam_J_preview.mp4"
+          "A": "/media/PL-2887178/cam_A_preview.mp4",
+          "B": "/media/PL-2887178/cam_B_preview.mp4",
+          "C": "/media/PL-2887178/cam_C_preview.mp4",
+          "D": "/media/PL-2887178/cam_D_preview.mp4",
+          "E": "/media/PL-2887178/cam_E_preview.mp4",
+          "F": "/media/PL-2887178/cam_F_preview.mp4",
+          "G": "/media/PL-2887178/cam_G_preview.mp4",
+          "H": "/media/PL-2887178/cam_H_preview.mp4",
+          "J": "/media/PL-2887178/cam_J_preview.mp4"
         },
-        "poster": "/media/PL26123-0002/poster.jpg"
+        "poster": "/media/PL-2887178/poster.jpg"
       },
       "security": {
-        "masterSha256": "ad0cd3f2b39f8c15c8fe54a2b5510993626d97cf306b7d6b5a2ffce4cbe90494",
+        "masterSha256": "ae7f3c03186be5408c1881312e4c1efdbf1f556042e99920624b7afa4bd154fe",
         "watermarked": true
       },
-      "ingestedAt": "2026-06-10T06:08:18.788Z"
+      "ingestedAt": "2026-07-09T06:07:59.009Z"
     },
     {
-      "sku": "PL26137-0001",
+      "sku": "PL-4040079",
       "title": "Pacific Coast Highway — Day Coastal",
-      "description": "Day coastal plate along Pacific Coast Highway, Malibu. 123s of pro-stitched 360×180 coverage at an average 38.3 mph, passing ocean, cliffs, guardrail, traffic. Clean light, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
-      "shootDate": "2026-05-17",
+      "description": "Day coastal plate along Pacific Coast Highway, Malibu. 121s of pro-stitched 360×180 coverage at an average 48.5 mph, passing ocean, cliffs, beach, guardrail. Clean light, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
+      "shootDate": "2026-06-10",
       "rig": "Mercy01",
       "media": {
-        "durationSec": 122.67,
+        "durationSec": 121,
         "fps": 24,
         "stitchedResolution": "3840x1920",
         "colorPipeline": "Log3G10 / REDWideGamutRGB",
-        "masterFormat": "ProRes 4444 12-bit equirect · pro stitch on delivery",
+        "masterFormat": "ProRes 4444 12-bit equirect",
         "cameraOriginals": "9x RED Komodo 6K R3D",
-        "timecode": "12:22:05:00"
+        "timecode": "09:15:33:20"
       },
       "shotType": "coastal",
       "timeOfDay": "day",
@@ -780,10 +1005,9 @@
         "malibu",
         "ocean",
         "cliffs",
+        "beach",
         "guardrail",
-        "traffic",
-        "lamp posts",
-        "hillside homes"
+        "surf"
       ],
       "objects": [
         {
@@ -795,20 +1019,16 @@
           "confidence": 0.81
         },
         {
+          "label": "beach",
+          "confidence": 0.69
+        },
+        {
           "label": "guardrail",
           "confidence": 0.65
         },
         {
-          "label": "traffic",
-          "confidence": 0.83
-        },
-        {
-          "label": "lamp posts",
-          "confidence": 0.89
-        },
-        {
-          "label": "hillside homes",
-          "confidence": 0.66
+          "label": "surf",
+          "confidence": 0.96
         }
       ],
       "location": {
@@ -818,281 +1038,282 @@
         "country": "USA"
       },
       "gps": {
-        "source": "u-blox F9R RTK (sample route)",
+        "source": "u-blox F9R RTK",
         "start": {
-          "lat": 34.0392,
-          "lon": -118.5814
+          "lat": 34.0375,
+          "lon": -118.6786
         },
         "end": {
-          "lat": 34.044124,
-          "lon": -118.603575
+          "lat": 34.04934,
+          "lon": -118.70335
         },
         "path": [
           {
-            "lat": 34.0392,
-            "lon": -118.5814
+            "lat": 34.0375,
+            "lon": -118.6786
           },
           {
-            "lat": 34.039283,
-            "lon": -118.581772
+            "lat": 34.0377,
+            "lon": -118.679018
           },
           {
-            "lat": 34.039368,
-            "lon": -118.582156
+            "lat": 34.037907,
+            "lon": -118.67945
           },
           {
-            "lat": 34.039457,
-            "lon": -118.582557
+            "lat": 34.038121,
+            "lon": -118.679898
           },
           {
-            "lat": 34.039554,
-            "lon": -118.582994
+            "lat": 34.038352,
+            "lon": -118.680381
           },
           {
-            "lat": 34.039647,
-            "lon": -118.583414
+            "lat": 34.038576,
+            "lon": -118.68085
           },
           {
-            "lat": 34.039748,
-            "lon": -118.583868
+            "lat": 34.038815,
+            "lon": -118.681349
           },
           {
-            "lat": 34.039844,
-            "lon": -118.584299
+            "lat": 34.038932,
+            "lon": -118.681594
           },
           {
-            "lat": 34.039939,
-            "lon": -118.58473
+            "lat": 34.039157,
+            "lon": -118.682063
           },
           {
-            "lat": 34.040033,
-            "lon": -118.585154
+            "lat": 34.039388,
+            "lon": -118.682547
           },
           {
-            "lat": 34.040119,
-            "lon": -118.585538
+            "lat": 34.039601,
+            "lon": -118.682992
           },
           {
-            "lat": 34.040162,
-            "lon": -118.585735
+            "lat": 34.03981,
+            "lon": -118.683428
           },
           {
-            "lat": 34.040244,
-            "lon": -118.586102
+            "lat": 34.040008,
+            "lon": -118.683842
           },
           {
-            "lat": 34.040317,
-            "lon": -118.586429
+            "lat": 34.040188,
+            "lon": -118.684218
           },
           {
-            "lat": 34.04039,
-            "lon": -118.58676
+            "lat": 34.040368,
+            "lon": -118.684595
           },
           {
-            "lat": 34.040453,
-            "lon": -118.587043
+            "lat": 34.040527,
+            "lon": -118.684927
           },
           {
-            "lat": 34.040518,
-            "lon": -118.587335
+            "lat": 34.040689,
+            "lon": -118.685265
           },
           {
-            "lat": 34.040578,
-            "lon": -118.587608
+            "lat": 34.040842,
+            "lon": -118.685586
           },
           {
-            "lat": 34.040637,
-            "lon": -118.587874
+            "lat": 34.040993,
+            "lon": -118.6859
           },
           {
-            "lat": 34.040702,
-            "lon": -118.588164
+            "lat": 34.041074,
+            "lon": -118.68607
           },
           {
-            "lat": 34.040763,
-            "lon": -118.588439
+            "lat": 34.04123,
+            "lon": -118.686396
           },
           {
-            "lat": 34.040834,
-            "lon": -118.588758
+            "lat": 34.041393,
+            "lon": -118.686738
           },
           {
-            "lat": 34.040905,
-            "lon": -118.589078
+            "lat": 34.041572,
+            "lon": -118.687111
           },
           {
-            "lat": 34.040983,
-            "lon": -118.589429
+            "lat": 34.041751,
+            "lon": -118.687484
           },
           {
-            "lat": 34.041068,
-            "lon": -118.589811
+            "lat": 34.041953,
+            "lon": -118.687907
           },
           {
-            "lat": 34.041153,
-            "lon": -118.590195
+            "lat": 34.042156,
+            "lon": -118.688332
           },
           {
-            "lat": 34.041249,
-            "lon": -118.590627
+            "lat": 34.042375,
+            "lon": -118.688789
           },
           {
-            "lat": 34.041341,
-            "lon": -118.591045
+            "lat": 34.042602,
+            "lon": -118.689265
           },
           {
-            "lat": 34.04144,
-            "lon": -118.59149
+            "lat": 34.042828,
+            "lon": -118.689737
           },
           {
-            "lat": 34.041539,
-            "lon": -118.591932
+            "lat": 34.043068,
+            "lon": -118.690238
           },
           {
-            "lat": 34.041633,
-            "lon": -118.592359
+            "lat": 34.043294,
+            "lon": -118.690711
           },
           {
-            "lat": 34.04173,
-            "lon": -118.592797
+            "lat": 34.043527,
+            "lon": -118.691197
           },
           {
-            "lat": 34.041775,
-            "lon": -118.592996
+            "lat": 34.04364,
+            "lon": -118.691435
           },
           {
-            "lat": 34.041861,
-            "lon": -118.593387
+            "lat": 34.043851,
+            "lon": -118.691876
           },
           {
-            "lat": 34.041947,
-            "lon": -118.593773
+            "lat": 34.044063,
+            "lon": -118.692319
           },
           {
-            "lat": 34.042022,
-            "lon": -118.594109
+            "lat": 34.044257,
+            "lon": -118.692724
           },
           {
-            "lat": 34.042097,
-            "lon": -118.594449
+            "lat": 34.04444,
+            "lon": -118.693107
           },
           {
-            "lat": 34.042163,
-            "lon": -118.594747
+            "lat": 34.044619,
+            "lon": -118.69348
           },
           {
-            "lat": 34.042228,
-            "lon": -118.595036
+            "lat": 34.044777,
+            "lon": -118.693811
           },
           {
-            "lat": 34.042291,
-            "lon": -118.595321
+            "lat": 34.044941,
+            "lon": -118.694154
           },
           {
-            "lat": 34.042349,
-            "lon": -118.595581
+            "lat": 34.045091,
+            "lon": -118.694467
           },
           {
-            "lat": 34.042413,
-            "lon": -118.59587
+            "lat": 34.045245,
+            "lon": -118.69479
           },
           {
-            "lat": 34.042473,
-            "lon": -118.59614
+            "lat": 34.045403,
+            "lon": -118.695119
           },
           {
-            "lat": 34.04254,
-            "lon": -118.596444
+            "lat": 34.045559,
+            "lon": -118.695446
           },
           {
-            "lat": 34.042611,
-            "lon": -118.596762
+            "lat": 34.045735,
+            "lon": -118.695813
           },
           {
-            "lat": 34.042684,
-            "lon": -118.597092
+            "lat": 34.045821,
+            "lon": -118.695994
           },
           {
-            "lat": 34.042768,
-            "lon": -118.597469
+            "lat": 34.046002,
+            "lon": -118.696372
           },
           {
-            "lat": 34.04285,
-            "lon": -118.597841
+            "lat": 34.046205,
+            "lon": -118.696795
           },
           {
-            "lat": 34.042943,
-            "lon": -118.59826
+            "lat": 34.046406,
+            "lon": -118.697215
           },
           {
-            "lat": 34.043037,
-            "lon": -118.59868
+            "lat": 34.046628,
+            "lon": -118.69768
           },
           {
-            "lat": 34.043133,
-            "lon": -118.599112
+            "lat": 34.046852,
+            "lon": -118.698147
           },
           {
-            "lat": 34.043233,
-            "lon": -118.599563
+            "lat": 34.047081,
+            "lon": -118.698627
           },
           {
-            "lat": 34.043327,
-            "lon": -118.599988
+            "lat": 34.047319,
+            "lon": -118.699124
           },
           {
-            "lat": 34.043376,
-            "lon": -118.60021
+            "lat": 34.047545,
+            "lon": -118.699597
           },
           {
-            "lat": 34.043472,
-            "lon": -118.600642
+            "lat": 34.04778,
+            "lon": -118.700087
           },
           {
-            "lat": 34.04356,
-            "lon": -118.601035
+            "lat": 34.047997,
+            "lon": -118.700541
           },
           {
-            "lat": 34.043649,
-            "lon": -118.601436
+            "lat": 34.04821,
+            "lon": -118.700988
           },
           {
-            "lat": 34.043726,
-            "lon": -118.601785
+            "lat": 34.048316,
+            "lon": -118.701208
           },
           {
-            "lat": 34.043803,
-            "lon": -118.60213
+            "lat": 34.048506,
+            "lon": -118.701607
           },
           {
-            "lat": 34.043873,
-            "lon": -118.602447
+            "lat": 34.048694,
+            "lon": -118.701998
           },
           {
-            "lat": 34.043937,
-            "lon": -118.602735
+            "lat": 34.048868,
+            "lon": -118.702362
           },
           {
-            "lat": 34.044003,
-            "lon": -118.603031
+            "lat": 34.049029,
+            "lon": -118.702699
           },
           {
-            "lat": 34.04406,
-            "lon": -118.603291
+            "lat": 34.049193,
+            "lon": -118.703041
           },
           {
-            "lat": 34.044124,
-            "lon": -118.603575
+            "lat": 34.04934,
+            "lon": -118.70335
           }
         ],
-        "avgSpeedMph": 38.3,
-        "maxSpeedMph": 49
+        "avgSpeedMph": 48.5,
+        "maxSpeedMph": 60
       },
       "imu": {
         "collected": true,
         "source": "F9R ESF-INS",
         "rateHz": 100
       },
+      "status": "live",
       "stageCompat": [
         "led-volume",
         "green-screen",
@@ -1101,256 +1322,166 @@
       "availability": "available",
       "pricing": {
         "perMinuteUsd": 8000,
-        "totalUsd": 16356,
+        "totalUsd": 16133,
         "minimumMinutes": 1
       },
       "renditions": {
-        "stitchedPreview": "/media/PL26137-0001/stitched_preview.mp4",
+        "stitchedPreview": "/media/PL-4040079/stitched_preview.mp4",
         "cameraPreviews": {
-          "A": "/media/PL26137-0001/cam_A_preview.mp4",
-          "B": "/media/PL26137-0001/cam_B_preview.mp4",
-          "C": "/media/PL26137-0001/cam_C_preview.mp4",
-          "D": "/media/PL26137-0001/cam_D_preview.mp4",
-          "E": "/media/PL26137-0001/cam_E_preview.mp4",
-          "F": "/media/PL26137-0001/cam_F_preview.mp4",
-          "G": "/media/PL26137-0001/cam_G_preview.mp4",
-          "H": "/media/PL26137-0001/cam_H_preview.mp4",
-          "J": "/media/PL26137-0001/cam_J_preview.mp4"
+          "A": "/media/PL-4040079/cam_A_preview.mp4",
+          "B": "/media/PL-4040079/cam_B_preview.mp4",
+          "C": "/media/PL-4040079/cam_C_preview.mp4",
+          "D": "/media/PL-4040079/cam_D_preview.mp4",
+          "E": "/media/PL-4040079/cam_E_preview.mp4",
+          "F": "/media/PL-4040079/cam_F_preview.mp4",
+          "G": "/media/PL-4040079/cam_G_preview.mp4",
+          "H": "/media/PL-4040079/cam_H_preview.mp4",
+          "J": "/media/PL-4040079/cam_J_preview.mp4"
         },
-        "poster": "/media/PL26137-0001/poster.jpg"
+        "poster": "/media/PL-4040079/poster.jpg"
       },
       "security": {
-        "masterSha256": "22d7be18e42c6d29e0bad86168aabb789e7cd2f0bb098c1857858ce4b34c151c",
+        "masterSha256": "c6852d495d169c1fee4cf18fde1ba7489fe973818c845339c6839b9c35470045",
         "watermarked": true
       },
-      "ingestedAt": "2026-06-10T06:02:22.721Z"
+      "ingestedAt": "2026-07-09T06:08:46.158Z"
     },
     {
-      "sku": "PL26137-0002",
-      "title": "PCH at Topanga — Day Coastal",
-      "description": "Day coastal plate along PCH at Topanga, Malibu. 34s of pro-stitched 360×180 coverage at an average 9.9 mph, passing ocean, hillside, road signs, traffic. Cloudy conditions, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
-      "shootDate": "2026-05-17",
+      "sku": "PL-4402607",
+      "title": "Sunset Blvd — Night Urban",
+      "description": "Night urban plate along Sunset Blvd, Los Angeles. 12s of pro-stitched 360×180 coverage at an average 26 mph, passing palm trees, neon signs, storefronts, traffic light. Clean light, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
+      "shootDate": "2026-06-10",
       "rig": "Mercy01",
       "media": {
-        "durationSec": 34,
+        "durationSec": 12,
         "fps": 24,
         "stitchedResolution": "3840x1920",
         "colorPipeline": "Log3G10 / REDWideGamutRGB",
-        "masterFormat": "ProRes 4444 12-bit equirect · pro stitch on delivery",
+        "masterFormat": "ProRes 4444 12-bit equirect",
         "cameraOriginals": "9x RED Komodo 6K R3D",
-        "timecode": "12:48:58:20"
+        "timecode": "21:08:55:14"
       },
-      "shotType": "coastal",
-      "timeOfDay": "day",
-      "weather": "cloudy",
-      "season": "spring",
+      "shotType": "urban",
+      "timeOfDay": "night",
+      "weather": "clear",
+      "season": "summer",
       "speedBand": "city",
       "tags": [
-        "coastal",
-        "day",
-        "cloudy",
-        "spring",
-        "malibu",
-        "ocean",
-        "hillside",
-        "road signs",
-        "traffic",
-        "cliff face",
-        "coastal road"
+        "urban",
+        "night",
+        "clear",
+        "summer",
+        "los angeles",
+        "palm trees",
+        "neon signs",
+        "storefronts",
+        "traffic light",
+        "billboards"
       ],
       "objects": [
         {
-          "label": "ocean",
-          "confidence": 0.64
+          "label": "palm trees",
+          "confidence": 0.65
         },
         {
-          "label": "hillside",
-          "confidence": 0.82
+          "label": "neon signs",
+          "confidence": 0.62
         },
         {
-          "label": "road signs",
-          "confidence": 0.72
+          "label": "storefronts",
+          "confidence": 0.97
         },
         {
-          "label": "traffic",
-          "confidence": 0.83
+          "label": "traffic light",
+          "confidence": 0.93
         },
         {
-          "label": "cliff face",
-          "confidence": 0.83
-        },
-        {
-          "label": "coastal road",
-          "confidence": 0.81
+          "label": "billboards",
+          "confidence": 0.9
         }
       ],
       "location": {
-        "name": "PCH at Topanga",
-        "city": "Malibu",
+        "name": "Sunset Blvd",
+        "city": "Los Angeles",
         "region": "CA",
         "country": "USA"
       },
       "gps": {
-        "source": "u-blox F9R RTK (sample route)",
+        "source": "u-blox F9R RTK",
         "start": {
-          "lat": 34.039,
-          "lon": -118.5841
+          "lat": 34.09,
+          "lon": -118.3617
         },
         "end": {
-          "lat": 34.039475,
-          "lon": -118.585673
+          "lat": 34.089892,
+          "lon": -118.363194
         },
         "path": [
           {
-            "lat": 34.039,
-            "lon": -118.5841
+            "lat": 34.09,
+            "lon": -118.3617
           },
           {
-            "lat": 34.039012,
-            "lon": -118.584141
+            "lat": 34.089994,
+            "lon": -118.361787
           },
           {
-            "lat": 34.039029,
-            "lon": -118.584195
+            "lat": 34.089986,
+            "lon": -118.361892
           },
           {
-            "lat": 34.039045,
-            "lon": -118.584248
+            "lat": 34.089978,
+            "lon": -118.362
           },
           {
-            "lat": 34.039059,
-            "lon": -118.584295
+            "lat": 34.089971,
+            "lon": -118.362105
           },
           {
-            "lat": 34.039073,
-            "lon": -118.584342
+            "lat": 34.089963,
+            "lon": -118.362215
           },
           {
-            "lat": 34.039092,
-            "lon": -118.584403
+            "lat": 34.089953,
+            "lon": -118.362342
           },
           {
-            "lat": 34.039113,
-            "lon": -118.584474
+            "lat": 34.089943,
+            "lon": -118.362483
           },
           {
-            "lat": 34.039133,
-            "lon": -118.584541
+            "lat": 34.089933,
+            "lon": -118.362622
           },
           {
-            "lat": 34.039151,
-            "lon": -118.5846
+            "lat": 34.089924,
+            "lon": -118.362754
           },
           {
-            "lat": 34.039169,
-            "lon": -118.58466
+            "lat": 34.089914,
+            "lon": -118.36289
           },
           {
-            "lat": 34.039191,
-            "lon": -118.584732
+            "lat": 34.089903,
+            "lon": -118.363039
           },
           {
-            "lat": 34.039214,
-            "lon": -118.58481
-          },
-          {
-            "lat": 34.039235,
-            "lon": -118.584879
-          },
-          {
-            "lat": 34.039253,
-            "lon": -118.584938
-          },
-          {
-            "lat": 34.039271,
-            "lon": -118.584998
-          },
-          {
-            "lat": 34.039292,
-            "lon": -118.585068
-          },
-          {
-            "lat": 34.039313,
-            "lon": -118.585138
-          },
-          {
-            "lat": 34.039331,
-            "lon": -118.585196
-          },
-          {
-            "lat": 34.039345,
-            "lon": -118.585243
-          },
-          {
-            "lat": 34.039359,
-            "lon": -118.585292
-          },
-          {
-            "lat": 34.039376,
-            "lon": -118.585347
-          },
-          {
-            "lat": 34.039392,
-            "lon": -118.5854
-          },
-          {
-            "lat": 34.039404,
-            "lon": -118.585438
-          },
-          {
-            "lat": 34.039412,
-            "lon": -118.585466
-          },
-          {
-            "lat": 34.039421,
-            "lon": -118.585497
-          },
-          {
-            "lat": 34.039433,
-            "lon": -118.585535
-          },
-          {
-            "lat": 34.039443,
-            "lon": -118.585568
-          },
-          {
-            "lat": 34.039448,
-            "lon": -118.585586
-          },
-          {
-            "lat": 34.039452,
-            "lon": -118.585598
-          },
-          {
-            "lat": 34.039457,
-            "lon": -118.585616
-          },
-          {
-            "lat": 34.039465,
-            "lon": -118.585641
-          },
-          {
-            "lat": 34.039471,
-            "lon": -118.58566
-          },
-          {
-            "lat": 34.039473,
-            "lon": -118.585668
-          },
-          {
-            "lat": 34.039475,
-            "lon": -118.585673
+            "lat": 34.089892,
+            "lon": -118.363194
           }
         ],
-        "avgSpeedMph": 9.9,
-        "maxSpeedMph": 17
+        "avgSpeedMph": 26,
+        "maxSpeedMph": 32
       },
       "imu": {
-        "collected": false
+        "collected": true,
+        "source": "F9R ESF-INS",
+        "rateHz": 100
       },
+      "status": "live",
       "stageCompat": [
         "led-volume",
-        "green-screen"
+        "projection"
       ],
       "availability": "available",
       "pricing": {
@@ -1359,450 +1490,273 @@
         "minimumMinutes": 1
       },
       "renditions": {
-        "stitchedPreview": "/media/PL26137-0002/stitched_preview.mp4",
+        "stitchedPreview": "/media/PL-4402607/stitched_preview.mp4",
         "cameraPreviews": {
-          "A": "/media/PL26137-0002/cam_A_preview.mp4",
-          "B": "/media/PL26137-0002/cam_B_preview.mp4",
-          "C": "/media/PL26137-0002/cam_C_preview.mp4",
-          "D": "/media/PL26137-0002/cam_D_preview.mp4",
-          "E": "/media/PL26137-0002/cam_E_preview.mp4",
-          "F": "/media/PL26137-0002/cam_F_preview.mp4",
-          "G": "/media/PL26137-0002/cam_G_preview.mp4",
-          "H": "/media/PL26137-0002/cam_H_preview.mp4",
-          "J": "/media/PL26137-0002/cam_J_preview.mp4"
+          "A": "/media/PL-4402607/cam_A_preview.mp4",
+          "B": "/media/PL-4402607/cam_B_preview.mp4",
+          "C": "/media/PL-4402607/cam_C_preview.mp4",
+          "D": "/media/PL-4402607/cam_D_preview.mp4",
+          "E": "/media/PL-4402607/cam_E_preview.mp4",
+          "F": "/media/PL-4402607/cam_F_preview.mp4",
+          "G": "/media/PL-4402607/cam_G_preview.mp4",
+          "H": "/media/PL-4402607/cam_H_preview.mp4",
+          "J": "/media/PL-4402607/cam_J_preview.mp4"
         },
-        "poster": "/media/PL26137-0002/poster.jpg"
+        "poster": "/media/PL-4402607/poster.jpg"
       },
       "security": {
-        "masterSha256": "73015d0a3a0cfabce0ec1331bc1ac11c6a97cc7629b1484bacc828fe62d1668d",
+        "masterSha256": "0cc6eaee5e434f010ff771bac5488f271904cb45029435e203062084aeab7fc0",
         "watermarked": true
       },
-      "ingestedAt": "2026-06-10T06:02:51.217Z"
+      "ingestedAt": "2026-07-09T06:08:56.608Z"
     },
     {
-      "sku": "PL26137-0003",
-      "title": "Freeway Underpass, Downtown — Day Tunnel",
-      "description": "Day tunnel plate along Freeway Underpass, Downtown, Los Angeles. 68s of pro-stitched 360×180 coverage at an average 14.2 mph, passing freeway underpass, concrete pillars, overhead structure, bus. Clean light, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
-      "shootDate": "2026-05-17",
+      "sku": "PL-7778068",
+      "status": "live",
+      "title": "2nd Street Tunnel — Night Tunnel",
+      "description": "Night tunnel plate along 2nd Street Tunnel, Los Angeles. 45s of pro-stitched 360×180 coverage at an average 31.1 mph, passing tunnel lights, concrete, lane lines, reflections. Clean light, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
+      "shootDate": "2026-06-10",
       "rig": "Mercy01",
       "media": {
-        "durationSec": 67.88,
+        "durationSec": 45,
         "fps": 24,
         "stitchedResolution": "3840x1920",
         "colorPipeline": "Log3G10 / REDWideGamutRGB",
-        "masterFormat": "ProRes 4444 12-bit equirect · pro stitch on delivery",
+        "masterFormat": "ProRes 4444 12-bit equirect",
         "cameraOriginals": "9x RED Komodo 6K R3D",
-        "timecode": "10:05:51:08"
+        "timecode": "23:50:02:11"
       },
       "shotType": "tunnel",
-      "timeOfDay": "day",
+      "timeOfDay": "night",
       "weather": "clear",
-      "season": "spring",
+      "season": "winter",
       "speedBand": "city",
-      "tags": [
-        "tunnel",
-        "day",
-        "clear",
-        "spring",
-        "los angeles",
-        "freeway underpass",
-        "concrete pillars",
-        "overhead structure",
-        "bus",
-        "pedestrian",
-        "city bus depot"
-      ],
-      "objects": [
-        {
-          "label": "freeway underpass",
-          "confidence": 0.78
-        },
-        {
-          "label": "concrete pillars",
-          "confidence": 0.88
-        },
-        {
-          "label": "overhead structure",
-          "confidence": 0.89
-        },
-        {
-          "label": "bus",
-          "confidence": 0.62
-        },
-        {
-          "label": "pedestrian",
-          "confidence": 0.85
-        },
-        {
-          "label": "city bus depot",
-          "confidence": 0.65
-        }
-      ],
-      "location": {
-        "name": "Freeway Underpass, Downtown",
-        "city": "Los Angeles",
-        "region": "CA",
-        "country": "USA"
-      },
       "gps": {
-        "source": "u-blox F9R RTK (sample route)",
+        "source": "u-blox F9R RTK",
         "start": {
-          "lat": 34.0407,
-          "lon": -118.2468
+          "lat": 34.0535,
+          "lon": -118.248
         },
         "end": {
-          "lat": 34.036941,
-          "lon": -118.248015
+          "lat": 34.051125,
+          "lon": -118.254147
         },
         "path": [
           {
-            "lat": 34.0407,
-            "lon": -118.2468
+            "lat": 34.0535,
+            "lon": -118.248
           },
           {
-            "lat": 34.040649,
-            "lon": -118.246816
+            "lat": 34.053447,
+            "lon": -118.248137
           },
           {
-            "lat": 34.040588,
-            "lon": -118.246836
+            "lat": 34.05339,
+            "lon": -118.248285
           },
           {
-            "lat": 34.040527,
-            "lon": -118.246856
+            "lat": 34.053333,
+            "lon": -118.248432
           },
           {
-            "lat": 34.040472,
-            "lon": -118.246874
+            "lat": 34.053279,
+            "lon": -118.248572
           },
           {
-            "lat": 34.040416,
-            "lon": -118.246892
+            "lat": 34.053225,
+            "lon": -118.248712
           },
           {
-            "lat": 34.040348,
-            "lon": -118.246914
+            "lat": 34.053166,
+            "lon": -118.248865
           },
           {
-            "lat": 34.0402,
-            "lon": -118.246962
+            "lat": 34.053103,
+            "lon": -118.249027
           },
           {
-            "lat": 34.040134,
-            "lon": -118.246983
+            "lat": 34.053042,
+            "lon": -118.249185
           },
           {
-            "lat": 34.040067,
-            "lon": -118.247005
+            "lat": 34.052985,
+            "lon": -118.249334
           },
           {
-            "lat": 34.03999,
-            "lon": -118.247029
+            "lat": 34.052926,
+            "lon": -118.249485
           },
           {
-            "lat": 34.039909,
-            "lon": -118.247056
+            "lat": 34.052864,
+            "lon": -118.249647
           },
           {
-            "lat": 34.039834,
-            "lon": -118.24708
+            "lat": 34.052799,
+            "lon": -118.249814
           },
           {
-            "lat": 34.039769,
-            "lon": -118.247101
+            "lat": 34.052738,
+            "lon": -118.249974
           },
           {
-            "lat": 34.039702,
-            "lon": -118.247123
+            "lat": 34.05268,
+            "lon": -118.250123
           },
           {
-            "lat": 34.039627,
-            "lon": -118.247147
+            "lat": 34.052621,
+            "lon": -118.250274
           },
           {
-            "lat": 34.039551,
-            "lon": -118.247171
+            "lat": 34.052559,
+            "lon": -118.250435
           },
           {
-            "lat": 34.039486,
-            "lon": -118.247192
+            "lat": 34.052497,
+            "lon": -118.250596
           },
           {
-            "lat": 34.039431,
-            "lon": -118.24721
+            "lat": 34.052439,
+            "lon": -118.250746
           },
           {
-            "lat": 34.039311,
-            "lon": -118.247249
+            "lat": 34.052385,
+            "lon": -118.250886
           },
           {
-            "lat": 34.039251,
-            "lon": -118.247269
+            "lat": 34.05233,
+            "lon": -118.251027
           },
           {
-            "lat": 34.039203,
-            "lon": -118.247284
+            "lat": 34.052273,
+            "lon": -118.251177
           },
           {
-            "lat": 34.039163,
-            "lon": -118.247297
+            "lat": 34.052216,
+            "lon": -118.251324
           },
           {
-            "lat": 34.039121,
-            "lon": -118.247311
+            "lat": 34.052164,
+            "lon": -118.251457
           },
           {
-            "lat": 34.039073,
-            "lon": -118.247326
+            "lat": 34.052116,
+            "lon": -118.251582
           },
           {
-            "lat": 34.03903,
-            "lon": -118.24734
+            "lat": 34.052066,
+            "lon": -118.25171
           },
           {
-            "lat": 34.038999,
-            "lon": -118.24735
+            "lat": 34.052014,
+            "lon": -118.251846
           },
           {
-            "lat": 34.038973,
-            "lon": -118.247358
+            "lat": 34.051964,
+            "lon": -118.251976
           },
           {
-            "lat": 34.038942,
-            "lon": -118.247368
+            "lat": 34.051918,
+            "lon": -118.252094
           },
           {
-            "lat": 34.038906,
-            "lon": -118.24738
+            "lat": 34.051875,
+            "lon": -118.252205
           },
           {
-            "lat": 34.038873,
-            "lon": -118.247391
+            "lat": 34.05183,
+            "lon": -118.252323
           },
           {
-            "lat": 34.038851,
-            "lon": -118.247398
+            "lat": 34.051782,
+            "lon": -118.252448
           },
           {
-            "lat": 34.038802,
-            "lon": -118.247414
+            "lat": 34.051735,
+            "lon": -118.252568
           },
           {
-            "lat": 34.038766,
-            "lon": -118.247425
+            "lat": 34.051693,
+            "lon": -118.252677
           },
           {
-            "lat": 34.038734,
-            "lon": -118.247436
+            "lat": 34.051652,
+            "lon": -118.252783
           },
           {
-            "lat": 34.038709,
-            "lon": -118.247444
+            "lat": 34.051607,
+            "lon": -118.2529
           },
           {
-            "lat": 34.038682,
-            "lon": -118.247452
+            "lat": 34.051559,
+            "lon": -118.253024
           },
           {
-            "lat": 34.038644,
-            "lon": -118.247465
+            "lat": 34.051513,
+            "lon": -118.253143
           },
           {
-            "lat": 34.038598,
-            "lon": -118.24748
+            "lat": 34.05147,
+            "lon": -118.253254
           },
           {
-            "lat": 34.038556,
-            "lon": -118.247493
+            "lat": 34.051426,
+            "lon": -118.253367
           },
           {
-            "lat": 34.03852,
-            "lon": -118.247505
+            "lat": 34.051378,
+            "lon": -118.253493
           },
           {
-            "lat": 34.038477,
-            "lon": -118.247519
+            "lat": 34.051326,
+            "lon": -118.253626
           },
           {
-            "lat": 34.038422,
-            "lon": -118.247537
+            "lat": 34.051277,
+            "lon": -118.253755
           },
           {
-            "lat": 34.038361,
-            "lon": -118.247556
+            "lat": 34.051229,
+            "lon": -118.253877
           },
           {
-            "lat": 34.038304,
-            "lon": -118.247575
+            "lat": 34.05118,
+            "lon": -118.254005
           },
           {
-            "lat": 34.038192,
-            "lon": -118.247611
-          },
-          {
-            "lat": 34.03812,
-            "lon": -118.247634
-          },
-          {
-            "lat": 34.038045,
-            "lon": -118.247658
-          },
-          {
-            "lat": 34.037977,
-            "lon": -118.24768
-          },
-          {
-            "lat": 34.037913,
-            "lon": -118.247701
-          },
-          {
-            "lat": 34.037842,
-            "lon": -118.247724
-          },
-          {
-            "lat": 34.037762,
-            "lon": -118.24775
-          },
-          {
-            "lat": 34.037682,
-            "lon": -118.247776
-          },
-          {
-            "lat": 34.037613,
-            "lon": -118.247798
-          },
-          {
-            "lat": 34.037547,
-            "lon": -118.247819
-          },
-          {
-            "lat": 34.037476,
-            "lon": -118.247843
-          },
-          {
-            "lat": 34.037398,
-            "lon": -118.247868
-          },
-          {
-            "lat": 34.037265,
-            "lon": -118.247911
-          },
-          {
-            "lat": 34.037209,
-            "lon": -118.247929
-          },
-          {
-            "lat": 34.037147,
-            "lon": -118.247949
-          },
-          {
-            "lat": 34.037083,
-            "lon": -118.24797
-          },
-          {
-            "lat": 34.037026,
-            "lon": -118.247988
-          },
-          {
-            "lat": 34.036982,
-            "lon": -118.248002
-          },
-          {
-            "lat": 34.036941,
-            "lon": -118.248015
+            "lat": 34.051125,
+            "lon": -118.254147
           }
         ],
-        "avgSpeedMph": 14.2,
-        "maxSpeedMph": 21
+        "avgSpeedMph": 31.1,
+        "maxSpeedMph": 38
       },
-      "imu": {
-        "collected": true,
-        "source": "F9R ESF-INS",
-        "rateHz": 100
-      },
-      "stageCompat": [
-        "led-volume",
-        "projection"
-      ],
-      "availability": "available",
-      "pricing": {
-        "perMinuteUsd": 8000,
-        "totalUsd": 9050,
-        "minimumMinutes": 1
-      },
-      "renditions": {
-        "stitchedPreview": "/media/PL26137-0003/stitched_preview.mp4",
-        "cameraPreviews": {
-          "A": "/media/PL26137-0003/cam_A_preview.mp4",
-          "B": "/media/PL26137-0003/cam_B_preview.mp4",
-          "C": "/media/PL26137-0003/cam_C_preview.mp4",
-          "D": "/media/PL26137-0003/cam_D_preview.mp4",
-          "E": "/media/PL26137-0003/cam_E_preview.mp4",
-          "F": "/media/PL26137-0003/cam_F_preview.mp4",
-          "G": "/media/PL26137-0003/cam_G_preview.mp4",
-          "H": "/media/PL26137-0003/cam_H_preview.mp4",
-          "J": "/media/PL26137-0003/cam_J_preview.mp4"
-        },
-        "poster": "/media/PL26137-0003/poster.jpg"
-      },
-      "security": {
-        "masterSha256": "339b98b10c4a2942906aa1d5c767bfc4bc2d8c17dea123948b14fa19327c0578",
-        "watermarked": true
-      },
-      "ingestedAt": "2026-06-10T06:03:50.207Z"
-    },
-    {
-      "sku": "PL26137-0004",
-      "title": "2nd Street Tunnel — Day Tunnel",
-      "description": "Day tunnel plate along 2nd Street Tunnel, Los Angeles. 65s of pro-stitched 360×180 coverage at an average 24.9 mph, passing graffiti, tunnel lights, concrete walls, tunnel portal. Clean light, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
-      "shootDate": "2026-05-17",
-      "rig": "Mercy01",
-      "media": {
-        "durationSec": 64.58,
-        "fps": 24,
-        "stitchedResolution": "3840x1920",
-        "colorPipeline": "Log3G10 / REDWideGamutRGB",
-        "masterFormat": "ProRes 4444 12-bit equirect · pro stitch on delivery",
-        "cameraOriginals": "9x RED Komodo 6K R3D",
-        "timecode": "10:48:19:16"
-      },
-      "shotType": "tunnel",
-      "timeOfDay": "day",
-      "weather": "clear",
-      "season": "spring",
-      "speedBand": "city",
       "tags": [
         "tunnel",
-        "day",
+        "night",
         "clear",
-        "spring",
+        "winter",
         "los angeles",
-        "graffiti",
         "tunnel lights",
-        "concrete walls",
-        "tunnel portal",
-        "lane markings"
+        "concrete",
+        "lane lines",
+        "reflections"
       ],
       "objects": [
-        {
-          "label": "graffiti",
-          "confidence": 0.66
-        },
         {
           "label": "tunnel lights",
           "confidence": 0.67
         },
         {
-          "label": "concrete walls",
-          "confidence": 0.88
+          "label": "concrete",
+          "confidence": 0.79
         },
         {
-          "label": "tunnel portal",
-          "confidence": 0.86
+          "label": "lane lines",
+          "confidence": 0.93
         },
         {
-          "label": "lane markings",
-          "confidence": 0.92
+          "label": "reflections",
+          "confidence": 0.74
         }
       ],
       "location": {
@@ -1811,277 +1765,6 @@
         "region": "CA",
         "country": "USA"
       },
-      "gps": {
-        "source": "u-blox F9R RTK (sample route)",
-        "start": {
-          "lat": 34.0535,
-          "lon": -118.248
-        },
-        "end": {
-          "lat": 34.050748,
-          "lon": -118.255123
-        },
-        "path": [
-          {
-            "lat": 34.0535,
-            "lon": -118.248
-          },
-          {
-            "lat": 34.053459,
-            "lon": -118.248106
-          },
-          {
-            "lat": 34.053414,
-            "lon": -118.248222
-          },
-          {
-            "lat": 34.05337,
-            "lon": -118.248338
-          },
-          {
-            "lat": 34.053328,
-            "lon": -118.248445
-          },
-          {
-            "lat": 34.053287,
-            "lon": -118.248552
-          },
-          {
-            "lat": 34.053241,
-            "lon": -118.248671
-          },
-          {
-            "lat": 34.053191,
-            "lon": -118.248799
-          },
-          {
-            "lat": 34.053144,
-            "lon": -118.248922
-          },
-          {
-            "lat": 34.0531,
-            "lon": -118.249037
-          },
-          {
-            "lat": 34.053055,
-            "lon": -118.249153
-          },
-          {
-            "lat": 34.053006,
-            "lon": -118.249279
-          },
-          {
-            "lat": 34.052955,
-            "lon": -118.249411
-          },
-          {
-            "lat": 34.052907,
-            "lon": -118.249535
-          },
-          {
-            "lat": 34.052863,
-            "lon": -118.24965
-          },
-          {
-            "lat": 34.052818,
-            "lon": -118.249766
-          },
-          {
-            "lat": 34.05272,
-            "lon": -118.250019
-          },
-          {
-            "lat": 34.052675,
-            "lon": -118.250135
-          },
-          {
-            "lat": 34.052634,
-            "lon": -118.250242
-          },
-          {
-            "lat": 34.052592,
-            "lon": -118.250351
-          },
-          {
-            "lat": 34.052546,
-            "lon": -118.250469
-          },
-          {
-            "lat": 34.052502,
-            "lon": -118.250584
-          },
-          {
-            "lat": 34.052462,
-            "lon": -118.250687
-          },
-          {
-            "lat": 34.052425,
-            "lon": -118.250781
-          },
-          {
-            "lat": 34.052387,
-            "lon": -118.25088
-          },
-          {
-            "lat": 34.052346,
-            "lon": -118.250986
-          },
-          {
-            "lat": 34.052307,
-            "lon": -118.251088
-          },
-          {
-            "lat": 34.052272,
-            "lon": -118.251178
-          },
-          {
-            "lat": 34.05224,
-            "lon": -118.251262
-          },
-          {
-            "lat": 34.052205,
-            "lon": -118.251353
-          },
-          {
-            "lat": 34.052167,
-            "lon": -118.251451
-          },
-          {
-            "lat": 34.052131,
-            "lon": -118.251544
-          },
-          {
-            "lat": 34.052099,
-            "lon": -118.251626
-          },
-          {
-            "lat": 34.052068,
-            "lon": -118.251707
-          },
-          {
-            "lat": 34.052033,
-            "lon": -118.251797
-          },
-          {
-            "lat": 34.051995,
-            "lon": -118.251894
-          },
-          {
-            "lat": 34.05196,
-            "lon": -118.251987
-          },
-          {
-            "lat": 34.051927,
-            "lon": -118.252071
-          },
-          {
-            "lat": 34.051894,
-            "lon": -118.252156
-          },
-          {
-            "lat": 34.051856,
-            "lon": -118.252254
-          },
-          {
-            "lat": 34.051816,
-            "lon": -118.252359
-          },
-          {
-            "lat": 34.051778,
-            "lon": -118.252458
-          },
-          {
-            "lat": 34.051742,
-            "lon": -118.252551
-          },
-          {
-            "lat": 34.051704,
-            "lon": -118.252649
-          },
-          {
-            "lat": 34.051661,
-            "lon": -118.25276
-          },
-          {
-            "lat": 34.051616,
-            "lon": -118.252876
-          },
-          {
-            "lat": 34.051574,
-            "lon": -118.252986
-          },
-          {
-            "lat": 34.051533,
-            "lon": -118.25309
-          },
-          {
-            "lat": 34.051442,
-            "lon": -118.253326
-          },
-          {
-            "lat": 34.051394,
-            "lon": -118.253452
-          },
-          {
-            "lat": 34.051348,
-            "lon": -118.25357
-          },
-          {
-            "lat": 34.051304,
-            "lon": -118.253683
-          },
-          {
-            "lat": 34.051258,
-            "lon": -118.253804
-          },
-          {
-            "lat": 34.051207,
-            "lon": -118.253935
-          },
-          {
-            "lat": 34.051157,
-            "lon": -118.254064
-          },
-          {
-            "lat": 34.051111,
-            "lon": -118.254182
-          },
-          {
-            "lat": 34.051067,
-            "lon": -118.254297
-          },
-          {
-            "lat": 34.05102,
-            "lon": -118.254418
-          },
-          {
-            "lat": 34.05097,
-            "lon": -118.254547
-          },
-          {
-            "lat": 34.050923,
-            "lon": -118.254671
-          },
-          {
-            "lat": 34.05088,
-            "lon": -118.254782
-          },
-          {
-            "lat": 34.050838,
-            "lon": -118.254889
-          },
-          {
-            "lat": 34.050794,
-            "lon": -118.255004
-          },
-          {
-            "lat": 34.050748,
-            "lon": -118.255123
-          }
-        ],
-        "avgSpeedMph": 24.9,
-        "maxSpeedMph": 30
-      },
       "imu": {
         "collected": true,
         "source": "F9R ESF-INS",
@@ -2094,400 +1777,29 @@
       "availability": "available",
       "pricing": {
         "perMinuteUsd": 8000,
-        "totalUsd": 8611,
+        "totalUsd": 8000,
         "minimumMinutes": 1
       },
       "renditions": {
-        "stitchedPreview": "/media/PL26137-0004/stitched_preview.mp4",
+        "stitchedPreview": "/media/PL-7778068/stitched_preview.mp4",
         "cameraPreviews": {
-          "A": "/media/PL26137-0004/cam_A_preview.mp4",
-          "B": "/media/PL26137-0004/cam_B_preview.mp4",
-          "C": "/media/PL26137-0004/cam_C_preview.mp4",
-          "D": "/media/PL26137-0004/cam_D_preview.mp4",
-          "E": "/media/PL26137-0004/cam_E_preview.mp4",
-          "F": "/media/PL26137-0004/cam_F_preview.mp4",
-          "G": "/media/PL26137-0004/cam_G_preview.mp4",
-          "H": "/media/PL26137-0004/cam_H_preview.mp4",
-          "J": "/media/PL26137-0004/cam_J_preview.mp4"
+          "A": "/media/PL-7778068/cam_A_preview.mp4",
+          "B": "/media/PL-7778068/cam_B_preview.mp4",
+          "C": "/media/PL-7778068/cam_C_preview.mp4",
+          "D": "/media/PL-7778068/cam_D_preview.mp4",
+          "E": "/media/PL-7778068/cam_E_preview.mp4",
+          "F": "/media/PL-7778068/cam_F_preview.mp4",
+          "G": "/media/PL-7778068/cam_G_preview.mp4",
+          "H": "/media/PL-7778068/cam_H_preview.mp4",
+          "J": "/media/PL-7778068/cam_J_preview.mp4"
         },
-        "poster": "/media/PL26137-0004/poster.jpg"
+        "poster": "/media/PL-7778068/poster.jpg"
       },
       "security": {
-        "masterSha256": "2bd0609918845a8784ae9b0d0e7211076b9fc327c0e53d1ac3dd98c87654c87b",
+        "masterSha256": "aca016c14e0a380f3e1033948939605f4272b5cdf66094c70a235eed1b98bca0",
         "watermarked": true
       },
-      "ingestedAt": "2026-06-10T06:04:58.310Z"
-    },
-    {
-      "sku": "PL26137-0005",
-      "title": "Topanga State Beach — Day Coastal",
-      "description": "Day coastal plate along Topanga State Beach, Malibu. 151s of pro-stitched 360×180 coverage at an average 0 mph, passing ocean waves, beach, dune grass, shoreline. Clean light, captured on the Spheris 9-camera array with full sky tier for reflections and LED-dome work.",
-      "shootDate": "2026-05-17",
-      "rig": "Mercy01",
-      "media": {
-        "durationSec": 151.13,
-        "fps": 24,
-        "stitchedResolution": "3840x1920",
-        "colorPipeline": "Log3G10 / REDWideGamutRGB",
-        "masterFormat": "ProRes 4444 12-bit equirect · pro stitch on delivery",
-        "cameraOriginals": "9x RED Komodo 6K R3D",
-        "timecode": "13:01:40:04"
-      },
-      "shotType": "coastal",
-      "timeOfDay": "day",
-      "weather": "clear",
-      "season": "spring",
-      "speedBand": "stopped",
-      "tags": [
-        "coastal",
-        "day",
-        "clear",
-        "spring",
-        "malibu",
-        "ocean waves",
-        "beach",
-        "dune grass",
-        "shoreline",
-        "surf",
-        "coastal houses"
-      ],
-      "objects": [
-        {
-          "label": "ocean waves",
-          "confidence": 0.82
-        },
-        {
-          "label": "beach",
-          "confidence": 0.69
-        },
-        {
-          "label": "dune grass",
-          "confidence": 0.68
-        },
-        {
-          "label": "shoreline",
-          "confidence": 0.83
-        },
-        {
-          "label": "surf",
-          "confidence": 0.96
-        },
-        {
-          "label": "coastal houses",
-          "confidence": 0.8
-        }
-      ],
-      "location": {
-        "name": "Topanga State Beach",
-        "city": "Malibu",
-        "region": "CA",
-        "country": "USA"
-      },
-      "gps": {
-        "source": "u-blox F9R RTK (sample route)",
-        "start": {
-          "lat": 34.0386,
-          "lon": -118.5827
-        },
-        "end": {
-          "lat": 34.0386,
-          "lon": -118.5827
-        },
-        "path": [
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          },
-          {
-            "lat": 34.0386,
-            "lon": -118.5827
-          }
-        ],
-        "avgSpeedMph": 0,
-        "maxSpeedMph": 0
-      },
-      "imu": {
-        "collected": false
-      },
-      "stageCompat": [
-        "led-volume",
-        "green-screen",
-        "projection"
-      ],
-      "availability": "available",
-      "pricing": {
-        "perMinuteUsd": 8000,
-        "totalUsd": 20150,
-        "minimumMinutes": 1
-      },
-      "renditions": {
-        "stitchedPreview": "/media/PL26137-0005/stitched_preview.mp4",
-        "cameraPreviews": {
-          "A": "/media/PL26137-0005/cam_A_preview.mp4",
-          "B": "/media/PL26137-0005/cam_B_preview.mp4",
-          "C": "/media/PL26137-0005/cam_C_preview.mp4",
-          "D": "/media/PL26137-0005/cam_D_preview.mp4",
-          "E": "/media/PL26137-0005/cam_E_preview.mp4",
-          "F": "/media/PL26137-0005/cam_F_preview.mp4",
-          "G": "/media/PL26137-0005/cam_G_preview.mp4",
-          "H": "/media/PL26137-0005/cam_H_preview.mp4",
-          "J": "/media/PL26137-0005/cam_J_preview.mp4"
-        },
-        "poster": "/media/PL26137-0005/poster.jpg"
-      },
-      "security": {
-        "masterSha256": "dd1218a6fdb1a8d98470003de67bc2123a6624a0bdb31418288a3fd3d4511d91",
-        "watermarked": true
-      },
-      "ingestedAt": "2026-06-10T06:07:22.910Z"
+      "ingestedAt": "2026-07-09T06:09:07.249Z"
     }
   ]
 }

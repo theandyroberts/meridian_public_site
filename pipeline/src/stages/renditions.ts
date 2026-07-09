@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { run } from "../exec.js";
-import { CAMERA_IDS, CAMERA_POSITIONS, type CameraId } from "@platelab/shared";
+import { CAMERA_POSITIONS, type CameraId } from "@platelab/shared";
 import type { Drop } from "./discover.js";
 
 /**
@@ -69,8 +69,11 @@ async function encodeRingPano(
   font: string,
   sku: string,
 ): Promise<void> {
+  if (!drop.stitchedMaster && !drop.cameraFiles.A) {
+    throw new Error("ring pano needs camera files");
+  }
   const order: CameraId[] = ["E", "F", "A", "B", "C", "D"];
-  const inputs = order.flatMap((id) => ["-i", drop.cameraFiles[id]]);
+  const inputs = order.flatMap((id) => ["-i", drop.cameraFiles[id] as string]);
   const scaled = order
     .map((_, i) => `[${i}:v]scale=480:270,${PREVIEW_GRADE}[s${i}]`)
     .join(";");
@@ -117,15 +120,16 @@ export async function buildRenditions(
   }
 
   const cameraPreviews = {} as Record<CameraId, string>;
-  for (const id of CAMERA_IDS) {
+  for (const [id, file] of Object.entries(drop.cameraFiles) as [CameraId, string][]) {
     const dst = path.join(outDir, `cam_${id}_preview.mp4`);
     const label = `${id} · ${CAMERA_POSITIONS[id].toUpperCase()}`;
-    await encodePreview(drop.cameraFiles[id], dst, 480, watermarkFilter(font, sku, label));
+    await encodePreview(file, dst, 480, watermarkFilter(font, sku, label));
     cameraPreviews[id] = dst;
   }
 
   const poster = path.join(outDir, "poster.jpg");
   const posterSrc = drop.stitchedMaster ?? drop.cameraFiles.A;
+  if (!posterSrc) throw new Error("buildRenditions: no stitched master or camera A for poster");
   await run("ffmpeg", [
     "-v", "error", "-ss", "1", "-i", posterSrc,
     "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
