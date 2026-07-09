@@ -130,10 +130,19 @@ export async function buildRenditions(
   const poster = path.join(outDir, "poster.jpg");
   const posterSrc = drop.stitchedMaster ?? drop.cameraFiles.A;
   if (!posterSrc) throw new Error("buildRenditions: no stitched master or camera A for poster");
-  await run("ffmpeg", [
-    "-v", "error", "-ss", "1", "-i", posterSrc,
-    "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
-  ]);
+  // Seek 1s in for a representative frame, but very short sources (e.g. test
+  // fixtures) have no frame at/after t=1s — fall back to the first frame.
+  try {
+    await run("ffmpeg", [
+      "-v", "error", "-ss", "1", "-i", posterSrc,
+      "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
+    ]);
+  } catch {
+    await run("ffmpeg", [
+      "-v", "error", "-i", posterSrc,
+      "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
+    ]);
+  }
 
   return { dir: outDir, stitchedPreview, cameraPreviews, poster };
 }
