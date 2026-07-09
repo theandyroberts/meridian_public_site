@@ -275,10 +275,18 @@ The design handles the burst without special cases:
 ## Server sizing
 
 Ingest of 1080p proxies is CPU-bound (ffmpeg renditions). Target: **4 vCPU /
-8 GB RAM / 160 GB disk** (upgrade of the current 1 vCPU / 2 GB / 48 GB box, or
-a dedicated instance). Disk math: a 12-clip day at 2–4 GB/clip ≈ 25–50 GB in
-flight × 2.5 working overhead fits; archives prune at 14 days. Right-size the
-disk to the expected shoot cadence before first real use.
+8 GB RAM / 160 GB disk**. Likely v1 host: a dedicated **OVH VPS** at that
+tier (good price/uptime), separate from the current shared box; migrate to
+bigger infrastructure once revenue justifies it. Disk math: a 12-clip day at
+2–4 GB/clip ≈ 25–50 GB in flight × 2.5 working overhead fits; archives prune
+at 14 days. Right-size the disk to the expected shoot cadence before first
+real use.
+
+The server is deliberately migration-cheap: masters never touch it, so its
+only unique state is the catalog + watermarked media, transfer records, the
+env-file secrets, and the two restricted SSH keys. Standing up a replacement
+is the standard setup (node/pm2/nginx/certbot + CD deploy key) plus one rsync
+of that state and a DNS repoint.
 
 ## Testing
 
