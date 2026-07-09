@@ -14,7 +14,12 @@ import { CAMERA_IDS } from "@platelab/shared";
  * shaped to each scene's real driving behavior.
  */
 
-const SRC_ROOT = "/Users/andrewroberts/Projects/spheris-smart-stitch";
+// Footage source root. Override with PLATELAB_FOOTAGE_SRC (e.g. a mounted NAS
+// share) or pass as argv[2]; falls back to the local working copy.
+const SRC_ROOT =
+  process.argv[2] ||
+  process.env.PLATELAB_FOOTAGE_SRC ||
+  "/Users/andrewroberts/Projects/spheris-smart-stitch";
 
 interface RealClip {
   src: string;
