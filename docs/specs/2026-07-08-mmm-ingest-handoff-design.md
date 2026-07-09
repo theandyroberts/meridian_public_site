@@ -62,8 +62,8 @@ Example exchange:
 > ready."
 > MMM rsyncs the handoff root, then: "done sending `t-0042`."
 > MMM polls: per-clip states, finishing at e.g.
-> `{stockClipId: "SPH-STK-20260708-GLENDORA-001-CLIP-0001", sku: "PL-100042",
-> state: "draft", preview: "/plate/PL-100042?sig=…"}`
+> `{stockClipId: "SPH-STK-20260708-GLENDORA-001-CLIP-0001", sku: "PL-483920",
+> state: "draft", preview: "/plate/PL-483920?sig=…"}`
 
 ## Components
 
