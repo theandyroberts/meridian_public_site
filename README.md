@@ -18,6 +18,9 @@ Design spec: [docs/specs/2026-06-10-platelab-design.md](docs/specs/2026-06-10-pl
 
 ## Quick start
 
+`web/data/catalog.json` is runtime state (untracked) — generate demo data
+first or the site starts empty.
+
 ```bash
 npm install
 
