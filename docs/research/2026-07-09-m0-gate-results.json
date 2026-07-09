@@ -1,0 +1,96 @@
+{
+  "gate": "M0",
+  "passed": true,
+  "pts": "../../sample-data/reference/mercy01/mercy01.pts",
+  "checks": [
+    {
+      "name": "1 parser-proof",
+      "passed": true,
+      "cameras": 9,
+      "lens_focals_mm": [
+        13.0222,
+        9.8853
+      ],
+      "distortion_nonzero": [
+        true,
+        true
+      ],
+      "shift_long": 0.012145600618993566,
+      "control_points": 103
+    },
+    {
+      "name": "2 intrinsics-provenance",
+      "passed": true,
+      "f_px_at_6144": 2959.8,
+      "hfov_deg": 92.13,
+      "banned_constant_offenders": "none"
+    },
+    {
+      "name": "3 rig-geometry",
+      "passed": true,
+      "ring_yaw_gaps": [
+        61.12,
+        59.71,
+        59.63,
+        61.21,
+        58.81,
+        59.52
+      ],
+      "gaps_sum": 360.0,
+      "hfov": 92.13
+    },
+    {
+      "name": "4 warp-non-identity",
+      "passed": true,
+      "width_at_axis_px": 995,
+      "expected_px": 986.2,
+      "f_px": 2959.8,
+      "edge_vs_center_height": "62/612",
+      "top_edge_bow_px": -114.0,
+      "width_with_1p5x_focal": 747,
+      "evidence": "check4_checker_warped.png"
+    },
+    {
+      "name": "5 control-point-reprojection",
+      "passed": true,
+      "n": 103,
+      "all_rms_px": 12.69,
+      "ring_ring_rms_px": 1.17,
+      "ring_ring_max_px": 2.72,
+      "sky_pairs_rms_px": 17.18,
+      "sky_note": "provisional bound; revisit at 9-cam phase",
+      "rms_pitch_flipped": 595.1,
+      "rms_shift_flipped": 36.9
+    },
+    {
+      "name": "6 gold-image-diff",
+      "passed": true,
+      "structural_ncc": 0.9735,
+      "phase_shift_px": 0.18,
+      "gold_global_orientation": "yaw=-0.2 pitch=0.1 roll=0.0",
+      "evidence": "check6_ours_vs_gold_aligned.jpg, check6_50pct_blend.jpg"
+    },
+    {
+      "name": "7 hard-mask-seams",
+      "passed": true,
+      "pair_misregistration_px": {
+        "E-F": 0.22,
+        "F-A": 0.58,
+        "A-B": 0.85,
+        "B-C": 0.56,
+        "C-D": 0.81,
+        "D-E": 0.55
+      },
+      "worst_px": 0.85,
+      "evidence": "check7_hardmask_composite.jpg"
+    },
+    {
+      "name": "8 coverage",
+      "passed": true,
+      "equator_hole_px": 0,
+      "wrap_at_180_covered": true,
+      "lat_range": "-20.8..40.8 deg",
+      "evidence": "check8_coverage.png"
+    }
+  ]
+}
