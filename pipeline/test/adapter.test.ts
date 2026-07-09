@@ -53,3 +53,23 @@ test("adapt: live stitch → stitched-only drop; grid/unavailable rejected", asy
   assert.throws(() => adaptClip(root, manifest.clips[2]),
     (e: ClipAdaptError) => e.stage === "no_publishable_asset");
 });
+
+test("adapt: hyphenated location slugs parse correctly", async () => {
+  const root = tmp();
+  const hyphenatedClip = "SPH-STK-20260708-SAN-FRANCISCO-001-CLIP-0001";
+  await makeHandoff(root, { clips: [{ stockClipId: hyphenatedClip }] });
+  const manifest = await verifyHandoff(root);
+  const { drop } = adaptClip(root, manifest.clips[0]);
+  assert.equal(drop.meta.shootDate, "2026-07-08");
+  assert.equal(drop.meta.location.city, "San Francisco");
+});
+
+test("adapt: complex hyphenated slugs (PRIVATE-001) parse correctly", async () => {
+  const root = tmp();
+  const complexSlug = "SPH-STK-20260708-PRIVATE-001-001-CLIP-0001";
+  await makeHandoff(root, { clips: [{ stockClipId: complexSlug }] });
+  const manifest = await verifyHandoff(root);
+  const { drop } = adaptClip(root, manifest.clips[0]);
+  assert.equal(drop.meta.shootDate, "2026-07-08");
+  assert.equal(drop.meta.location.city, "Private 001");
+});

@@ -8,3 +8,4 @@ sample-data/drops/
 sample-data/audit.jsonl
 sample-data/reservations.jsonl
 web/public/media/
+.superpowers/

@@ -17,12 +17,12 @@ const SEASONS_BY_MONTH = ["winter","winter","spring","spring","spring","summer",
   "summer","summer","fall","fall","fall","winter"] as const;
 
 function titleCase(slug: string): string {
-  return slug.toLowerCase().replace(/(^|[\s-])\w/g, (m) => m.toUpperCase());
+  return slug.replace(/-/g, " ").toLowerCase().replace(/(^|\s)\w/g, (m) => m.toUpperCase());
 }
 
-/** SPH-STK-YYYYMMDD-LOCATION-### → { shootDate, locationSlug } */
+/** SPH-STK-YYYYMMDD-LOCATION-###-CLIP-#### → { shootDate, locationSlug } */
 function parseStockClipId(id: string): { shootDate: string; locationSlug: string } {
-  const m = /^SPH-STK-(\d{4})(\d{2})(\d{2})-([A-Z0-9]+)-\d+/i.exec(id);
+  const m = /^SPH-STK-(\d{4})(\d{2})(\d{2})-(.+)-\d{3}-CLIP-\d+/i.exec(id);
   if (!m) return { shootDate: "1970-01-01", locationSlug: "Unknown" };
   return { shootDate: `${m[1]}-${m[2]}-${m[3]}`, locationSlug: titleCase(m[4]) };
 }
