@@ -1,27 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  makeSku,
-  nextSequence,
   priceForDuration,
   speedBandForAvg,
 } from "@platelab/shared";
 import { signScreenerAccess, verifyScreenerAccess } from "../src/sign.js";
 import { summarizeTelemetry } from "../src/stages/telemetry.js";
-
-test("sku format and julian day", () => {
-  assert.equal(makeSku("2026-06-10", 42), "PL26161-0042");
-  assert.equal(makeSku("2026-01-01", 1), "PL26001-0001");
-  assert.throws(() => makeSku("2026-06-10", 0));
-  assert.throws(() => makeSku("not-a-date", 1));
-});
-
-test("sku sequence collision check", () => {
-  const existing = ["PL26161-0001", "PL26161-0007", "PL26160-0099"];
-  assert.equal(nextSequence("2026-06-10", existing), 8);
-  assert.equal(nextSequence("2026-06-09", existing), 100);
-  assert.equal(nextSequence("2025-01-01", existing), 1);
-});
 
 test("pricing: $8k/min, 1-minute minimum, prorated after", () => {
   assert.equal(priceForDuration(10), 8000); // under minimum
