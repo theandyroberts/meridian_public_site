@@ -45,9 +45,11 @@ jobs:
         # back up after the pm2 restart, and transient curl/connection errors
         # (which curl --retry won't retry on its own).
         run: |
+          # Production is IP-only until the retail domain exists (note15
+          # subdomain now points at the frozen dev box, not production).
           for i in $(seq 1 12); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" https://platelab.note15.com/ || true)
-            echo "attempt $i: https://platelab.note15.com/ -> HTTP ${code:-000}"
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://51.81.202.126/ || true)
+            echo "attempt $i: http://51.81.202.126/ -> HTTP ${code:-000}"
             [ "$code" = "200" ] && { echo "healthy"; exit 0; }
             sleep 5
           done
