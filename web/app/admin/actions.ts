@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { updateTransfer } from "@platelab/shared/server";
 import { requireAdmin } from "@/lib/admin/session";
 import { TRANSFERS_DIR } from "@/lib/ingest/paths";
+import { publishDraft, rejectDraft } from "@/lib/admin/catalogAdmin";
 
 export async function retryClip(transferId: string, stockClipId: string): Promise<void> {
   await requireAdmin();
@@ -37,4 +38,16 @@ export async function reverifyHandoff(transferId: string): Promise<void> {
     };
   });
   revalidatePath(`/admin/handoffs/${transferId}`);
+}
+
+export async function publishPlateAction(sku: string): Promise<void> {
+  await requireAdmin();
+  publishDraft(sku);
+  revalidatePath("/admin/drafts");
+}
+
+export async function rejectPlateAction(sku: string, formData: FormData): Promise<void> {
+  await requireAdmin();
+  rejectDraft(sku, String(formData.get("reason") ?? "rejected from admin"));
+  revalidatePath("/admin/drafts");
 }

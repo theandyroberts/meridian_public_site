@@ -27,3 +27,16 @@ export function publishPlate(plate: Plate): Catalog {
   fs.renameSync(tmp, CATALOG_PATH);
   return catalog;
 }
+
+export function removePlate(sku: string, reason: string): Catalog {
+  const catalog = loadCatalog();
+  const idx = catalog.plates.findIndex((p) => p.sku === sku);
+  if (idx < 0) throw new Error(`unknown SKU: ${sku}`);
+  catalog.plates.splice(idx, 1);
+  catalog.generatedAt = new Date().toISOString();
+  catalogSchema.parse(catalog);
+  const tmp = CATALOG_PATH + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(catalog, null, 2));
+  fs.renameSync(tmp, CATALOG_PATH);
+  return catalog;
+}
