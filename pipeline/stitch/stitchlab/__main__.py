@@ -14,10 +14,22 @@ def main() -> int:
     g.add_argument("--gold", required=True, help="PTGui's own rendered pano (mercy01.jpg)")
     g.add_argument("--out", required=True, help="output dir for evidence + gate-results.json")
 
+    s = sub.add_parser("stitch", help="TC-align a ring drop and render the stitched equirect band")
+    s.add_argument("--drop", required=True, help="drop dir containing cam_A..F.mov")
+    s.add_argument("--pts", required=True, help="PTGui v33 .pts calibration project")
+    s.add_argument("--out", required=True, help="output dir (samples/, metrics.json, movs)")
+    s.add_argument("--sample", type=int, default=8, help="render N spread sample frames as PNGs (default 8)")
+    s.add_argument("--full", action="store_true", help="render every aligned frame to ProRes + preview mp4")
+    s.add_argument("--fps-report", action="store_true", help="(fps is always reported in metrics.json)")
+
     args = ap.parse_args()
     if args.cmd == "gate":
         ok = Gate(args.pts, args.stills, args.gold, args.out).run()
         return 0 if ok else 1
+    if args.cmd == "stitch":
+        from .render import cmd_stitch
+
+        return cmd_stitch(args)
     return 2
 
 
