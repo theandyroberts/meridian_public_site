@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   priceForDuration,
   speedBandForAvg,
+  plateSchema,
 } from "@platelab/shared";
 import { signScreenerAccess, verifyScreenerAccess } from "../src/sign.js";
 import { summarizeTelemetry } from "../src/stages/telemetry.js";
@@ -48,4 +49,28 @@ test("telemetry summarization", () => {
   assert.equal(summary.speedBand, "highway");
   assert.equal(summary.gps.path.length, 3);
   assert.deepEqual(summary.gps.end, { lat: 40.002, lon: -74.0 });
+});
+
+test("plate schema v2: opaque sku, status default, mmm block, optional gps", () => {
+  const base = {
+    sku: "PL-4839208",
+    title: "t", description: "d", shootDate: "2026-07-08", rig: "Mercy01",
+    media: { durationSec: 10, fps: 23.98, stitchedResolution: "3840x1920",
+      colorPipeline: "c", masterFormat: "m", cameraOriginals: "o" },
+    shotType: "urban", timeOfDay: "day", weather: "clear", season: "summer",
+    tags: [], objects: [],
+    location: { name: "n", city: "c", region: "r", country: "US" },
+    imu: { collected: false },
+    stageCompat: ["led-volume"], availability: "available",
+    pricing: { perMinuteUsd: 8000, totalUsd: 8000, minimumMinutes: 1 },
+    renditions: { stitchedPreview: "/m/s.mp4", cameraPreviews: {}, poster: "/m/p.jpg" },
+    security: { masterSha256: "a".repeat(64), watermarked: true },
+    ingestedAt: "2026-07-08T00:00:00Z",
+  };
+  const parsed = plateSchema.parse({ ...base, mmm: { stockClipId: "SPH-STK-20260708-GLENDORA-001-CLIP-0001" } });
+  assert.equal(parsed.status, "live"); // default for legacy entries
+  assert.equal(parsed.mmm?.stockClipId.startsWith("SPH-STK"), true);
+  assert.equal(parsed.gps, undefined); // gps now optional
+  assert.throws(() => plateSchema.parse({ ...base, sku: "PL26161-0042" }));
+  assert.throws(() => plateSchema.parse({ ...base, sku: "PL-4839207" })); // bad check digit is format-valid; regex passes — see refine
 });

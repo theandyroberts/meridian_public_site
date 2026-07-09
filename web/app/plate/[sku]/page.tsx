@@ -158,7 +158,7 @@ export default async function PlatePage({
 
         <div className="side-stack">
           <PriceBlock plate={plate} />
-          <GpsPanel plate={plate} />
+          {plate.gps && <GpsPanel gps={plate.gps} plate={plate} />}
         </div>
       </div>
 
