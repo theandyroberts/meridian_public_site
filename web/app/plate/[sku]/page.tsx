@@ -1,26 +1,41 @@
 import Link from "next/link";
+import crypto from "node:crypto";
 import { notFound } from "next/navigation";
-import { getCatalog, getPlate, formatDuration } from "@/lib/catalog";
+import { getPlate, getLivePlates, formatDuration } from "@/lib/catalog";
 import { SyncedPlayer } from "@/components/SyncedPlayer";
 import { GpsPanel } from "@/components/GpsPanel";
 import { PriceBlock } from "@/components/PriceBlock";
 import { PlateCard } from "@/components/PlateCard";
 
-export function generateStaticParams() {
-  return getCatalog().plates.map((p) => ({ sku: p.sku }));
+export const dynamic = "force-dynamic";
+
+function validPreviewSig(sku: string, exp?: string, sig?: string): boolean {
+  const secret = process.env.PLATELAB_SCREENER_SECRET;
+  if (!secret || !exp || !sig) return false;
+  if (Number(exp) < Math.floor(Date.now() / 1000)) return false;
+  const expected = crypto.createHmac("sha256", secret).update(`${sku}.${exp}`).digest("hex");
+  const a = Buffer.from(sig, "hex");
+  const b = Buffer.from(expected, "hex");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 export default async function PlatePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ sku: string }>;
+  searchParams: Promise<{ exp?: string; sig?: string }>;
 }) {
   const { sku } = await params;
   const plate = getPlate(sku);
   if (!plate) notFound();
+  if (plate.status === "draft") {
+    const { exp, sig } = await searchParams;
+    if (!validPreviewSig(sku, exp, sig)) notFound();
+  }
 
-  const related = getCatalog()
-    .plates.filter(
+  const related = getLivePlates()
+    .filter(
       (p) =>
         p.sku !== plate.sku &&
         (p.shotType === plate.shotType || p.timeOfDay === plate.timeOfDay),

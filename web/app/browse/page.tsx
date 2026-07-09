@@ -1,11 +1,12 @@
 import { Suspense } from "react";
-import { getCatalog } from "@/lib/catalog";
+import { getLivePlates } from "@/lib/catalog";
 import { BrowseClient } from "@/components/BrowseClient";
 
 export const metadata = { title: "Browse plates — The Plate Lab" };
+export const dynamic = "force-dynamic";
 
 export default function BrowsePage() {
-  const { plates } = getCatalog();
+  const plates = getLivePlates();
   return (
     <main className="wrap">
       <Suspense>

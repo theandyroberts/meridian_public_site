@@ -5,18 +5,29 @@ import { catalogSchema, type Catalog, type Plate } from "@platelab/shared";
 const CATALOG_PATH = path.join(process.cwd(), "data", "catalog.json");
 
 let cached: Catalog | null = null;
+let cachedMtime = 0;
 
 export function getCatalog(): Catalog {
-  if (cached && process.env.NODE_ENV === "production") return cached;
-  if (!fs.existsSync(CATALOG_PATH)) {
-    return { generatedAt: "", plates: [] };
+  if (!fs.existsSync(CATALOG_PATH)) return { generatedAt: "", plates: [] };
+  const mtime = fs.statSync(CATALOG_PATH).mtimeMs;
+  if (!cached || mtime !== cachedMtime) {
+    cached = catalogSchema.parse(JSON.parse(fs.readFileSync(CATALOG_PATH, "utf8")));
+    cachedMtime = mtime;
   }
-  cached = catalogSchema.parse(JSON.parse(fs.readFileSync(CATALOG_PATH, "utf8")));
   return cached;
+}
+
+export function getLivePlates(): Plate[] {
+  return getCatalog().plates.filter((p) => p.status === "live");
 }
 
 export function getPlate(sku: string): Plate | undefined {
   return getCatalog().plates.find((p) => p.sku === sku);
+}
+
+export function getLivePlate(sku: string): Plate | undefined {
+  const p = getPlate(sku);
+  return p?.status === "live" ? p : undefined;
 }
 
 export function formatDuration(sec: number): string {

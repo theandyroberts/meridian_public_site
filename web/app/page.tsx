@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { getCatalog } from "@/lib/catalog";
+import { getLivePlates } from "@/lib/catalog";
 import { GlobeMark } from "@/components/Logo";
 import { HeroSearch } from "@/components/HeroSearch";
 import { PlateCard } from "@/components/PlateCard";
 import { PER_MINUTE_USD, formatUsd } from "@platelab/shared";
 
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
-  const { plates } = getCatalog();
+  const plates = getLivePlates();
   const featured = plates.slice(0, 6);
   const strip = plates.slice(0, 3);
 
