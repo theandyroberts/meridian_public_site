@@ -71,7 +71,11 @@ Example exchange:
 
 - `POST /api/ingest/handoffs` — announce. Body: `{handoffId, bytes,
   manifestSha256, clipCount}`. Returns `{transferId}`. Rejects (`507`) when
-  free disk < 2.5× announced bytes.
+  free disk minus **reserved space** < 2.5× announced bytes, where reserved
+  space = the summed bytes of every announced-but-not-yet-archived transfer.
+  Counting in-flight reservations closes the check-then-act race when several
+  announces arrive within seconds (a burst all seeing the same free-disk
+  number and all passing).
 - `POST /api/ingest/handoffs/:id/uploaded` — explicit "done sending" signal.
   Explicit beats file-watch heuristics for detecting a completed rsync.
 - `GET /api/ingest/handoffs/:id` — status. Overall state plus a per-clip
@@ -215,6 +219,26 @@ unconfigured. The hook is one module — other channels can be added later.
 
 Every daemon action appends to the existing `sample-data/audit.jsonl` chain of
 custody.
+
+## Concurrency (end-of-shoot burst)
+
+MMM finishes review/selection and may kick off many transfers within seconds.
+The design handles the burst without special cases:
+
+- Announces are per-transfer state files written by atomic rename — no shared
+  mutable state, safe under any number of simultaneous announces. The disk
+  guard counts in-flight reservations (above), so a burst cannot collectively
+  over-commit the disk.
+- The daemon intentionally serializes ingest (one clip at a time — transcode
+  is CPU-bound); a burst simply builds a FIFO queue with per-clip status
+  visible throughout. SKU assignment and catalog publish are single-writer by
+  construction.
+- **Preferred MMM shape: one day-level handoff root per shoot** (one announce,
+  one rsync) — the burst collapses into a single orderly transfer. If MMM
+  instead sends per-clip transfers in parallel, it should cap upload
+  concurrency at 2–4: parallel rsyncs share the studio uplink and finish no
+  sooner beyond that, and >10 simultaneous fresh SSH connections can trip
+  sshd's default `MaxStartups` throttle.
 
 ## Flagged back to MMM (PR #79 follow-ups, not TPL blockers)
 
