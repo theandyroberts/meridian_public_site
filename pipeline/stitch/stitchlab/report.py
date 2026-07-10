@@ -85,18 +85,19 @@ def cmd_report(args) -> int:
     preview = run_dir / "preview_2880.mp4"
     drop = Path(metrics["drop"])
 
-    clip = RingClip(drop)
     baseline = run_dir / "baseline_hconcat_2880.mp4"
     if not baseline.exists():
-        _baseline_hconcat(clip, baseline)
+        # only needs the source footage when the baseline hasn't been built yet
+        _baseline_hconcat(RingClip(drop), baseline)
 
     # matched wipe frames: mid-clip and two spreads, candidate vs baseline
+    fps = float(metrics.get("fps", 24.0))
     n = metrics["full_frames_rendered"]
     wipe_idx = [n // 5, n // 2, (4 * n) // 5]
     wipes = []
     for i in wipe_idx:
-        cand = _grab_frame(preview, i, clip.fps)
-        base = _grab_frame(baseline, i, clip.fps)
+        cand = _grab_frame(preview, i, fps)
+        base = _grab_frame(baseline, i, fps)
         h = min(cand.shape[0], base.shape[0])
         w = min(cand.shape[1], base.shape[1])
         wipes.append(
@@ -110,7 +111,7 @@ def cmd_report(args) -> int:
         )
 
     # seam zoom crops from the full-res master, mid-clip frame
-    mid = _grab_frame(master, n // 2, clip.fps)
+    mid = _grab_frame(master, n // 2, fps)
     band_h = mid.shape[0]
     crops = []
     for seam in metrics["seams"]:
@@ -165,7 +166,7 @@ def cmd_report(args) -> int:
  h1,h2{{font-weight:600}} h1{{border-bottom:2px solid #c56b3e;padding-bottom:12px}}
  .mono{{font-family:ui-monospace,monospace;font-size:12px;color:#8a8780;letter-spacing:.04em}}
  video{{width:100%;display:block;background:#000}}
- .cols{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}
+ .stack{{display:grid;gap:20px;max-width:1800px}}
  .wipe .frame{{position:relative;overflow:hidden}}
  .wipe img{{position:absolute;inset:0;width:100%}}
  .wipe img.top{{clip-path:inset(0 50% 0 0)}}
@@ -179,21 +180,21 @@ def cmd_report(args) -> int:
 <h1>Stitch review — {html.escape(drop.name)}</h1>
 <p class="mono">run: {html.escape(str(run_dir.resolve()))} · generated {time.strftime('%Y-%m-%d %H:%M')}</p>
 
-<h2>Candidate (true stitch) vs baseline (TC-aligned hconcat)</h2>
-<div class="cols">
-  <div><video src="preview_2880.mp4" controls muted loop></video><p class="mono">TRUE STITCH preview</p></div>
-  <div><video src="baseline_hconcat_2880.mp4" controls muted loop></video><p class="mono">naive hconcat (site today)</p></div>
+<h2>Candidate (true stitch) vs current (hconcat)</h2>
+<div class="stack">
+  <div><video src="preview_2880.mp4" controls muted loop></video><p class="mono">ROW 1 — TRUE STITCH candidate</p></div>
+  <div><video src="baseline_hconcat_2880.mp4" controls muted loop></video><p class="mono">ROW 2 — current site pano (TC-aligned hconcat)</p></div>
 </div>
 <p><button onclick="document.querySelectorAll('video').forEach(v=>{{v.currentTime=0;v.play()}})">▶ play both in sync</button></p>
 
-<h2>Wipe comparison</h2>
-{wipe_html}
-
-<h2>Seam zoom crops (full-res master, 2x)</h2>
-{crops_html}
-
 <h2>Run metrics &amp; provenance</h2>
 <table>{rows}</table>
+
+<h2>Stitch details (wipe comparison)</h2>
+{wipe_html}
+
+<h3>Seam zoom crops (full-res master, 2x)</h3>
+{crops_html}
 
 <div class="approve">
 <b>Approve this run:</b>
