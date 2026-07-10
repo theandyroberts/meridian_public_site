@@ -48,10 +48,14 @@ async function encodePreview(
   dst: string,
   width: number,
   filter: string,
+  graded = false,
 ): Promise<void> {
+  const chain = graded
+    ? `scale=${width}:-2,${filter}`
+    : `scale=${width}:-2,${PREVIEW_GRADE},${filter}`;
   await run("ffmpeg", [
     "-v", "error", "-i", src,
-    "-vf", `scale=${width}:-2,${PREVIEW_GRADE},${filter}`,
+    "-vf", chain,
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "30",
     "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", "-y", dst,
   ]);
@@ -107,6 +111,7 @@ export async function buildRenditions(
   fs.mkdirSync(outDir, { recursive: true });
   const font = findFont();
 
+  const graded = drop.meta.colorState === "graded";
   const stitchedPreview = path.join(outDir, "stitched_preview.mp4");
   if (drop.stitchedMaster) {
     await encodePreview(
@@ -114,6 +119,7 @@ export async function buildRenditions(
       stitchedPreview,
       960,
       watermarkFilter(font, sku),
+      graded,
     );
   } else {
     await encodeRingPano(drop, stitchedPreview, font, sku);
@@ -123,7 +129,7 @@ export async function buildRenditions(
   for (const [id, file] of Object.entries(drop.cameraFiles) as [CameraId, string][]) {
     const dst = path.join(outDir, `cam_${id}_preview.mp4`);
     const label = `${id} · ${CAMERA_POSITIONS[id].toUpperCase()}`;
-    await encodePreview(file, dst, 480, watermarkFilter(font, sku, label));
+    await encodePreview(file, dst, 480, watermarkFilter(font, sku, label), graded);
     cameraPreviews[id] = dst;
   }
 
@@ -135,7 +141,7 @@ export async function buildRenditions(
   try {
     await run("ffmpeg", [
       "-v", "error", "-ss", "1", "-i", posterSrc,
-      "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
+      "-frames:v", "1", "-vf", graded ? "scale=1280:-2" : `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
     ]);
   } catch (err) {
     // Log the original failure before falling back to frame 0 — if the source
@@ -144,7 +150,7 @@ export async function buildRenditions(
     console.warn(`buildRenditions: poster seek at t=1s failed, retrying at t=0: ${(err as Error).message}`);
     await run("ffmpeg", [
       "-v", "error", "-i", posterSrc,
-      "-frames:v", "1", "-vf", `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
+      "-frames:v", "1", "-vf", graded ? "scale=1280:-2" : `scale=1280:-2,${PREVIEW_GRADE}`, "-q:v", "4", "-y", poster,
     ]);
   }
 

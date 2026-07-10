@@ -31,6 +31,8 @@ export const dropMetaSchema = z.object({
   stageCompat: z.array(z.enum(["led-volume", "green-screen", "projection"])),
   /** Operator scene notes; also feed the offline labeler stub. */
   sceneHints: z.array(z.string()).default([]),
+  /** 'log' masters get the preview viewing grade; 'graded' masters are web-ready. */
+  colorState: z.enum(["log", "graded"]).default("log"),
 });
 
 export type DropMeta = z.infer<typeof dropMetaSchema>;
