@@ -29,6 +29,13 @@ def main() -> int:
     a.add_argument("run", help="run dir")
     a.add_argument("--by", required=True, help="approver name")
 
+    p2 = sub.add_parser("promote", help="crop master to full coverage + grade + watermark for the site")
+    p2.add_argument("--run", required=True)
+    p2.add_argument("--pts", required=True)
+    p2.add_argument("--sku", required=True)
+    p2.add_argument("--label", default="RING STITCH 1.0")
+    p2.add_argument("--width", type=int, default=2880)
+
     args = ap.parse_args()
     if args.cmd == "gate":
         ok = Gate(args.pts, args.stills, args.gold, args.out).run()
@@ -45,6 +52,10 @@ def main() -> int:
         from .report import cmd_approve
 
         return cmd_approve(args)
+    if args.cmd == "promote":
+        from .promote import cmd_promote
+
+        return cmd_promote(args)
     return 2
 
 
