@@ -89,9 +89,16 @@ export function SyncedPlayer({ plate }: { plate: Plate }) {
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
           onClick={togglePlay}
-          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            setDuration(v.duration);
+            // Browsers won't paint the first frame of a paused video until a
+            // seek forces a decode — without this the player renders black
+            // until the user presses play.
+            if (v.paused && v.currentTime === 0) v.currentTime = 0.001;
+          }}
         />
       </div>
 
