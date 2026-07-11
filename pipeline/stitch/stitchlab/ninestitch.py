@@ -14,10 +14,21 @@ Builds ON TOP of the proven M0 foundation without modifying it:
     solved after geometry, in the log domain, anchored to the (already
     gain-locked) ring composite.
   * Seams are FROZEN per clip: sky-sky seam columns are chosen by yaw order
-    like the ring; the sky-ring seam is a per-column min-cost row inside the
-    vertical overlap, median-filtered across columns. Blending uses a +-16 px
-    vertical feather at the sky-ring boundary and a horizontal feather at the
-    sky-sky seams, all in linear light.
+    like the ring. The sky-ring boundary is RING-FIRST (default,
+    --composite ring-first): the ring owns EVERY pixel where ring coverage is
+    valid, and the sky cameras fill only the region above the ring's
+    per-column coverage edge (the scalloped tile-top of the ring cams' union
+    validity mask, lightly median-filtered). Blending is a ~16 px vertical
+    band straddling that edge — sky fades in just above it, ring fades out
+    over the topmost ~8 px of its coverage where warp stretch is worst — plus
+    a horizontal feather at the sky-sky seams, all in linear light.
+    Rationale (user-reported defect, viaduct clip): the previous policy chose
+    a per-column min-cost seam row INSIDE the vertical overlap from
+    calibration-frame statistics; on featureless sky the cost is flat, so
+    seams sat lower than necessary and sky pixels (with wire/arch parallax vs
+    the ring) overwrote structure the ring renders cleanly — blocky steps on
+    the bridge arch crown. That min-cost search survives only under
+    --composite seam-cost for A/B comparison.
 
 QC methodology (the success criterion):
   On >=4 QC frames disjoint from the calibration frames, every seam family is
@@ -569,14 +580,27 @@ class NineStitcher:
     """Full-sphere-top compositor: RingStitcher band below the frozen sky seam,
     refined sky cameras above, all blending in linear light."""
 
+    #: ring-first: half-width of the vertical blend band at the ring coverage
+    #: edge (total ~16 px: sky fades in just above the edge, ring fades out
+    #: over the topmost ~8 px of its coverage where warp stretch is worst).
+    EDGE_FEATHER = 8
+    #: ring-first: circular median width for the per-column coverage edge —
+    #: light, ONLY to suppress single-column spikes; the result is then
+    #: clamped so the seam is never pulled below coverage.
+    EDGE_MEDIAN_K = 9
+
     def __init__(
         self,
         ring: RingStitcher,
         sky_offsets: dict[str, dict],
-        feather_v: int = 16,  # vertical feather at the sky-ring seam
+        feather_v: int = 16,  # vertical feather at the sky-ring seam (seam-cost mode)
         feather_h: int = 24,  # horizontal feather at sky-sky seams
         min_overlap_rows: int = 24,
+        composite: str = "ring-first",  # "ring-first" (default) | "seam-cost"
     ):
+        if composite not in ("ring-first", "seam-cost"):
+            raise ValueError(f"unknown composite mode {composite!r}")
+        self.composite = composite
         self.ring = ring
         self.eq_w, self.eq_h = ring.eq_w, ring.eq_h
         self.feather_v, self.feather_h = feather_v, feather_h
@@ -704,9 +728,15 @@ class NineStitcher:
                 sl[l] *= self._sky_vig[l]
         self._freeze_sky_sky_seams(sky_lums)
         self._build_sky_weights()
-        sky_comps = [self._sky_comp_luma(sl) for sl in sky_lums]
-        self._freeze_sky_ring_seam(sky_comps, ring_comps)
-        self._build_alpha()
+        if self.composite == "ring-first":
+            # Ring-first: the boundary is geometry (the ring's coverage edge),
+            # not image statistics — nothing to estimate from frames.
+            self._freeze_coverage_edge_seam()
+            self._build_alpha(feather=self.EDGE_FEATHER)
+        else:
+            sky_comps = [self._sky_comp_luma(sl) for sl in sky_lums]
+            self._freeze_sky_ring_seam(sky_comps, ring_comps)
+            self._build_alpha(feather=self.feather_v)
 
     def _solve_sky_photometry(self, sky_lums, ring_comps) -> None:
         """Joint log-domain least squares for the three sky gains AND a
@@ -945,10 +975,32 @@ class NineStitcher:
             acc += sky_lum[l] * self._sky_weights[l]
         return acc
 
+    def _freeze_coverage_edge_seam(self) -> None:
+        """RING-FIRST boundary: the seam IS the ring's per-column coverage
+        edge — the min valid row of the ring cams' union validity mask (the
+        scalloped tile-top edge already baked for the LUTs). The ring owns
+        every pixel where its coverage is valid; sky fills only what is above.
+
+        A light circular median (EDGE_MEDIAN_K) suppresses single-column
+        spikes, then the result is clamped to the raw edge so smoothing can
+        NEVER pull the seam below coverage (which would hand sky pixels —
+        with wire/arch parallax vs the ring — structure the ring renders
+        cleanly: the user-reported blocky-arch defect)."""
+        covered = self.ring_cov.any(axis=0)
+        edge_rel = np.argmax(self.ring_cov, axis=0)  # first ring-valid row (band-rel)
+        edge = (self.ring.r0 + edge_rel).astype(np.float64)
+        # Columns with no ring coverage at all: park the edge at the band
+        # bottom; _build_alpha's coverage forcing gives them to the sky.
+        edge[~covered] = float(self.r1_9 - 1)
+        seam = np.minimum(_median_filter_circular(edge, ksize=self.EDGE_MEDIAN_K), edge)
+        self.seam_row = np.clip(np.round(seam), 0, self.r1_9 - 1).astype(np.int32)
+
     def _freeze_sky_ring_seam(self, sky_comps, ring_comps) -> None:
-        """Per-column min-cost seam row inside the sky-ring vertical overlap
-        (cost = |linear diff| of the two composites averaged over calibration
-        frames), median-filtered across columns and FROZEN."""
+        """LEGACY (--composite seam-cost): per-column min-cost seam row inside
+        the sky-ring vertical overlap (cost = |linear diff| of the two
+        composites averaged over calibration frames), median-filtered across
+        columns and FROZEN. Kept for A/B only — on featureless sky the cost is
+        flat and the seam sits lower than necessary (blocky-arch defect)."""
         r0 = self.ring.r0
         n_rows = self.sky_r1 - r0  # global rows r0 .. sky_r1
         both = self.sky_union[r0 : self.sky_r1] & self.ring_cov[:n_rows]
@@ -976,12 +1028,12 @@ class NineStitcher:
         seam = _median_filter_circular(seam, ksize=31)
         self.seam_row = np.clip(np.round(seam), 0, self.r1_9 - 1).astype(np.int32)
 
-    def _build_alpha(self) -> None:
-        """Frozen per-pixel sky ownership over the output band: a +-feather_v
+    def _build_alpha(self, feather: int) -> None:
+        """Frozen per-pixel sky ownership over the output band: a +-feather
         vertical linear ramp at the per-column seam row, forced to sky where
         the ring has no coverage and to ring where the sky has none."""
         rr = np.arange(self.r0_9, self.r1_9, dtype=np.float32)[:, None]  # global rows
-        f = float(self.feather_v)
+        f = float(feather)
         ramp = np.clip((self.seam_row[None, :].astype(np.float32) - rr + f) / (2 * f), 0.0, 1.0)
 
         sky_cov = np.zeros((self.band_h, self.eq_w), bool)
@@ -1026,6 +1078,13 @@ class NineStitcher:
     def report(self) -> dict:
         return {
             "band9": {"r0": self.r0_9, "r1": self.r1_9, "height": self.band_h},
+            "composite_mode": self.composite,
+            "sky_ring_boundary": (
+                {"policy": "ring-coverage-edge", "feather_half_px": self.EDGE_FEATHER,
+                 "edge_median_k": self.EDGE_MEDIAN_K}
+                if self.composite == "ring-first"
+                else {"policy": "min-cost-seam", "feather_half_px": self.feather_v}
+            ),
             "sky_r1": self.sky_r1,
             "sky_order_by_yaw": self.sky_order,
             "sky_offsets_deg": self.sky_offsets,
@@ -1276,6 +1335,84 @@ def _tool_versions() -> dict:
     return {"ffmpeg": ff, "cv2": cv2.__version__, "numpy": np.__version__, "python": sys.version.split()[0]}
 
 
+# ------------------------------------------------- structure-crossing QC
+
+#: +-rows around the sky-ring boundary scanned for structure crossings.
+CROSSING_BAND_HALF = 20
+#: A column is a crossing candidate when its band gradient score exceeds
+#: this percentile of the frame's per-column scores.
+CROSSING_PCTL = 95.0
+#: Number of worst (frame, column) sites saved as zoom crops.
+CROSSING_N_SITES = 6
+#: Source-pixel width/height of each crossing crop (saved at 2x -> 400 px).
+CROSSING_CROP = 200
+
+
+def _crossing_scores(band: np.ndarray, nine: NineStitcher) -> np.ndarray:
+    """Per-column mean gradient magnitude inside a +-CROSSING_BAND_HALF row
+    band around the frozen sky-ring boundary. High score = structure (arch,
+    wires, mast) crossing the boundary — the moments a human must see."""
+    gray = cv2.cvtColor(band, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+    mag = cv2.magnitude(gx, gy)
+    h = band.shape[0]
+    offs = np.arange(-CROSSING_BAND_HALF, CROSSING_BAND_HALF + 1)
+    rows = np.clip(nine.seam_row[None, :] - nine.r0_9 + offs[:, None], 0, h - 1)
+    cols = np.broadcast_to(np.arange(band.shape[1])[None, :], rows.shape)
+    return mag[rows, cols].mean(axis=0)
+
+
+def _pick_crossing_sites(
+    scores_by_frame: dict[int, np.ndarray], eq_w: int,
+    n_sites: int = CROSSING_N_SITES, min_sep: int = CROSSING_CROP,
+) -> list[dict]:
+    """The n_sites worst (frame, column) crossing sites over all QC frames:
+    columns above each frame's CROSSING_PCTL, greedily picked by score with
+    circular column suppression so crops don't overlap within a frame."""
+    cands = []
+    for f, sc in scores_by_frame.items():
+        thr = float(np.percentile(sc, CROSSING_PCTL))
+        for c in np.where(sc >= thr)[0]:
+            cands.append((float(sc[c]), f, int(c)))
+    cands.sort(reverse=True)
+
+    def circ_dist(a, b):
+        d = abs(a - b) % eq_w
+        return min(d, eq_w - d)
+
+    picked: list[dict] = []
+    for s, f, c in cands:
+        if any(p["frame"] == f and circ_dist(c, p["col"]) < min_sep for p in picked):
+            continue
+        picked.append({"frame": f, "col": c, "score": round(s, 2)})
+        if len(picked) >= n_sites:
+            break
+    return picked
+
+
+def _save_crossing_crops(
+    bands: dict[int, np.ndarray], sites: list[dict], nine: NineStitcher, out_dir: Path
+) -> list[str]:
+    """400 px wide, 2x-nearest zoom crops centered on each crossing site's
+    boundary row (honest pixels: no smoothing of the blockiness under test)."""
+    outs = []
+    half = CROSSING_CROP // 2
+    for rank, site in enumerate(sites, 1):
+        band = bands[site["frame"]]
+        h, w = band.shape[:2]
+        c, r = site["col"], int(nine.seam_row[site["col"]]) - nine.r0_9
+        r_lo = max(0, min(h - CROSSING_CROP, r - half))
+        cols = np.arange(c - half, c + half) % w
+        crop = band[r_lo : r_lo + CROSSING_CROP][:, cols]
+        crop = cv2.resize(crop, None, fx=2, fy=2, interpolation=cv2.INTER_NEAREST)
+        p = out_dir / f"qc_crossing_{rank:02d}_frame_{site['frame']:06d}_col_{c:04d}.png"
+        cv2.imwrite(str(p), crop)
+        site["path"] = str(p)
+        outs.append(str(p))
+    return outs
+
+
 def _save_crops(band: np.ndarray, nine: NineStitcher, out_dir: Path, frame_idx: int) -> list[str]:
     """Zoom crops around every sky seam from one composite band."""
     outs = []
@@ -1348,8 +1485,9 @@ def cmd_stitch9(args) -> int:
         offsets = {l: {"yaw": 0.0, "pitch": 0.0, "roll": 0.0} for l in SKY}
         print("WARNING: no --refine/--offsets — using raw .pts sky angles (different shoot day)")
 
+    composite_mode = getattr(args, "composite", "ring-first")
     t0 = time.perf_counter()
-    nine = NineStitcher(ring, offsets)
+    nine = NineStitcher(ring, offsets, composite=composite_mode)
     nine.calibrate(cal_frames)
     timings["nine_calibrate_s"] = time.perf_counter() - t0
 
@@ -1368,7 +1506,7 @@ def cmd_stitch9(args) -> int:
             offsets, rep = polish.solve()
             rep["outer_iteration"] = outer
             polish_report.append(rep)
-            nine = NineStitcher(ring, offsets)
+            nine = NineStitcher(ring, offsets, composite=composite_mode)
             nine.calibrate(cal_frames)
             dmax = max(abs(v) for d in rep["polish_deltas_deg"].values() for v in d.values())
             if dmax < 0.05:
@@ -1445,6 +1583,36 @@ def cmd_stitch9(args) -> int:
 
     # -------------------------------------------------------- QC pass (always)
     qc_idx = _qc_indices(clip.usable_frames, args.sample, set(cal_idx))
+
+    # Structure-crossing scan: find the frames where structure (the arch
+    # crown, wires) rides highest against the sky-ring boundary — those are
+    # exactly the frames the old seam policy broke on — and fold the worst K
+    # into the QC sample set (evenly-spread frames are kept for coverage,
+    # dropping the most redundant spread frames to hold the sample count).
+    scan_k = getattr(args, "scan_crossing", 4)
+    if scan_k > 0:
+        t0 = time.perf_counter()
+        scan_idx = [i for i in _spread_indices(clip.usable_frames, 24) if i not in set(cal_idx)]
+        scan_scores: dict[int, float] = {}
+        for i, frames in clip.read_frames(scan_idx):
+            band = nine.compose_frame(frames)
+            scan_scores[i] = float(np.percentile(_crossing_scores(band, nine), 99))
+        top = [f for f, _ in sorted(scan_scores.items(), key=lambda kv: -kv[1])[:scan_k]]
+        merged = sorted(set(qc_idx) | set(top))
+        while len(merged) > max(args.sample, 4):
+            droppable = [f for f in merged if f not in top]
+            if not droppable:
+                break
+            f = min(droppable, key=lambda x: min(abs(x - o) for o in merged if o != x))
+            merged.remove(f)
+        qc_idx = merged
+        timings["crossing_scan_s"] = time.perf_counter() - t0
+        metrics["crossing_scan"] = {
+            "frames_scanned": scan_idx,
+            "p99_column_score_by_frame": {str(k): round(v, 2) for k, v in sorted(scan_scores.items())},
+            "top_frames_added": sorted(top),
+        }
+
     metrics["qc_frame_indices"] = qc_idx
     samples_dir = out_dir / "samples"
     samples_dir.mkdir(parents=True, exist_ok=True)
@@ -1452,6 +1620,7 @@ def cmd_stitch9(args) -> int:
     crop_frame = qc_idx[len(qc_idx) // 2]
 
     t0 = time.perf_counter()
+    qc_bands: dict[int, np.ndarray] = {}
     for i, frames in clip.read_frames(qc_idx):
         # One warp per camera per frame: luma feeds the metrics, the composite
         # is rendered from the same frozen weights.
@@ -1466,11 +1635,24 @@ def cmd_stitch9(args) -> int:
         qc.add_frame(ring_lums, sky_lums, ring_comp)
 
         band = nine.compose_frame(frames)
+        qc_bands[i] = band
         png = samples_dir / f"frame_{i:06d}.png"
         cv2.imwrite(str(png), band)
         outputs.append(str(png))
         if i == crop_frame:
             outputs += _save_crops(band, nine, samples_dir, i)
+
+    # Structure-crossing crops: the 6 worst (frame, column) boundary-crossing
+    # sites across the QC frames, saved as 2x zoom crops for human review.
+    crossing_scores = {i: _crossing_scores(b, nine) for i, b in qc_bands.items()}
+    crossing_sites = _pick_crossing_sites(crossing_scores, eq_w)
+    outputs += _save_crossing_crops(qc_bands, crossing_sites, nine, samples_dir)
+    metrics["qc_crossing"] = {
+        "band_half_px": CROSSING_BAND_HALF,
+        "percentile": CROSSING_PCTL,
+        "sites": crossing_sites,
+    }
+    del qc_bands
     timings["qc_pass_s"] = time.perf_counter() - t0
 
     metrics["metrics"] = qc.results()
