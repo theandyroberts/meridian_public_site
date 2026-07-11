@@ -34,6 +34,39 @@ def main() -> int:
     s9.add_argument("--full", action="store_true", help="render every aligned frame to ProRes")
     s9.add_argument("--no-polish", action="store_true",
                     help="skip the phase-correlation sky polish stage (round 3)")
+    s9.add_argument("--composite", choices=["ring-first", "seam-cost"], default="ring-first",
+                    help="sky-ring boundary policy: ring-first = ring owns every valid pixel, "
+                         "sky fills above its coverage edge (default); seam-cost = legacy "
+                         "min-cost seam row inside the overlap (A/B only)")
+    s9.add_argument("--scan-crossing", type=int, default=4, metavar="K",
+                    help="scan 24 spread frames with the structure-crossing detector and fold "
+                         "the K worst into the QC sample set (0 disables; default 4)")
+    s9.add_argument("--temporal", default="auto", metavar="OFFSETS_JSON",
+                    help="per-cam temporal offsets (frames) from stitchlab.temporal; "
+                         "'auto' (default) uses <out>/../temporal/offsets.json when present, "
+                         "'none' disables the motion-compensated resampling correction")
+    s9.add_argument("--baseline-metrics", default="reports/clip04-full/metrics.json",
+                    help="1.0 ring metrics.json for the absolute regression check")
+    s9.add_argument("--no-temporal-qc", dest="temporal_qc", action="store_false", default=True,
+                    help="skip the temporal QC video crops / film-strip montages")
+    s9.add_argument("--seed-offsets", metavar="OFFSETS_JSON",
+                    help="initialize sky ypr from a prior solution and let PhasePolish "
+                         "own the final offsets (finds the wire-balanced basin "
+                         "deterministically; unlike --offsets, polish still runs)")
+    s9.add_argument("--parallax", choices=["off", "flow", "flow+cdepth", "auto"], default="auto",
+                    help="parallax correction in the blend bands: flow = bidirectional "
+                         "DIS flow-morph (fb-gated, midpoint, temporally smoothed); "
+                         "flow+cdepth adds a constant-depth fallback on the sky-sky "
+                         "seams where flow is gated out (wires vs flat sky). "
+                         "'auto' (default) = flow+cdepth when the run is on frozen "
+                         "offsets (--offsets) with temporal correction, else off")
+    s9.add_argument("--frames", type=int, nargs="*", default=[],
+                    help="extra QC frame indices forced into the QC set "
+                         "(e.g. the parallax target-site frames)")
+    s9.add_argument("--targets", default="[]",
+                    help='JSON list of {"family","seam","frame","label"} parallax '
+                         "target sites, scored before/after through a fixed window "
+                         "and rendered as video/film-strip QC")
 
     r = sub.add_parser("report", help="build the human sign-off review report for a --full run")
     r.add_argument("--run", required=True, help="run dir containing metrics.json + master + preview")
@@ -49,6 +82,22 @@ def main() -> int:
     p2.add_argument("--label", default="RING STITCH 1.0")
     p2.add_argument("--width", type=int, default=2880)
 
+    gb = sub.add_parser("ghostbase", help="parallax loop: ghost-energy baseline over frozen seams")
+    gb.add_argument("--drop", required=True, help="drop dir containing cam_A..J.mov")
+    gb.add_argument("--pts", required=True, help="PTGui v33 .pts calibration project")
+    gb.add_argument("--out", required=True, help="output dir (baseline.json, samples/)")
+    gb.add_argument("--offsets", required=True, help="frozen sky ypr offsets JSON (verbatim)")
+    gb.add_argument("--temporal", default="none", metavar="OFFSETS_JSON",
+                    help="per-cam temporal offsets JSON ('none' disables)")
+    gb.add_argument("--eq", type=int, nargs=2, default=[3840, 1920], metavar=("W", "H"))
+    gb.add_argument("--qc-from", help="metrics.json whose qc_frame_indices to reuse")
+    gb.add_argument("--frames", type=int, nargs="*", default=[],
+                    help="extra QC frame indices (e.g. the target-site frames)")
+    gb.add_argument("--targets", default="[]",
+                    help='JSON list of {"family","seam","frame","label"} target sites')
+    gb.add_argument("--no-filmstrips", dest="filmstrips", action="store_false", default=True,
+                    help="skip the film-strip/video renders (metrics only)")
+
     args = ap.parse_args()
     if args.cmd == "gate":
         ok = Gate(args.pts, args.stills, args.gold, args.out).run()
@@ -61,6 +110,10 @@ def main() -> int:
         from .ninestitch import cmd_stitch9
 
         return cmd_stitch9(args)
+    if args.cmd == "ghostbase":
+        from .parallax import cmd_ghost_baseline
+
+        return cmd_ghost_baseline(args)
     if args.cmd == "report":
         from .report import cmd_report
 
