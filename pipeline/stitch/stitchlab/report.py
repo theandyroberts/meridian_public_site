@@ -226,13 +226,12 @@ def cmd_report(args) -> int:
 
 <div class="review" id="reviewBox">
   <b>Review this run</b><span id="statusInline"></span>
-  <p class="mono" style="margin:8px 0 12px">Approval gates site promotion; the current preview stays live until then.</p>
+  <p class="mono" style="margin:8px 0 12px">Approve ships it. Giving notes rejects this take and directs the retry — notes required.</p>
   <div style="margin-bottom:10px">Name: <input id="revBy" value="Andy" size="14"></div>
   <textarea id="revNote" placeholder="Notes (optional for approve, expected for changes)…"></textarea>
   <div style="display:flex;gap:10px;margin-top:12px">
-    <button class="ok" onclick="act('approve')">✓ Approve</button>
-    <button onclick="act('request-changes')">Request changes</button>
-    <button onclick="act('note')">Add note only</button>
+    <button class="ok" onclick="act('approve')">✓ Approve — no changes</button>
+    <button onclick="act('give-notes')">✎ Give notes (retry)</button>
   </div>
   <div id="revMsg" class="mono" style="margin-top:10px"></div>
   <div id="notesList" style="margin-top:14px"></div>
@@ -265,7 +264,7 @@ async function refresh() {{
     if (s.ok) {{
       const st = await s.json();
       const cls = st.state === 'approved' ? 'approved' : 'changes';
-      const label = st.state === 'approved' ? '✓ approved' : 'changes requested';
+      const label = st.state === 'approved' ? '✓ approved' : '✎ notes given';
       pill.innerHTML = `<span class="pill ${{cls}}">${{label}} — ${{st.by}} · ${{st.at.slice(0,16).replace('T',' ')}}</span>`;
     }} else pill.innerHTML = '<span class="pill">awaiting sign-off</span>';
   }} catch(e) {{}}

@@ -127,7 +127,7 @@ export default async function StitchReviewsPage() {
               borderLeft:
                 r.reviewState === "approved"
                   ? "4px solid #4a7c59"
-                  : r.reviewState === "changes-requested"
+                  : r.reviewState === "notes-given" || r.reviewState === "changes-requested"
                     ? "4px solid #a33d2e"
                     : "4px solid #c56b3e",
               padding: "16px 20px",
@@ -166,8 +166,8 @@ export default async function StitchReviewsPage() {
             <div style={{ marginTop: 6, fontSize: 13 }}>
               {r.reviewState === "approved" ? (
                 <span style={{ color: "#7fb08a" }}>✓ approved by {r.reviewBy}</span>
-              ) : r.reviewState === "changes-requested" ? (
-                <span style={{ color: "#e06c4f" }}>✗ changes requested by {r.reviewBy}</span>
+              ) : r.reviewState === "notes-given" || r.reviewState === "changes-requested" ? (
+                <span style={{ color: "#e06c4f" }}>✎ notes given by {r.reviewBy} — retry queued</span>
               ) : (
                 <span style={{ color: "#c56b3e" }}>awaiting sign-off</span>
               )}

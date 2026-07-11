@@ -40,16 +40,25 @@ export async function POST(req: Request) {
   const at = new Date().toISOString();
   const entry = { by: by.trim(), at, note: (note ?? "").trim() };
 
-  if (action === "note") {
-    if (!entry.note) return NextResponse.json({ error: "empty note" }, { status: 400 });
-  } else if (action === "approve" || action === "request-changes") {
+  // Two states only: approve, or give notes (= polite rejection + retry direction).
+  const normalized =
+    action === "approve" ? "approve"
+    : ["give-notes", "request-changes", "note"].includes(action) ? "give-notes"
+    : null;
+  if (!normalized) {
+    return NextResponse.json({ error: "unknown action" }, { status: 400 });
+  }
+  if (normalized === "give-notes" && !entry.note) {
+    return NextResponse.json({ error: "notes are required to give notes" }, { status: 400 });
+  }
+  {
     const status = {
-      state: action === "approve" ? "approved" : "changes-requested",
+      state: normalized === "approve" ? "approved" : "notes-given",
       ...entry,
     };
     fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify(status, null, 2));
     // keep legacy approved.json in sync for older tooling
-    if (action === "approve") {
+    if (normalized === "approve") {
       fs.writeFileSync(
         path.join(runDir, "approved.json"),
         JSON.stringify({ approvedBy: entry.by, at, note: entry.note }, null, 2),
@@ -57,11 +66,9 @@ export async function POST(req: Request) {
     } else {
       fs.rmSync(path.join(runDir, "approved.json"), { force: true });
     }
-  } else {
-    return NextResponse.json({ error: "unknown action" }, { status: 400 });
   }
 
-  if (entry.note || action === "note") {
+  if (entry.note) {
     const notesPath = path.join(runDir, "notes.json");
     let notes: unknown[] = [];
     try {
@@ -69,7 +76,7 @@ export async function POST(req: Request) {
     } catch {
       /* first note */
     }
-    notes.push({ ...entry, action });
+    notes.push({ ...entry, action: normalized });
     fs.writeFileSync(notesPath, JSON.stringify(notes, null, 2));
   }
 
