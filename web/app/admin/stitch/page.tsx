@@ -6,59 +6,82 @@ export const metadata = { title: "Stitch reviews — TPL Admin" };
 export const dynamic = "force-dynamic";
 
 const REPORTS_ROOT = path.join(process.cwd(), "data", "stitch-reports");
+const CATALOG_PATH = path.join(process.cwd(), "data", "catalog.json");
 
 interface RunSummary {
   name: string;
+  plateTitle?: string;
+  sku?: string;
   drop: string;
+  cameras?: number;
+  version?: string;
   frames?: number;
   renderFps?: number;
-  generatedAt?: string;
+  completedAt?: string;
   approvedBy?: string;
-  worstSeamDiff?: number;
+}
+
+function catalogTitles(): Record<string, string> {
+  try {
+    const c = JSON.parse(fs.readFileSync(CATALOG_PATH, "utf8"));
+    return Object.fromEntries(c.plates.map((p: any) => [p.sku, p.title]));
+  } catch {
+    return {};
+  }
 }
 
 function listRuns(): RunSummary[] {
   if (!fs.existsSync(REPORTS_ROOT)) return [];
+  const titles = catalogTitles();
   return fs
     .readdirSync(REPORTS_ROOT)
     .filter((d) => fs.existsSync(path.join(REPORTS_ROOT, d, "index.html")))
     .map((name) => {
       const run: RunSummary = { name, drop: name };
-      try {
-        const m = JSON.parse(
-          fs.readFileSync(path.join(REPORTS_ROOT, name, "metrics.json"), "utf8"),
-        );
+      const read = (f: string) => {
+        try {
+          return JSON.parse(fs.readFileSync(path.join(REPORTS_ROOT, name, f), "utf8"));
+        } catch {
+          return null;
+        }
+      };
+
+      const m = read("metrics.json");
+      if (m) {
         run.drop = path.basename(m.drop ?? name);
         run.frames = m.full_frames_rendered;
         run.renderFps = m.achieved_fps_full
           ? Math.round(m.achieved_fps_full * 100) / 100
           : undefined;
-        run.worstSeamDiff = Math.max(
-          ...(m.seams ?? []).map((s: any) => s.mean_abs_linear_diff ?? 0),
-        );
-      } catch {
-        /* report still usable without metrics */
+        run.cameras = m.cams ? Object.keys(m.cams).length : undefined;
       }
+      // completion = when the master's metrics were finalized
       try {
-        const a = JSON.parse(
-          fs.readFileSync(path.join(REPORTS_ROOT, name, "approved.json"), "utf8"),
-        );
-        run.approvedBy = a.approvedBy;
-      } catch {
-        /* not approved yet */
-      }
-      try {
-        run.generatedAt = fs
-          .statSync(path.join(REPORTS_ROOT, name, "index.html"))
+        run.completedAt = fs
+          .statSync(path.join(REPORTS_ROOT, name, "metrics.json"))
           .mtime.toISOString()
           .slice(0, 16)
-          .replace("T", " ");
+          .replace("T", " ") + " UTC";
       } catch {
         /* optional */
       }
+
+      const promoted = read("promoted.json");
+      if (promoted) {
+        run.sku = promoted.sku;
+        run.version = promoted.label;
+      } else if (run.cameras) {
+        // not yet promoted — infer from the pipeline shape
+        run.version =
+          run.cameras === 9 ? "ALL-9 STITCH 1.0+3 (unpromoted)" : "RING STITCH 1.0 (unpromoted)";
+      }
+      if (run.sku && titles[run.sku]) run.plateTitle = titles[run.sku];
+
+      const approved = read("approved.json");
+      if (approved) run.approvedBy = approved.approvedBy;
       return run;
     })
-    .sort((a, b) => (b.generatedAt ?? "").localeCompare(a.generatedAt ?? ""));
+    .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
 }
 
 export default async function StitchReviewsPage() {
@@ -95,17 +118,36 @@ export default async function StitchReviewsPage() {
               display: "block",
             }}
           >
-            <strong>{r.drop}</strong>{" "}
-            <span style={{ color: "#8a8780", fontSize: 13 }}>
-              · {r.frames ?? "?"} frames
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+              <strong style={{ fontSize: 16 }}>
+                {r.plateTitle ?? r.drop}
+                {r.sku && (
+                  <span style={{ color: "#c56b3e", fontWeight: 400 }}> · {r.sku}</span>
+                )}
+              </strong>
+              <span
+                style={{
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  color: "#f4f1ea",
+                  background: r.cameras === 9 ? "#3a2a14" : "#1f2733",
+                  border: "1px solid #4a3a24",
+                  padding: "3px 10px",
+                  alignSelf: "center",
+                }}
+              >
+                {r.cameras ? `${r.cameras} CAM` : "?"} · {r.version ?? "unknown version"}
+              </span>
+            </div>
+            <div style={{ color: "#8a8780", fontSize: 13, marginTop: 8 }}>
+              run <code>{r.name}</code> · {r.frames ?? "?"} frames
               {r.renderFps ? ` · rendered @ ${r.renderFps} fps` : ""}
-              {r.generatedAt ? ` · ${r.generatedAt}` : ""}
-            </span>
+              {r.completedAt ? ` · completed ${r.completedAt}` : ""}
+            </div>
             <div style={{ marginTop: 6, fontSize: 13 }}>
               {r.approvedBy ? (
-                <span style={{ color: "#7fb08a" }}>
-                  ✓ approved by {r.approvedBy}
-                </span>
+                <span style={{ color: "#7fb08a" }}>✓ approved by {r.approvedBy}</span>
               ) : (
                 <span style={{ color: "#c56b3e" }}>awaiting sign-off</span>
               )}

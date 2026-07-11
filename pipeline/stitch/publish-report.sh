@@ -19,7 +19,7 @@ test -f "$RUN_DIR/index.html" || { echo "no index.html in $RUN_DIR" >&2; exit 1;
 ssh "$HOST" "mkdir -p '$DEST'"
 rsync -az --partial --progress \
   --include='index.html' --include='*.mp4' \
-  --include='metrics.json' --include='approved.json' \
+  --include='metrics.json' --include='approved.json' --include='promoted.json' \
   --exclude='*' \
   "$RUN_DIR"/ "$HOST:$DEST/"
 
