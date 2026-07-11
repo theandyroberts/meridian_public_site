@@ -199,9 +199,22 @@ def cmd_report(args) -> int:
  td{{border-bottom:1px solid #26262c;padding:6px 10px;vertical-align:top}}
  code{{color:#d59e7e}}
  figure{{margin:0 0 20px}} figure img{{max-width:100%;border:1px solid #26262c}}
- .approve{{border:1px solid #c56b3e;padding:16px 20px;margin:32px 0;max-width:900px}}
+ details{{border:1px solid #26262c;margin:16px 0;max-width:1800px}}
+ details summary{{cursor:pointer;padding:14px 18px;font-weight:600;font-size:16px;list-style:none}}
+ details summary::before{{content:"▸ ";color:#c56b3e}}
+ details[open] summary::before{{content:"▾ "}}
+ details .inner{{padding:0 18px 18px}}
+ .review{{border:1px solid #c56b3e;padding:20px;margin:32px 0;max-width:900px}}
+ .review textarea{{width:100%;min-height:70px;background:#141418;color:#f4f1ea;border:1px solid #333;padding:10px;font:inherit}}
+ .review input{{background:#141418;color:#f4f1ea;border:1px solid #333;padding:8px 10px;font:inherit}}
+ .review button{{font:inherit;padding:10px 18px;border:1px solid #555;background:#1a1a20;color:#f4f1ea;cursor:pointer}}
+ .review button.ok{{background:#c56b3e;border-color:#c56b3e;color:#0e0e10;font-weight:600}}
+ .pill{{display:inline-block;padding:3px 10px;font-size:12px;border:1px solid #555;margin-left:10px}}
+ .pill.approved{{border-color:#4a7c59;color:#7fb08a}}
+ .pill.changes{{border-color:#c56b3e;color:#c56b3e}}
+ .note-row{{border-bottom:1px solid #26262c;padding:8px 0;font-size:14px}}
 </style></head><body>
-<h1>Stitch review — {html.escape(drop.name)}</h1>
+<h1>Stitch review — {html.escape(drop.name)} <span id="statusPill"></span></h1>
 <p class="mono">run: {html.escape(str(run_dir.resolve()))} · generated {time.strftime('%Y-%m-%d %H:%M')}</p>
 
 <h2>Candidate (true stitch) vs current (hconcat)</h2>
@@ -211,22 +224,76 @@ def cmd_report(args) -> int:
 </div>
 <p><button onclick="document.querySelectorAll('video').forEach(v=>{{v.currentTime=0;v.play()}})">▶ play both in sync</button></p>
 
+<div class="review" id="reviewBox">
+  <b>Review this run</b><span id="statusInline"></span>
+  <p class="mono" style="margin:8px 0 12px">Approval gates site promotion; the current preview stays live until then.</p>
+  <div style="margin-bottom:10px">Name: <input id="revBy" value="Andy" size="14"></div>
+  <textarea id="revNote" placeholder="Notes (optional for approve, expected for changes)…"></textarea>
+  <div style="display:flex;gap:10px;margin-top:12px">
+    <button class="ok" onclick="act('approve')">✓ Approve</button>
+    <button onclick="act('request-changes')">Request changes</button>
+    <button onclick="act('note')">Add note only</button>
+  </div>
+  <div id="revMsg" class="mono" style="margin-top:10px"></div>
+  <div id="notesList" style="margin-top:14px"></div>
+</div>
+
 <h2>Run metrics &amp; provenance</h2>
 <table>{rows}</table>
 
-<h2>Stitch details (wipe comparison)</h2>
+<details>
+<summary>Stitch details (wipe comparison)</summary>
+<div class="inner">
 {wipe_html}
-
-<h3>Seam zoom crops (full-res master, 2x)</h3>
-{crops_html}
-
-<div class="approve">
-<b>Approve this run:</b>
-<pre class="mono">cd pipeline/stitch && ./.venv/bin/python -m stitchlab approve {html.escape(str(run_dir))} --by "Andy"</pre>
-Nothing ships to the site until a run is approved; the current hconcat preview stays live meanwhile.
 </div>
+</details>
+
+<details>
+<summary>Seam zoom crops (full-res master, 2x)</summary>
+<div class="inner">
+{crops_html}
+</div>
+</details>
+
 <script>
 function wipe(r){{r.closest('.wipe').querySelector('.top').style.clipPath=`inset(0 ${{100-r.value}}% 0 0)`}}
+const RUN = location.pathname.split('/').filter(Boolean)[3] || '';
+async function refresh() {{
+  try {{
+    const s = await fetch(`/api/admin/stitch/${{RUN}}/status.json`, {{cache:'no-store'}});
+    const pill = document.getElementById('statusPill');
+    if (s.ok) {{
+      const st = await s.json();
+      const cls = st.state === 'approved' ? 'approved' : 'changes';
+      const label = st.state === 'approved' ? '✓ approved' : 'changes requested';
+      pill.innerHTML = `<span class="pill ${{cls}}">${{label}} — ${{st.by}} · ${{st.at.slice(0,16).replace('T',' ')}}</span>`;
+    }} else pill.innerHTML = '<span class="pill">awaiting sign-off</span>';
+  }} catch(e) {{}}
+  try {{
+    const n = await fetch(`/api/admin/stitch/${{RUN}}/notes.json`, {{cache:'no-store'}});
+    if (n.ok) {{
+      const notes = await n.json();
+      document.getElementById('notesList').innerHTML = notes.map(x =>
+        `<div class="note-row"><span class="mono">${{x.at.slice(0,16).replace('T',' ')}} · ${{x.by}} · ${{x.action}}</span><br>${{x.note}}</div>`).join('');
+    }}
+  }} catch(e) {{}}
+}}
+async function act(action) {{
+  const by = document.getElementById('revBy').value;
+  const note = document.getElementById('revNote').value;
+  const msg = document.getElementById('revMsg');
+  msg.textContent = '…';
+  try {{
+    const r = await fetch('/api/admin/stitch/actions', {{
+      method: 'POST', headers: {{'content-type':'application/json'}},
+      body: JSON.stringify({{run: RUN, action, by, note}}),
+    }});
+    const j = await r.json();
+    msg.textContent = r.ok ? `saved (${{action}})` : `failed: ${{j.error}}`;
+    if (r.ok) {{ document.getElementById('revNote').value=''; refresh(); }}
+  }} catch(e) {{ msg.textContent = 'failed: ' + e.message; }}
+}}
+refresh();
 </script>
 </body></html>"""
 

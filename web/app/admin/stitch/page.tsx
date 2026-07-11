@@ -18,7 +18,10 @@ interface RunSummary {
   frames?: number;
   renderFps?: number;
   completedAt?: string;
-  approvedBy?: string;
+  reviewState?: string;
+  reviewBy?: string;
+  reviewNote?: string;
+  lastNote?: { by: string; at: string; note: string };
 }
 
 function catalogTitles(): Record<string, string> {
@@ -77,8 +80,18 @@ function listRuns(): RunSummary[] {
       }
       if (run.sku && titles[run.sku]) run.plateTitle = titles[run.sku];
 
+      const status = read("status.json");
       const approved = read("approved.json");
-      if (approved) run.approvedBy = approved.approvedBy;
+      if (status) {
+        run.reviewState = status.state;
+        run.reviewBy = status.by;
+        run.reviewNote = status.note;
+      } else if (approved) {
+        run.reviewState = "approved";
+        run.reviewBy = approved.approvedBy;
+      }
+      const notes = read("notes.json");
+      if (Array.isArray(notes) && notes.length) run.lastNote = notes[notes.length - 1];
       return run;
     })
     .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
@@ -111,7 +124,12 @@ export default async function StitchReviewsPage() {
             href={`/api/admin/stitch/${encodeURIComponent(r.name)}/index.html`}
             style={{
               border: "1px solid #26262c",
-              borderLeft: r.approvedBy ? "4px solid #4a7c59" : "4px solid #c56b3e",
+              borderLeft:
+                r.reviewState === "approved"
+                  ? "4px solid #4a7c59"
+                  : r.reviewState === "changes-requested"
+                    ? "4px solid #a33d2e"
+                    : "4px solid #c56b3e",
               padding: "16px 20px",
               textDecoration: "none",
               color: "inherit",
@@ -146,10 +164,17 @@ export default async function StitchReviewsPage() {
               {r.completedAt ? ` · completed ${r.completedAt}` : ""}
             </div>
             <div style={{ marginTop: 6, fontSize: 13 }}>
-              {r.approvedBy ? (
-                <span style={{ color: "#7fb08a" }}>✓ approved by {r.approvedBy}</span>
+              {r.reviewState === "approved" ? (
+                <span style={{ color: "#7fb08a" }}>✓ approved by {r.reviewBy}</span>
+              ) : r.reviewState === "changes-requested" ? (
+                <span style={{ color: "#e06c4f" }}>✗ changes requested by {r.reviewBy}</span>
               ) : (
                 <span style={{ color: "#c56b3e" }}>awaiting sign-off</span>
+              )}
+              {r.lastNote?.note && (
+                <span style={{ color: "#8a8780" }}>
+                  {" — "}“{r.lastNote.note.slice(0, 120)}{r.lastNote.note.length > 120 ? "…" : ""}”
+                </span>
               )}
             </div>
           </a>
