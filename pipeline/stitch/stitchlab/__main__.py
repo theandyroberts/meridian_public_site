@@ -22,6 +22,19 @@ def main() -> int:
     s.add_argument("--full", action="store_true", help="render every aligned frame to ProRes + preview mp4")
     s.add_argument("--fps-report", action="store_true", help="(fps is always reported in metrics.json)")
 
+    s9 = sub.add_parser("stitch9", help="all-9 stitch: ring 1.0 band + refined sky cams G/H/J")
+    s9.add_argument("--drop", required=True, help="drop dir containing cam_A..J.mov (nine cameras)")
+    s9.add_argument("--pts", required=True, help="PTGui v33 .pts calibration project")
+    s9.add_argument("--out", required=True, help="output dir (samples/, metrics.json, sky_refine.json)")
+    s9.add_argument("--sample", type=int, default=6, help="QC sample frames, >=4 (default 6)")
+    s9.add_argument("--refine", action="store_true", help="run per-clip sky ypr refinement (SkyRefiner)")
+    s9.add_argument("--offsets", help="load sky ypr offsets from a prior sky_refine-style JSON")
+    s9.add_argument("--eq", type=int, nargs=2, default=[3840, 1920], metavar=("W", "H"),
+                    help="equirect canvas size (default 3840 1920)")
+    s9.add_argument("--full", action="store_true", help="render every aligned frame to ProRes")
+    s9.add_argument("--no-polish", action="store_true",
+                    help="skip the phase-correlation sky polish stage (round 3)")
+
     r = sub.add_parser("report", help="build the human sign-off review report for a --full run")
     r.add_argument("--run", required=True, help="run dir containing metrics.json + master + preview")
 
@@ -44,6 +57,10 @@ def main() -> int:
         from .render import cmd_stitch
 
         return cmd_stitch(args)
+    if args.cmd == "stitch9":
+        from .ninestitch import cmd_stitch9
+
+        return cmd_stitch9(args)
     if args.cmd == "report":
         from .report import cmd_report
 

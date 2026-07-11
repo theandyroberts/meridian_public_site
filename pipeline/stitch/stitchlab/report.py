@@ -78,10 +78,33 @@ def _b64_jpg(img: np.ndarray, q: int = 82) -> str:
     return "data:image/jpeg;base64," + base64.b64encode(buf).decode()
 
 
+def _normalize_metrics(metrics: dict) -> dict:
+    """Accept both ring (stitch) and nine-cam (stitch9) metrics schemas."""
+    if "seams" in metrics:
+        return metrics
+    fam = metrics.get("metrics", {}).get("families", {})
+    seams = []
+    for family, entries in fam.items():
+        for e in entries:
+            seams.append({
+                "pair": e.get("pair", e.get("name", family)),
+                "seam_col": e.get("seam_col", e.get("col", 0)),
+                "seam_lon_deg": e.get("seam_lon_deg", e.get("lon_deg", 0)),
+                "mean_abs_linear_diff": e.get("mean_abs_linear_diff", e.get("mad", 0)),
+            })
+    out = dict(metrics)
+    out["seams"] = seams
+    out.setdefault("band", metrics.get("band9", {}))
+    out.setdefault("gains", {**metrics.get("ring", {}).get("gains", {}), **metrics.get("sky_gains", {})})
+    out.setdefault("eq", metrics.get("ring", {}).get("eq", {"width": 3840, "height": 1920}))
+    out["success_criterion"] = metrics.get("metrics", {}).get("success_criterion")
+    return out
+
+
 def cmd_report(args) -> int:
     run_dir = Path(args.run)
-    metrics = json.loads((run_dir / "metrics.json").read_text())
-    master = next(run_dir.glob("*_ringband_prores.mov"))
+    metrics = _normalize_metrics(json.loads((run_dir / "metrics.json").read_text()))
+    master = next(run_dir.glob("*band_prores.mov"))
     preview = run_dir / "preview_2880.mp4"
     drop = Path(metrics["drop"])
 
@@ -138,6 +161,7 @@ def cmd_report(args) -> int:
             ("pts sha256", metrics.get("pts_sha256", "")[:16]),
             ("stitchlab git", metrics.get("stitchlab_git_head")),
             ("ffmpeg", metrics["tool_versions"]["ffmpeg"].split("Copyright")[0].strip()),
+            ("success criterion", metrics.get("success_criterion")),
         ]
     )
 
@@ -183,7 +207,7 @@ def cmd_report(args) -> int:
 <h2>Candidate (true stitch) vs current (hconcat)</h2>
 <div class="stack">
   <div><video src="preview_2880.mp4" controls muted loop></video><p class="mono">ROW 1 — TRUE STITCH candidate</p></div>
-  <div><video src="baseline_hconcat_2880.mp4" controls muted loop></video><p class="mono">ROW 2 — current site pano (TC-aligned hconcat)</p></div>
+  <div><video src="baseline_hconcat_2880.mp4" controls muted loop></video><p class="mono">ROW 2 — baseline for comparison</p></div>
 </div>
 <p><button onclick="document.querySelectorAll('video').forEach(v=>{{v.currentTime=0;v.play()}})">▶ play both in sync</button></p>
 
