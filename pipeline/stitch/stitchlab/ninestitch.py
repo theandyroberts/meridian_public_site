@@ -689,6 +689,10 @@ class NineStitcher:
         #: optional ParallaxCorrector (stitchlab.parallax), attached AFTER
         #: calibrate(); compose_frame then requires a frame_idx.
         self.parallax = None
+        #: optional BoundaryGuard (stitchlab.structure, structure-first):
+        #: rank-1 protection of the sky-ring boundary handoff — per-frame
+        #: rigid sky registration + dynamic seam routing with hysteresis.
+        self.structure_guard = None
         self.seam_row: np.ndarray | None = None  # per-column frozen sky-ring seam
         self.alpha: np.ndarray | None = None  # (band_h, eq_w) sky ownership
         self._sky_weights: dict[str, np.ndarray] | None = None
@@ -1218,20 +1222,9 @@ class NineStitcher:
         canvas = np.zeros((self.band_h, self.eq_w, 3), np.float32)
         s0 = self.r0_9
 
-        # Sky above the seam.
-        a_sky = self.alpha[: self.sky_r1 - s0, :, None]
-        acc_sky = np.zeros((self.sky_r1, self.eq_w, 3), np.float32)
-        for l in SKY:
-            mx, my, _ = self.sky_maps[l]
-            warped = to_linear(cv2.remap(frames[l], mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT))
-            if par is not None:
-                par.stash("sky", l, warped)
-            acc_sky += warped * self._sky_weights_vig[l][:, :, None]
-        if par is not None:
-            par.apply("sky", acc_sky, frame_idx)
-        canvas[: self.sky_r1 - s0] += a_sky * acc_sky[s0:]
-
-        # Ring below the seam (RingStitcher weights, unchanged).
+        # Ring first (structure-first: the guard registers sky AGAINST the
+        # trusted ring composite, so the ring accumulator must exist before
+        # the sky one is finalized; the blend result is order-invariant).
         acc_ring = np.zeros((self.ring.band_h, self.eq_w, 3), np.float32)
         for l in self.ring.order:
             mx, my, _ = self.ring.maps[l]
@@ -1241,8 +1234,31 @@ class NineStitcher:
             acc_ring += warped * self.ring._weights[l][:, :, None]
         if par is not None:
             par.apply("ring", acc_ring, frame_idx)
+
+        # Sky above the seam.
+        acc_sky = np.zeros((self.sky_r1, self.eq_w, 3), np.float32)
+        for l in SKY:
+            mx, my, _ = self.sky_maps[l]
+            warped = to_linear(cv2.remap(frames[l], mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT))
+            if par is not None:
+                par.stash("sky", l, warped)
+            acc_sky += warped * self._sky_weights_vig[l][:, :, None]
+        if par is not None:
+            par.apply("sky", acc_sky, frame_idx)
+
+        # STRUCTURE-FIRST boundary guard: rigid-align the blended sky against
+        # the ring around protected boundary-crossing structure and route the
+        # per-frame seam below crest silhouettes (returns a per-frame alpha).
+        alpha = self.alpha
+        guard = self.structure_guard
+        if guard is not None:
+            if frame_idx is None:
+                raise RuntimeError("compose_frame() needs frame_idx when the structure guard is attached")
+            acc_sky, alpha = guard.correct(acc_sky, acc_ring, frame_idx)
+
+        canvas[: self.sky_r1 - s0] += alpha[: self.sky_r1 - s0, :, None] * acc_sky[s0:]
         rslice = slice(self.ring.r0 - s0, self.r1_9 - s0)
-        canvas[rslice] += (1.0 - self.alpha[rslice, :, None]) * acc_ring
+        canvas[rslice] += (1.0 - alpha[rslice, :, None]) * acc_ring
         return from_linear(canvas)
 
     # ----------------------------------------------------------------- report
@@ -1956,17 +1972,27 @@ def cmd_stitch9(args) -> int:
     par_mode = getattr(args, "parallax", "auto") or "auto"
     if par_mode == "auto":
         par_mode = "flow+cdepth" if (args.offsets and tpath) else "off"
+    # STRUCTURE-FIRST (rank-1, default ON): flow forbidden on protected
+    # structure + single-sourcing in the corrector, plus the BoundaryGuard
+    # on the sky-ring handoff (rigid registration + dynamic seam routing).
+    structure_first = bool(getattr(args, "structure_first", True))
     corrector = None
     if par_mode != "off":
         from .parallax import GhostAccumulator, ParallaxCorrector
 
-        corrector = ParallaxCorrector(nine, mode=par_mode)
+        corrector = ParallaxCorrector(nine, mode=par_mode, structure_first=structure_first)
         nine.parallax = corrector
         print(f"parallax correction ON ({par_mode}): {len(corrector.specs)} seams "
               f"({sum(1 for s in corrector.specs if s['cdepth'])} with rigid-profile fallback"
-              f"{', sharp-select blend' if corrector.sharpsel else ''})")
+              f"{', sharp-select blend' if corrector.sharpsel else ''}"
+              f"{', structure-first protection' if structure_first else ''})")
     else:
         print(f"parallax correction OFF")
+    if structure_first:
+        from .structure import BoundaryGuard
+
+        nine.structure_guard = BoundaryGuard(nine)
+        print("structure-first boundary guard ON (rigid sky registration + seam routing)")
 
     metrics = {
         "pipeline": "stitch9 (ring 1.0 + refined sky GHJ)",
@@ -2002,6 +2028,21 @@ def cmd_stitch9(args) -> int:
 
     outputs: list[str] = []
     if args.full:
+        # STRUCTURE-FIRST frame warm-up: a forward pre-pass over the first
+        # frames, then rewind — frame 0 of the real render EMA-blends against
+        # warmed state (fixes the f0-f3 doubled-cable cold start).
+        warmup_n = 8 if (corrector is not None or nine.structure_guard is not None) else 0
+        if warmup_n:
+            t0 = time.perf_counter()
+            for i, frames in source.read_frames(range(warmup_n)):
+                nine.compose_frame(frames, frame_idx=i)
+            if corrector is not None:
+                corrector.rewind_for_start()
+            if nine.structure_guard is not None:
+                nine.structure_guard.rewind_for_start()
+            timings["warmup_prepass_s"] = time.perf_counter() - t0
+            metrics["warmup_prepass_frames"] = warmup_n
+
         # Full ProRes render of the 9-cam band (implemented; run only when asked).
         mov_path = out_dir / f"{Path(args.drop).resolve().name}_nineband_prores.mov"
         enc_argv = _encoder_argv(clip, nine, mov_path)
@@ -2230,6 +2271,12 @@ def cmd_stitch9(args) -> int:
                 {k: v for k, v in s.items() if k not in ("entry_k", "pos")}
                 for s in parallax_worst
             ],
+        }
+
+    if nine.structure_guard is not None or (corrector is not None and corrector.structure_first):
+        metrics["structure_first"] = {
+            "boundary_guard": None if nine.structure_guard is None else nine.structure_guard.report(),
+            "seam_protection": None if corrector is None else corrector.protection_report(),
         }
 
     metrics["metrics"] = qc.results()

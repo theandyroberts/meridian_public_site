@@ -67,6 +67,14 @@ def main() -> int:
                     help='JSON list of {"family","seam","frame","label"} parallax '
                          "target sites, scored before/after through a fixed window "
                          "and rendered as video/film-strip QC")
+    s9.add_argument("--structure-first", dest="structure_first", action="store_true",
+                    default=True,
+                    help="rank-1 large-structure protection (DEFAULT ON): flow-morph "
+                         "forbidden on protected structure (rigid verified shifts "
+                         "only), single-sourcing of disagreeing structure, dynamic "
+                         "sky-ring seam routing with hysteresis, frame warm-up")
+    s9.add_argument("--no-structure-first", dest="structure_first", action="store_false",
+                    help="disable the rank-1 structure protection (A/B / archaeology)")
 
     r = sub.add_parser("report", help="build the human sign-off review report for a --full run")
     r.add_argument("--run", required=True, help="run dir containing metrics.json + master + preview")

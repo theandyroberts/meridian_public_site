@@ -574,6 +574,27 @@ SEL_EPS = 0.008      # sharpness floor: keeps flat-sky ratios neutral (probe 2 r
 # (Round 5 also probed a sharpness-biased MORPH TARGET here — rejected, see
 # the negative-result comment in _solve and probe_sharpsel5/6_GH.png.)
 
+# STRUCTURE-FIRST (rank-1, post-rejection round 1) — Andy's rejection notes
+# demoted ghost energy to the LOWEST priority and made large-structure
+# integrity rank 1. The autopsy (reports/clip04-sky/structure) proved the
+# flow-morph wins ghost energy by displacing/bending protected structure
+# inside the blend band (up to 9.5 px). Consequences implemented here:
+#   * flow-morph is FORBIDDEN on protected structure: conf -> 0 wherever
+#     stitchlab.structure.strip_protection_mask() fires, so the displacement
+#     collapses to the VERIFIED rigid per-row profile (shift/shear only —
+#     concrete never bends) or to zero when nothing verifies;
+#   * protected structure that still disagrees after the rigid correction is
+#     SINGLE-SOURCED, not blended: the blend share is committed to the
+#     sharper camera (winner chosen with temporal hysteresis so the routing
+#     does not pop frame to frame) — the share-space equivalent of routing
+#     the seam around the structure;
+#   * frame warm-up: rewind_for_start() lets the driver run a forward
+#     pre-pass and re-enter frame 0 with warmed EMA state (the f0-f3
+#     doubled-cable bug was the cold-start of this EMA).
+SS_COMMIT_HI = 0.020  # disagreement (gained linear) where commitment saturates
+SS_WIN_SIGMA = 12.0   # extra blur of the sharpness fields for the winner vote
+SS_HYST = 0.15        # winner flips only on a 15% sharpness advantage
+
 
 def _weighted_median(vals: np.ndarray, wts: np.ndarray) -> float:
     order = np.argsort(vals)
@@ -593,11 +614,15 @@ class ParallaxCorrector:
     same frame reuse identical fields.
     """
 
-    def __init__(self, nine: NineStitcher, mode: str = "flow+cdepth", sharpsel: bool = True):
+    def __init__(self, nine: NineStitcher, mode: str = "flow+cdepth", sharpsel: bool = True,
+                 structure_first: bool = True):
         if mode not in ("flow", "flow+cdepth"):
             raise ValueError(f"unknown parallax mode {mode!r}")
         self.nine = nine
         self.mode = mode
+        #: STRUCTURE-FIRST lever (rank-1): protection masks + single-source
+        #: commitment + warm-up support. Default ON (stitch9 --structure-first).
+        self.structure_first = bool(structure_first)
         #: ROUND 4 lever (see the SharpSelect constants above). Constructor
         #: flag rather than a new CLI mode: it is part of the round-4
         #: flow+cdepth behavior; probes A/B it by instantiating directly.
@@ -870,6 +895,21 @@ class ParallaxCorrector:
             prof_ij = np.zeros((h, 2), np.float32)
             prof_ji = np.zeros((h, 2), np.float32)
 
+        # STRUCTURE-FIRST: flow-morph FORBIDDEN on protected large structure.
+        # conf -> 0 there, so the displacement collapses to the verified
+        # rigid profile (shift/shear, never bend) — or zero when unverified.
+        # Profiles were estimated from the UNMASKED conf (the structure's
+        # confident flow is still a legitimate rigid-candidate source).
+        prot = np.zeros((h, wd), np.float32)
+        if self.structure_first:
+            from .structure import strip_protection_mask
+
+            prot = strip_protection_mask(lum_i, lum_j, spec["valid"])
+            conf_i = conf_i * (1.0 - prot)
+            conf_j = conf_j * (1.0 - prot)
+            pf = self.stats.setdefault("protected_frac", {})
+            pf[spec["key"]] = float(prot.mean())
+
         if st is not None and st["idx"] == frame_idx - 1:  # temporal EMA
             k = EMA_NEW
             f_ij = k * f_ij + (1 - k) * st["f_ij"]
@@ -925,6 +965,7 @@ class ParallaxCorrector:
         # compose and QC paths of a frame see identical fields; EMA'd itself
         # for temporal stability (dsel is what the composite actually feels).
         dsel = np.zeros_like(lum_i)
+        win = None
         if self.sharpsel:
             a_m = self._morph(lum_i, map_i)
             b_m = self._morph(lum_j, map_j)
@@ -937,6 +978,27 @@ class ParallaxCorrector:
             t_i = bi * (s_i + SEL_EPS) ** SEL_GAMMA
             t_j = bj * (s_j + SEL_EPS) ** SEL_GAMMA
             dsel = q * ((bi + bj) * t_i / (t_i + t_j + 1e-12) - bi)
+            # STRUCTURE-FIRST single-sourcing: protected structure that STILL
+            # disagrees after the rigid correction is never blended — the
+            # full pair share is committed to the sharper camera (winner-take-
+            # all in share space = routing the seam around the structure).
+            # Temporal hysteresis: the winner flips only on a clear sharpness
+            # advantage, so the routing does not pop frame to frame.
+            if self.structure_first and prot.any():
+                s_iw = cv2.GaussianBlur(s_i, (0, 0), SS_WIN_SIGMA)
+                s_jw = cv2.GaussianBlur(s_j, (0, 0), SS_WIN_SIGMA)
+                prev_win = st.get("win") if (st is not None and st["idx"] == frame_idx - 1) else None
+                if prev_win is not None:
+                    thr = np.where(prev_win > 0.5, 1.0 - SS_HYST, 1.0 + SS_HYST)
+                else:
+                    thr = 1.0
+                win = (s_iw > thr * s_jw).astype(np.float32)
+                qp = prot * np.clip(
+                    (cv2.GaussianBlur(d, (0, 0), SEL_D_SIGMA) - SEL_D_LO)
+                    / (SS_COMMIT_HI - SEL_D_LO), 0.0, 1.0)
+                dsel = (1.0 - qp) * dsel + qp * ((bi + bj) * win - bi)
+            else:
+                win = None
             if st is not None and st["idx"] == frame_idx - 1:
                 dsel = EMA_NEW * dsel + (1 - EMA_NEW) * st["dsel"]
             # commitment error: how far the band composite sits from the
@@ -957,6 +1019,7 @@ class ParallaxCorrector:
             "conf_i": conf_i, "conf_j": conf_j,
             "prof_ij": prof_ij, "prof_ji": prof_ji,
             "dsel": dsel,
+            "win": win,
             "map_i": map_i,
             "map_j": map_j,
             "gated_frac": float((conf_i < 0.5)[v].mean()) if v.any() else 1.0,
@@ -972,6 +1035,27 @@ class ParallaxCorrector:
     @staticmethod
     def _morph(img: np.ndarray, mp: tuple[np.ndarray, np.ndarray]) -> np.ndarray:
         return cv2.remap(img, mp[0], mp[1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+
+    def rewind_for_start(self) -> None:
+        """Frame warm-up (rank-2/Andy's frame-1 cable): after a forward
+        pre-pass over the first frames, rewind the state indices to -1 so the
+        real pass's frame 0 satisfies the idx == frame_idx - 1 EMA condition
+        and blends against WARMED fields instead of starting cold."""
+        for st in self._state.values():
+            st["idx"] = -1
+        self._last_solved_idx = None
+
+    def protection_report(self) -> dict:
+        return {
+            "enabled": self.structure_first,
+            "policy": "flow forbidden on protected structure (conf->0 => verified "
+                      "rigid profile only); still-disagreeing protected structure "
+                      "single-sourced to the sharper cam with winner hysteresis",
+            "protected_frac_last_frame": {
+                k: round(v, 4)
+                for k, v in self.stats.get("protected_frac", {}).items()
+            },
+        }
 
     # ------------------------------------------------------------ compose path
 
