@@ -693,6 +693,7 @@ class NineStitcher:
         #: rank-1 protection of the sky-ring boundary handoff — per-frame
         #: rigid sky registration + dynamic seam routing with hysteresis.
         self.structure_guard = None
+        self.ring_router = None  # r2-1 lever 3: per-frame ring seam routing
         self.seam_row: np.ndarray | None = None  # per-column frozen sky-ring seam
         self.alpha: np.ndarray | None = None  # (band_h, eq_w) sky ownership
         self._sky_weights: dict[str, np.ndarray] | None = None
@@ -1234,6 +1235,13 @@ class NineStitcher:
             acc_ring += warped * self.ring._weights[l][:, :, None]
         if par is not None:
             par.apply("ring", acc_ring, frame_idx)
+
+        # r2-1 LEVER 3: ring-tier per-frame seam routing — re-weights the
+        # parallax-morphed pair strips around protected structure crossing a
+        # ring seam (single-sourced, hysteresis). Runs after par.apply so the
+        # router sees/keeps exactly the morphed content the blend used.
+        if self.ring_router is not None:
+            self.ring_router.route(acc_ring, frame_idx)
 
         # Sky above the seam.
         acc_sky = np.zeros((self.sky_r1, self.eq_w, 3), np.float32)

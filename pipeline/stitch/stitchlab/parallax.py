@@ -649,6 +649,11 @@ class ParallaxCorrector:
         self._dis.setVariationalRefinementIterations(10)  # MEDIUM default: 5
         self._state: dict[str, dict] = {}
         self._stash: dict[tuple[str, str], np.ndarray] = {}
+        # r2-1 (RingSeamRouter, lever 3): when set, apply() keeps the MORPHED
+        # ring strips of the current frame so the router can re-weight them.
+        self.keep_ring_morphed = False
+        self.ring_morphed: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        self.ring_raw: dict[str, tuple[np.ndarray, np.ndarray]] = {}
         self.stats = {"flow_solve_s": 0.0, "apply_s": 0.0, "frames_solved": 0,
                       "seam_solves": 0, "profile_windows_accepted": 0}
         self._last_solved_idx: int | None = None
@@ -959,6 +964,12 @@ class ParallaxCorrector:
         e_j = spec["share_i"][None, :]                # j's morph envelope
         map_i = (gx + e_i * d_ji_x, gy + e_i * d_ji_y)
         map_j = (gx + e_j * d_ij_x, gy + e_j * d_ij_y)
+        # r2-1 (RingSeamRouter): the raw displacement fields, so the router
+        # can re-morph with envelopes centered on the ROUTED path instead of
+        # the frozen seam (single-sourcing the frozen-seam-morphed strip
+        # still carries the old midpoint's bend — probe_fa2).
+        d_ij = (d_ij_x.astype(np.float32), d_ij_y.astype(np.float32))
+        d_ji = (d_ji_x.astype(np.float32), d_ji_y.astype(np.float32))
 
         # ROUND 4 — SharpSelect blend-share shift (see the constants block).
         # Computed from the MORPHED gained sources (post-EMA maps) so the
@@ -1019,6 +1030,8 @@ class ParallaxCorrector:
             "conf_i": conf_i, "conf_j": conf_j,
             "prof_ij": prof_ij, "prof_ji": prof_ji,
             "dsel": dsel,
+            "prot": prot,      # r2-1: RingSeamRouter routes around this
+            "d_ij": d_ij, "d_ji": d_ji,   # r2-1: router re-morph fields
             "win": win,
             "map_i": map_i,
             "map_j": map_j,
@@ -1089,6 +1102,9 @@ class ParallaxCorrector:
             st = self._solve(spec, spec["gain_i"] * lum_i, spec["gain_j"] * lum_j, frame_idx)
             a_m = self._morph(a, st["map_i"])
             b_m = self._morph(b, st["map_j"])
+            if kind == "ring" and self.keep_ring_morphed:
+                self.ring_morphed[spec["key"]] = (a_m, b_m)
+                self.ring_raw[spec["key"]] = (a, b)
             acc[:, spec["cols"]] += (
                 spec["w_i"][:, :, None] * (a_m - a) + spec["w_j"][:, :, None] * (b_m - b)
             )
