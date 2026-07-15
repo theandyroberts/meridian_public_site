@@ -83,6 +83,31 @@ def main() -> int:
     a.add_argument("run", help="run dir")
     a.add_argument("--by", required=True, help="approver name")
 
+    sk = sub.add_parser("sky", help="sky-tier-only dome stitch (G/H/J) — the separate overhead element")
+    sk.add_argument("--drop", required=True)
+    sk.add_argument("--pts", required=True)
+    sk.add_argument("--out", required=True)
+    sk.add_argument("--offsets", default=None, help="per-clip sky ypr offsets json")
+    sk.add_argument("--eq", type=int, nargs=2, default=[3840, 1920], metavar=("W", "H"))
+    sk.add_argument("--sample", type=int, default=6)
+    sk.add_argument("--feather", type=float, default=8.0, help="sky-sky blend feather in degrees")
+    sk.add_argument("--fisheye", type=int, default=1600, help="fisheye deliverable size px")
+    sk.add_argument("--rim", type=float, required=True,
+                    help="REQUIRED, per-clip. Lower elevation bound of the sky element "
+                         "(deg above horizon): the fisheye rim AND the equirect master's "
+                         "bottom. No default on purpose — it must clear both the sky-sky "
+                         "seam-break zone (<=~25 deg) and any structure the RING element "
+                         "already owns. Roll01_Clip04 (6th St viaduct): 59 — the arch "
+                         "crowns at 54.3 and belongs to the ring.")
+    sk.add_argument("--patch-above", dest="patch_above", type=float, default=80.0,
+                    help="inpaint uncovered pixels above this elevation (the sub-zenith "
+                         "wedge the 9mm lenses leave short of the pole; default 80)")
+    sk.add_argument("--no-patch", action="store_true",
+                    help="leave the zenith wedge black (archival / QC)")
+    sk.add_argument("--bands", type=int, default=5,
+                    help="Laplacian multi-band blend levels; kills the zenith tonal "
+                         "pinwheel left by per-lens vignetting (0 = flat alpha blend)")
+
     p2 = sub.add_parser("promote", help="crop master to full coverage + grade + watermark for the site")
     p2.add_argument("--run", required=True)
     p2.add_argument("--pts", required=True)
@@ -130,6 +155,10 @@ def main() -> int:
         from .report import cmd_approve
 
         return cmd_approve(args)
+    if args.cmd == "sky":
+        from .skystitch import cmd_sky
+
+        return cmd_sky(args)
     if args.cmd == "promote":
         from .promote import cmd_promote
 

@@ -632,6 +632,19 @@ BG_ROUTE_NEAR = 34        # a silhouette top within [seam-NEAR, seam+2] => route
 BG_ROUTE_STEP = 4.0       # max routed-seam move per consecutive frame (px)
 BG_ROUTE_RES_MAX = 0.05   # interior residual bar for accepting a route
 BG_MIN_SHIFT = 0.4        # shifts below this are not applied
+# fl-1 NEGATIVE RESULT (do not retry without new evidence): the route->seam
+# taper above is a NO-OP at the run edge — it blurs the `near` indicator and
+# multiplies it into an UNBLURRED, hard-edged (route - sm), and outside the run
+# the deviation is identically 0 whatever the blurred indicator says. The route
+# therefore steps ~10.5 px in ONE column at every run edge, ON rigid structure,
+# and that cliff is what mints the 5 residual flank ghost-edges. Tapering the
+# DEVIATION instead (grey-dilate by 8 then blur sigma 8) does flatten the cliff
+# (10.5 -> 0.7 px/col, verified) but MADE THE METRIC WORSE: 5 -> 6 boundary
+# hard-breaks, flank max 7 -> 9 px. Reason: a smooth ramp drags the handoff
+# DIAGONALLY THROUGH the beam over ~24 cols (a long smear the composite-only
+# edge detector scores higher) instead of cutting it once. The cliff is real
+# but a smoother cliff is not the fix — the shoulder needs the DISSOLVE
+# (BG_PROT_ROUTE_DIL), not a gentler slope.
 
 # ---- round 2: SILHOUETTE-STEP CLOSED LOOP (the rank-1 metric gates the guard)
 # Round-1 autopsy (session 99d9eefc, probe_local_step): the photometric window
@@ -761,6 +774,50 @@ BG_SWEEP_MAXCOLS = 700    # sanity cap: if a frame flags more columns than this
                           # the measurement is untrusted (open-sky false lock) —
                           # skip the sweep that frame and log it
 
+# ---- rs-1 LEVER: REGION-SELECTIVE (structure-shaped) BOUNDARY DISSOLVE.
+# The remaining pp-2 boundary hard-breaks are NOT the near-field crossers the
+# interval/sweep dissolve already handles — they are LARGE RIGID structure
+# (rooflines, arches, building edges) sitting right at the sky-ring seam, combed
+# by the BASE alpha feather where the sky and ring cameras image that structure
+# at PARALLAX-OFFSET rows: the linear ramp blends one camera's dark structure
+# against the other's open sky, minting a bright dithered wedge / hard source-
+# cut through the rigid content (f636 arch 17px, f1500 roofline 15px — verified
+# real composite content; both are OUTSIDE any dissolve interval, so the
+# interval/sweep machinery never reached them). The whole-interval 50/50 dissolve
+# that r2-2 laid over the near-field class could not be pointed here without its
+# own RECTANGULAR mask boundary cutting the structure (the CONTEXT bug).
+# rs-1 fix: detect the crossing structure with the PROT detector run on the
+# per-pixel MIN of the two camera lumas (min reconstructs the whole continuous
+# dark structure even where the comb has brightened it), and lay a SOFT,
+# STRUCTURE-SHAPED symmetric 50/50 dissolve over ONLY that structure. Feathered
+# to the structure silhouette (no rectangular boundary), it turns the hard comb
+# into a soft symmetric double — the pro concession class — instead of a source
+# cut. Thin poles/wires are rejected by the PROT opening (they stay dissolved as
+# near-field soft-doubles: f108/f132 untouched); columns already in a dissolve
+# interval and cleanly-routed crest columns are excluded (no double-processing,
+# crests stay crisp). Where the structure is truly PARALLAX-SPLIT (imaged at
+# offset rows with a coverage gap between — f636 arch, f492 crest) the soft
+# dissolve reduces but cannot erase the step: that residual is a DEPTH problem,
+# reported (classified ghost-dissolve), not blended away (per CONTEXT).
+BG_PROT_ENABLE = True
+BG_PROT_UP = 8            # dissolve band extends this far ABOVE the seam row
+BG_PROT_DOWN = 34         # ... and this far below (the boundary structure and
+                          # its parallax-offset twin live in this handoff band;
+                          # wider added phantom soft edges without helping f636)
+BG_PROT_SOFT = 3.0        # gaussian feather (px) of the structure dissolve mask
+BG_PROT_ROUTE_DIL = 31    # exclude routed-crest columns +- this (keep crests crisp)
+BG_PROT_WCOL = 0.2        # a column with prot-dissolve weight over this joins the
+                          # frame dissolve mask (metric: residual soft doubles on
+                          # it are ghost-dissolve, not rigid hard-break FAILs)
+BG_PROT_DIFF_LO = 0.35    # DISAGREEMENT gate (x sky_ref): the dissolve fires only
+BG_PROT_DIFF_D = 0.30     # where the two cameras DISAGREE — one renders dark
+                          # structure, the other open sky (the bright-wedge comb).
+                          # Where both cameras hold the structure and merely place
+                          # it a few px apart (a clean single-sourced crest with a
+                          # parallax OFFSET step, e.g. f492), |sky-ring| is small
+                          # so the crest is NOT dissolved (it keeps its crisp
+                          # single offset — a DEPTH residual, reported not doubled).
+
 # ---- r2-2 blocker 2: the silhouette scanner scores comb-teeth smear and
 # hard straight-edge source-cuts 0.0 (they erase the clean silhouette the
 # chain fits need). The ARTIFACT INSPECTOR mints records for COMPOSITE-ONLY
@@ -861,6 +918,11 @@ class BoundaryGuard:
         self.sky_cov[: nine.sky_r1 - s0] = nine.sky_union[s0:]
         self.ring_cov9 = np.zeros((nine.band_h, nine.eq_w), bool)
         self.ring_cov9[nine.ring.r0 - s0:] = nine.ring_cov
+        # rs-1: overlap (both cover) + covered (either) for the boundary-
+        # structure protection detector / dissolve
+        self.prot_valid = self.sky_cov & self.ring_cov9
+        self.prot_covered = self.sky_cov | self.ring_cov9
+        self.stats_prot = {"frames_engaged": 0, "cols_total": 0}
         self.tracks: list[dict] = []          # live shift tracks (EMA between
                                               # consecutive VERIFIED frames only)
         self.route_prev: np.ndarray | None = None
@@ -1034,6 +1096,54 @@ class BoundaryGuard:
             return np.zeros(W, bool), diag
         diag["break_cols"] = n
         return mask, diag
+
+    def _boundary_prot_dissolve(self, acc_sky: np.ndarray, acc_ring: np.ndarray,
+                                route_full: np.ndarray, w: np.ndarray,
+                                sky_ref: float) -> np.ndarray:
+        """rs-1: soft, STRUCTURE-SHAPED symmetric-dissolve weight (band_h, eq_w)
+        over LARGE rigid structure crossing the sky-ring seam. See the BG_PROT_
+        block comment. Returns a [0,1] weight already restricted to the overlap;
+        the alpha builder blends it toward 0.5 so combed rigid content becomes a
+        soft double instead of a base-feather source-cut. Thin poles/wires, near-
+        field dissolve columns and cleanly-routed crests are excluded."""
+        nine = self.nine
+        r0, sky_r1, r1_9, W = nine.ring.r0, nine.sky_r1, nine.r1_9, nine.eq_w
+        s0, band_h = nine.r0_9, nine.band_h
+        seam = nine.seam_row
+        # POST-shift sky luma / (unmutated) ring luma over the output band
+        lsb = np.zeros((band_h, W), np.float32)
+        hi = min(sky_r1, r1_9)
+        lsb[: hi - s0] = acc_sky[s0:hi].mean(axis=2)
+        lrb = np.zeros((band_h, W), np.float32)
+        lrb[r0 - s0:] = acc_ring[: r1_9 - r0].mean(axis=2)
+        # min-luma reconstructs the whole continuous dark structure (the comb has
+        # brightened it in one camera; the darker camera still holds it)
+        lmin = np.where(self.prot_valid, np.minimum(lsb, lrb),
+                        np.where(self.sky_cov, lsb,
+                                 np.where(self.ring_cov9, lrb, 1.0)))
+        P = strip_protection_mask(lmin, lmin, self.prot_covered)
+        rows = np.arange(band_h)[:, None]
+        seam_b = seam[None, :] - s0
+        band = (rows >= seam_b - BG_PROT_UP) & (rows <= seam_b + BG_PROT_DOWN)
+        # exclude columns already dissolving (near-field, handled) and cleanly
+        # routed crest columns (kept crisp)
+        excl = w > 0.05
+        routed = np.abs(route_full - seam) > 0.6
+        if routed.any():
+            k = np.ones((1, BG_PROT_ROUTE_DIL), np.uint8)
+            routed = cv2.dilate(routed.astype(np.uint8).reshape(1, -1), k).ravel().astype(bool)
+        excl = excl | routed
+        # DISAGREEMENT gate: dissolve only the comb (one cam dark structure, the
+        # other open sky), never a clean crest whose two renders merely sit a few
+        # px apart (a parallax OFFSET step — a depth residual, kept crisp: f492).
+        disagree = np.clip(
+            (np.abs(lsb - lrb) - BG_PROT_DIFF_LO * sky_ref)
+            / (BG_PROT_DIFF_D * sky_ref), 0.0, 1.0)
+        Pb = (P * band.astype(np.float32) * (~excl)[None, :].astype(np.float32)
+              * disagree)
+        Pb = np.clip(cv2.GaussianBlur(Pb, (0, 0), BG_PROT_SOFT), 0.0, 1.0)
+        Pb *= self.prot_valid.astype(np.float32)   # overlap only (coverage-safe)
+        return Pb
 
     def correct(self, acc_sky: np.ndarray, acc_ring: np.ndarray,
                 frame_idx: int):
@@ -1497,10 +1607,30 @@ class BoundaryGuard:
             w = wtgt
         self.dis_prev = w
         self._dis_idx = frame_idx
+        # rs-1: region-selective boundary-structure dissolve (see BG_PROT_ block)
+        # — a soft structure-shaped 50/50 over LARGE rigid structure combed by the
+        # base alpha feather at the seam (f636 arch, f1500 roofline). Computed on
+        # the POST-shift accumulators; applied to the final alpha below.
+        prot_w = None
+        if BG_PROT_ENABLE:
+            prot_w = self._boundary_prot_dissolve(
+                acc_sky, acc_ring, route_full, w, sky_ref)
+            pcols0 = np.flatnonzero(prot_w.max(axis=0) > 0.01)
+            if pcols0.size:
+                self.stats_prot["frames_engaged"] += 1
+                self.stats_prot["cols_total"] += int(pcols0.size)
+            else:
+                prot_w = None
         # pp-2: the dissolve influence mask for THIS frame — the metric uses it
         # to separate ghost/dissolve regions (soft doubles, EXPECTED, not a
         # hard-break FAIL) from rigid-structure hard breaks (FAIL > 4.5 px).
-        diag["dissolve_w_cols"] = np.flatnonzero(w > 0.2).astype(np.int32)
+        # rs-1: prot-dissolved columns join it — a residual soft double on combed
+        # rigid structure is the pro concession class, not a hard-break FAIL.
+        dcols = np.flatnonzero(w > 0.2)
+        if prot_w is not None:
+            dcols = np.union1d(
+                dcols, np.flatnonzero(prot_w.max(axis=0) > BG_PROT_WCOL))
+        diag["dissolve_w_cols"] = dcols.astype(np.int32)
 
         f0 = float(nine.EDGE_FEATHER)
         moved = (np.abs(route_full - seam) > 0.6) | (w > 0.01)
@@ -1529,6 +1659,18 @@ class BoundaryGuard:
             self.stats["routed_frames"] += 1
             diag["routed_cols_total"] = int(moved.sum())
             diag["dissolve_cols"] = int((w > 0.5).sum())
+
+        # rs-1: overlay the structure-shaped boundary-protection dissolve on the
+        # final alpha — blend toward 0.5 (symmetric double) on combed rigid
+        # structure. prot_w is already overlap-restricted (coverage-safe) and
+        # feathered to the silhouette (no rectangular boundary to re-comb).
+        if prot_w is not None:
+            if alpha is self.nine.alpha:
+                alpha = alpha.copy()
+            pcols = np.flatnonzero(prot_w.max(axis=0) > 0.01)
+            pw = prot_w[:, pcols]
+            alpha[:, pcols] = alpha[:, pcols] * (1.0 - pw) + 0.5 * pw
+            diag["prot_dissolve_cols"] = int(pcols.size)
 
         # r2-2: stash the post-guard source lumas of the boundary band for
         # the composite-only-edge artifact inspector (comb teeth / hard
@@ -1564,6 +1706,10 @@ class BoundaryGuard:
                 "frames_with_sweep_dissolve": self.stats["sweep_frames"],
                 "cols_dissolved_total": self.stats["sweep_cols_total"],
                 "overflow_frames_skipped": self.stats["sweep_overflow_frames"],
+            },
+            "prot_dissolve": {       # rs-1: region-selective boundary-structure
+                "frames_engaged": self.stats_prot["frames_engaged"],
+                "cols_total": self.stats_prot["cols_total"],
             },
             "sil_gate": {
                 "intervals_measurable": len(sil),
