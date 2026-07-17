@@ -104,6 +104,9 @@ def main() -> int:
                          "wedge the 9mm lenses leave short of the pole; default 80)")
     sk.add_argument("--no-patch", action="store_true",
                     help="leave the zenith wedge black (archival / QC)")
+    sk.add_argument("--full", action="store_true",
+                    help="render every frame to a ProRes master + mp4 preview and build the "
+                         "review report (index.html) the admin gallery lists")
     sk.add_argument("--bands", type=int, default=5,
                     help="Laplacian multi-band blend levels; kills the zenith tonal "
                          "pinwheel left by per-lens vignetting (0 = flat alpha blend)")

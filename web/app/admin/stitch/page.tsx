@@ -74,9 +74,14 @@ function listRuns(): RunSummary[] {
         run.sku = promoted.sku;
         run.version = promoted.label;
       } else if (run.cameras) {
-        // not yet promoted — infer from the pipeline shape
+        // not yet promoted — infer from the pipeline shape. 3 cams = the sky tier
+        // (G/H/J) rendered as the standalone overhead element; 6 = the ring band.
         run.version =
-          run.cameras === 9 ? "ALL-9 STITCH 1.0+3 (unpromoted)" : "RING STITCH 1.0 (unpromoted)";
+          run.cameras === 9
+            ? "ALL-9 STITCH 1.0+3 (unpromoted)"
+            : run.cameras === 3
+              ? `SKY DOME 1.0${m?.rim ? ` rim ${m.rim.elev_deg}°` : ""} (unpromoted)`
+              : "RING STITCH 1.0 (unpromoted)";
       }
       if (run.sku && titles[run.sku]) run.plateTitle = titles[run.sku];
 

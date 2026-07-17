@@ -293,6 +293,90 @@ def to_fisheye(equirect: np.ndarray, size: int, max_elev_deg: float) -> np.ndarr
     return out
 
 
+def _encoder_argv(w: int, h: int, fps: float, out_mov: Path) -> list[str]:
+    # Mirrors render._encoder_argv. The -color_* codec flags are silently ignored
+    # by ffmpeg 8 on this path, so colorimetry is tagged via setparams in the
+    # filter chain and asserted after the encode.
+    return [
+        "ffmpeg", "-hide_banner", "-y",
+        "-f", "rawvideo", "-pix_fmt", "bgr24",
+        "-s", f"{w}x{h}", "-r", f"{fps}",
+        "-i", "-",
+        "-vf", "setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=limited",
+        "-c:v", "prores_ks", "-profile:v", "3",
+        str(out_mov),
+    ]
+
+
+def _preview_argv(in_mov: Path, out_mp4: Path) -> list[str]:
+    return [
+        "ffmpeg", "-hide_banner", "-y", "-i", str(in_mov),
+        "-vf", "setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=limited",
+        "-c:v", "libx264", "-crf", "20", "-preset", "medium",
+        "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+        str(out_mp4),
+    ]
+
+
+def render_full(args, clip, maps, weights, hole, rim, report) -> dict:
+    """Render every frame to a ProRes master + an mp4 preview.
+
+    The FISHEYE is the master here, not the equirect band: the deliverable is a
+    flat overhead LED panel, and the fisheye is the form that maps onto it. The
+    equirect band is kept as the archival/interchange form via the samples.
+    """
+    import subprocess
+    import time
+
+    out_dir = Path(args.out)
+    size = args.fisheye
+    mov = out_dir / f"{Path(args.drop).resolve().name}_skydome_prores.mov"
+    argv = _encoder_argv(size, size, clip.fps, mov)
+    report["ffmpeg_subprocess_argv"] = argv
+
+    t0 = time.perf_counter()
+    errf = open(out_dir / "encode.log", "wb")
+    enc = subprocess.Popen(argv, stdin=subprocess.PIPE, stderr=errf)
+    n = 0
+    try:
+        for i, frames in clip.read_frames(range(clip.usable_frames)):
+            eq = compose(frames, maps, weights, args.eq[0], args.eq[1], bands=args.bands)
+            if not args.no_patch:
+                eq = fill_zenith(eq, hole)
+            enc.stdin.write(to_fisheye(eq, size, rim).tobytes())
+            n += 1
+            if n % 200 == 0:
+                print(f"  {n}/{clip.usable_frames} frames", flush=True)
+    finally:
+        enc.stdin.close()
+        rc = enc.wait()
+        errf.close()
+    if rc != 0:
+        raise RuntimeError(f"prores encode failed (rc={rc}) — see {out_dir}/encode.log")
+    dt = time.perf_counter() - t0
+
+    # F1 assertion, same as the ring: the master must carry explicit colr tags.
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+         "stream=color_space,color_primaries,color_transfer,color_range",
+         "-of", "json", str(mov)],
+        capture_output=True, text=True,
+    )
+    tags = json.loads(probe.stdout)["streams"][0] if probe.returncode == 0 else {}
+    report["master_color_tags"] = tags
+    if tags.get("color_space") != "bt709" or tags.get("color_primaries") != "bt709":
+        raise RuntimeError(f"master colorimetry tags wrong/missing: {tags}")
+
+    prev = out_dir / "preview_2880.mp4"
+    subprocess.run(_preview_argv(mov, prev), check=True, capture_output=True)
+
+    report["full_frames_rendered"] = n
+    report["achieved_fps_full"] = round(n / dt, 3) if dt else None
+    report["outputs"] = {"master": str(mov), "preview": str(prev)}
+    print(f"rendered {n} frames -> {mov.name} ({report['achieved_fps_full']} fps) + {prev.name}")
+    return report
+
+
 def cmd_sky(args) -> int:
     out_dir = Path(args.out)
     (out_dir / "samples").mkdir(parents=True, exist_ok=True)
@@ -364,8 +448,82 @@ def cmd_sky(args) -> int:
         cv2.imwrite(str(pf), fe)
         paths.append(str(pf))
     report["samples"] = paths
+    # the gallery counts metrics["cams"] to label the run
+    report["cams"] = {L: {"yaw": round(c.yaw, 4), "pitch": round(c.pitch, 4),
+                          "roll": round(c.roll, 4)} for L, c in cams.items()}
+    report["fps"] = clip.fps
+
+    if getattr(args, "full", False):
+        render_full(args, clip, maps, weights, hole, rim, report)
+
     (out_dir / "metrics.json").write_text(json.dumps(report, indent=2))
+    if getattr(args, "full", False):
+        write_sky_report(out_dir, report)
     print(json.dumps(report["coverage"], indent=1))
     print(f"gains: {report['gains']}")
     print(f"wrote {len(paths)} samples -> {out_dir}/samples")
     return 0
+
+
+def write_sky_report(out_dir: Path, m: dict) -> None:
+    """The human sign-off page for a sky run — the overhead element on its own."""
+    rim = m["rim"]["elev_deg"]
+    zp = m["zenith_patch"]
+    cov = m["coverage"]
+    gains = " / ".join(f"{k} {v}" for k, v in m["gains"].items())
+    rows = "".join(
+        f"<tr><td class=mono>{k}</td><td class=mono>{v}</td></tr>" for k, v in [
+            ("rim (lower bound)", f"{rim}&deg; elevation"),
+            ("master", "fisheye — zenith at centre, rim at the edge (the overhead-LED form)"),
+            ("cameras", f"{len(m['cams'])} — sky tier only (G/H/J). The ring is a SEPARATE element."),
+            ("frames", m.get("full_frames_rendered")),
+            ("render fps", m.get("achieved_fps_full")),
+            ("gains (linear)", gains),
+            ("blend", f"{m['blend']['mode']} ({m['blend']['bands']} bands)"),
+            ("sky-tier coverage", f"full 360 from {cov['elev_full360_deg'][0]}&deg; to "
+                                  f"{cov['elev_full360_deg'][1]}&deg;"),
+            ("zenith patch", f"{zp['hole_px']} px ({zp['hole_frac_of_dome']*100:.2f}% of dome) — "
+                             f"<b>inpainted, not measured</b>"),
+            ("colour", m.get("master_color_tags", {})),
+        ])
+    page = f"""<!doctype html><html><head><meta charset="utf-8">
+<title>SKY DOME 1.0 — rim {rim}&deg;</title>
+<style>
+ body{{background:#111;color:#eee;font:14px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:28px}}
+ h1{{font-size:19px;margin:0 0 4px}} h2{{font-size:14px;color:#9ab;margin:26px 0 8px;font-weight:600}}
+ .mono{{font-family:ui-monospace,Menlo,monospace;font-size:12px}}
+ video{{width:100%;max-width:760px;background:#000;border:1px solid #333;border-radius:6px}}
+ table{{border-collapse:collapse;margin-top:6px}} td{{padding:3px 14px 3px 0;vertical-align:top}}
+ tr:nth-child(odd){{background:#181818}}
+ .warn{{background:#2a1f0e;border-left:3px solid #b8860b;padding:10px 14px;margin:16px 0;max-width:760px}}
+ .note{{color:#89a;max-width:760px}}
+</style></head><body>
+<h1>SKY DOME 1.0 &mdash; rim {rim}&deg;</h1>
+<p class=mono>{Path(m['drop']).name}</p>
+
+<div class=warn><b>This is the OVERHEAD element only.</b> It is stitched from the three sky
+cameras (G/H/J) alone and is never composited with the ring. A volumetric stage is two surfaces
+&mdash; a 360 LED cylinder for the horizontal band, and a separate overhead LED for the sky.
+Judge this as the ceiling, not as a whole sphere.</div>
+
+<h2>Master &mdash; fisheye, looking straight up</h2>
+<video src="preview_2880.mp4" controls muted loop></video>
+<p class=note>Zenith is at the centre; the rim is {rim}&deg; above the horizon. Everything below
+the rim belongs to the RING element.</p>
+
+<h2>Run</h2>
+<table>{rows}</table>
+
+<h2>Read this before approving</h2>
+<ul class=note>
+<li><b>The rim is the decision.</b> Below ~25&deg; the sky cameras stop overlapping (0% at 20&deg;),
+so a seam there is a butt-joint and guillotines anything crossing it. This rim is {rim}&deg;.</li>
+<li><b>The zenith wedge is invented.</b> {zp['hole_px']} px
+({zp['hole_frac_of_dome']*100:.2f}% of the dome) were seen by no camera and are inpainted from the
+surrounding sky. Honest on flat overcast; wrong if a clip has sun or a hard cloud edge there.</li>
+<li><b>Look at full size before judging.</b> Metrics on this pipeline have repeatedly said "close"
+about footage that was rejected on sight.</li>
+</ul>
+</body></html>"""
+    (out_dir / "index.html").write_text(page)
+    print(f"wrote {out_dir}/index.html")
