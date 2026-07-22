@@ -14,15 +14,16 @@ Design spec: [docs/specs/2026-06-10-platelab-design.md](docs/specs/2026-06-10-pl
 | `shared/` | Catalog schema (zod) + SKU & pricing rules, used by both sides |
 | `pipeline/` | Ingest CLI: drop → probe → SKU → checksum → telemetry → labeling → description → watermarked renditions → upload → catalog publish |
 | `web/` | Next.js site: home, faceted browse, plate detail with frame-synced stitched + 9-grid player |
+| `viewer/` | Standalone Three.js LED-wall stage viewer; built into `web/public/stage/`, served at `/stage` |
 | `sample-data/` | Drop staging, audit log, demo reservations (gitignored media) |
 
 ## Quick start
 
-`web/data/catalog.json` is runtime state (untracked) — generate demo data
-first or the site starts empty.
+Requires **Node 22**. `web/data/catalog.json` is runtime state (untracked) —
+generate demo data first or the site starts empty.
 
 ```bash
-npm install
+npm ci
 
 # Option A — synthetic demo footage (no real media needed)
 npm run demo:generate
@@ -34,6 +35,11 @@ npm run demo:ingest      # run the full pipeline over every drop
 npm run dev              # site at http://localhost:3000
 npm test                 # pipeline unit tests
 ```
+
+`/stage` (the LED-wall stage viewer) works out of the box — it's a committed
+static build, no extra step. Env vars are optional for browsing; `/admin` needs
+`ADMIN_PASSWORD` (and `ADMIN_COOKIE_INSECURE=1` for localhost over http) in
+`web/.env.local`. To edit the viewer itself: `cd viewer && npm install && npm run build`.
 
 ## Ingest pipeline
 
@@ -62,3 +68,8 @@ expiring links (`pipeline/src/sign.ts`, verified by `/api/screener`).
 
 $8,000 per stitched minute, prorated per second after a 1-minute minimum
 (`shared/src/pricing.ts`). Custom volumetric-stage delivery is a quote CTA.
+
+## Deploy
+
+Auto-deploys via Coolify on push to `main` (a GitHub webhook triggers the build).
+See [docs/2026-07-22-deploy-coolify.md](docs/2026-07-22-deploy-coolify.md).
