@@ -19,9 +19,6 @@ pipeline/stitch/.venv/
 pipeline/stitch/reports/
 web/data/stitch-reports/
 
-# Standalone stage viewer (viewer/) — deps and large model kept out of git
+# Stage viewer (viewer/) — only its install deps stay out of git; the models
+# (incl. the 48MB bmw_m5.glb) are committed so the demo is self-contained.
 viewer/node_modules/
-# The 48MB BMW model is treated like web/public/media: gitignored, rsynced to the
-# server. Default car (Ferrari) is committed, so the viewer works without it.
-viewer/public/models/bmw_m5.glb
-web/public/stage/models/bmw_m5.glb
