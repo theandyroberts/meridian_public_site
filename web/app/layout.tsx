@@ -32,9 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="site-nav">
               <Link href="/browse">Search plates</Link>
               <Link href="/browse?stage=led-volume">LED volume</Link>
-              <a className="cta mono" href="mailto:plates@theplatelab.com">
-                Book a capture
-              </a>
+              <Link href="/projects">Projects</Link>
+              <Link className="cta mono" href="/projects/new">
+                Start a project
+              </Link>
             </nav>
           </div>
         </header>

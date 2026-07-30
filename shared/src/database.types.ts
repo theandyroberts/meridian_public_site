@@ -414,7 +414,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_project_scene: {
+        Args: {
+          scene_name: string
+          search_brief?: string
+          target_project_id: string
+        }
+        Returns: string
+      }
+      start_project: {
+        Args: {
+          client_name?: string
+          display_name?: string
+          first_scene_name: string
+          organization_name: string
+          production_name?: string
+          project_name: string
+          search_brief?: string
+        }
+        Returns: {
+          project_id: string
+          scene_id: string
+        }[]
+      }
     }
     Enums: {
       membership_status: "invited" | "active" | "suspended"

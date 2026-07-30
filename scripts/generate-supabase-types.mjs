@@ -15,5 +15,5 @@ const generatedTypes = execFileSync(
   },
 );
 
-writeFileSync(outputUrl, generatedTypes);
+writeFileSync(outputUrl, `${generatedTypes.trimEnd()}\n`);
 console.log(`Generated ${fileURLToPath(outputUrl)}`);

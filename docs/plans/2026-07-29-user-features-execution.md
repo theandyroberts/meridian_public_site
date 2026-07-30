@@ -126,8 +126,10 @@ Tasks are intentionally ordered; only the first incomplete task is active.
 4. Configure production SMTP and test confirmation, invitation, and recovery
    delivery. Staging SMTP and confirmation-email delivery now pass.
 5. Configure daily off-host Postgres and MinIO backups and perform one restore.
-6. Add the approved public and server-only Supabase variables to the staging
-   Next.js resource in Coolify.
+6. ~~**Add the approved public Supabase variables to the staging Next.js
+   resource in Coolify.**~~ Complete. The application uses only the public URL
+   and publishable key in the browser; no service-role credential is present in
+   the web resource.
 7. Review the first staging vertical slice and nominate pilot accounts.
 
 ## Current status
@@ -152,4 +154,10 @@ Tasks are intentionally ordered; only the first incomplete task is active.
 - Secure staging database administration path through Kong/pg-meta: passed.
 - Staging application schema and RLS access matrix: passed.
 - Staging Resend SMTP configuration and confirmation-email delivery: passed.
+- Google and email application sign-in controls: implemented locally. Google
+  provider credentials and self-hosted Auth configuration remain pending.
+- Transactional first-project/organization bootstrap, project dashboard, scene
+  creation, and scene-aware catalog handoff: implemented locally.
+- Local email signup, login, first-project creation, second-scene creation, and
+  protected navigation browser flow: passed.
 - Production SMTP, backups, and catalog migration: pending.

@@ -48,6 +48,9 @@ export async function updateSession(request: NextRequest) {
       "next",
       `${request.nextUrl.pathname}${request.nextUrl.search}`,
     );
+    if (request.nextUrl.pathname === "/projects/new") {
+      loginUrl.searchParams.set("mode", "signup");
+    }
     return NextResponse.redirect(loginUrl);
   }
 

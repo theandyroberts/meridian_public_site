@@ -85,6 +85,18 @@ if (action === "apply") {
           ) as applied;
       `,
     },
+    {
+      path: "supabase/migrations/20260730020000_project_onboarding.sql",
+      appliedSql: `
+        select
+          to_regprocedure(
+            'public.start_project(text,text,text,text,text,text,text)'
+          ) is not null
+          and to_regprocedure(
+            'public.add_project_scene(uuid,text,text)'
+          ) is not null as applied;
+      `,
+    },
   ];
 
   for (const migration of migrations) {
@@ -106,6 +118,7 @@ if (action === "apply") {
   const tests = [
     "supabase/tests/0001_foundation_checks.sql",
     "supabase/tests/0002_rls_access_matrix.sql",
+    "supabase/tests/0003_project_onboarding_checks.sql",
   ];
 
   for (const relativePath of tests) {
