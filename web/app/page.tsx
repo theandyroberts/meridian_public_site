@@ -7,8 +7,8 @@ import { PER_MINUTE_USD, formatUsd } from "@platelab/shared";
 
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  const plates = getLivePlates();
+export default async function HomePage() {
+  const plates = await getLivePlates();
   const featured = plates.slice(0, 6);
 
   return (

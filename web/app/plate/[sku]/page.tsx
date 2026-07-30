@@ -1,7 +1,12 @@
 import Link from "next/link";
 import crypto from "node:crypto";
 import { notFound } from "next/navigation";
-import { getPlate, getLivePlates, formatDuration } from "@/lib/catalog";
+import {
+  getLivePlate,
+  getPlate,
+  getLivePlates,
+  formatDuration,
+} from "@/lib/catalog";
 import { SyncedPlayer } from "@/components/SyncedPlayer";
 import { GpsPanel } from "@/components/GpsPanel";
 import { PriceBlock } from "@/components/PriceBlock";
@@ -27,14 +32,16 @@ export default async function PlatePage({
   searchParams: Promise<{ exp?: string; sig?: string }>;
 }) {
   const { sku } = await params;
-  const plate = getPlate(sku);
+  const { exp, sig } = await searchParams;
+  const livePlate = await getLivePlate(sku);
+  const plate =
+    livePlate ??
+    (validPreviewSig(sku, exp, sig)
+      ? await getPlate(sku, { includeDrafts: true })
+      : undefined);
   if (!plate) notFound();
-  if (plate.status === "draft") {
-    const { exp, sig } = await searchParams;
-    if (!validPreviewSig(sku, exp, sig)) notFound();
-  }
 
-  const related = getLivePlates()
+  const related = (await getLivePlates())
     .filter(
       (p) =>
         p.sku !== plate.sku &&

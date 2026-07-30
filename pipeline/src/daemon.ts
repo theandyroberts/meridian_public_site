@@ -12,7 +12,7 @@ import { parseManifest, verifyClipAssets, HandoffVerifyError } from "./mmm/verif
 import { adaptClip, ClipAdaptError } from "./mmm/adapter.js";
 import { assignSku } from "./mmm/skuLedger.js";
 import { ingestDiscovered } from "./ingest.js";
-import { loadCatalog } from "./stages/publish.js";
+import { loadPublishedMmmIds } from "./stages/publish.js";
 import { notifyHandoffComplete, notifyHandoffFailed } from "./notify.js";
 
 const POLL_MS = 3000;
@@ -70,9 +70,7 @@ export async function processTransfer(transferId: string): Promise<void> {
   }
 
   updateTransfer(TRANSFERS_DIR, transferId, { state: "ingesting" });
-  const catalogIds = new Set(
-    loadCatalog().plates.map((p) => p.mmm?.stockClipId).filter(Boolean),
-  );
+  const catalogIds = new Set(await loadPublishedMmmIds());
 
   for (const clipRec of current.clips.filter((c) => c.state === "queued")) {
     const clip = manifest.clips.find((c) => c.stock_clip_id === clipRec.stockClipId);

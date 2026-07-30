@@ -1,9 +1,43 @@
 # The Plate Lab User Features on Supabase
 
-**Status:** Proposed implementation plan
+**Status:** In implementation
 **Date:** 2026-07-29
+**Last implementation update:** 2026-07-30
 **Product source:** `THE_LAB_PRODUCT_PLAN.md` supplied by Andy Roberts
 **Applies to:** `meridian_public_site`
+
+## Implementation status
+
+Completed on `agent/supabase-user-features`:
+
+- Supabase Auth SSR, email/Google entry points, project onboarding, project
+  dashboard, and scene creation.
+- Identity/project migrations, RLS access matrix, generated database types,
+  and staging migration tooling.
+- Canonical stock clip, asset, descriptor, segment, embedding-job, vector, and
+  scene-selection schema.
+- Idempotent import and exact reconciliation of all eight current JSON catalog
+  records.
+- Supabase-backed public catalog reads, trusted ingest writes, and admin
+  draft/live actions.
+- Full-text search across clip metadata, extensible descriptors, and segments.
+- pgvector HNSW search and reciprocal-rank fusion, with OpenAI query/ingest
+  embedding workers and lexical fallback.
+- Persistent add-to-scene and scene-clip status transitions with version
+  checks.
+
+Still required for the staging release:
+
+- Apply the catalog migration and importer to staging.
+- Give the OpenAI Platform project API quota, then process the 16 queued
+  initial embeddings.
+- Set the web and ingest Coolify variables and restart both resources.
+- Complete the staging smoke checks in
+  `docs/runbooks/catalog-supabase-cutover.md`.
+
+Later phases remain open for invitations, notes, Realtime collaboration,
+selection submission/producer workflow, signed private LAB media, and the
+integrated LAB viewer.
 
 ## 1. Outcome
 

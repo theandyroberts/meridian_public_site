@@ -5,8 +5,8 @@ import { BrowseClient } from "@/components/BrowseClient";
 export const metadata = { title: "Browse plates — The Plate Lab" };
 export const dynamic = "force-dynamic";
 
-export default function BrowsePage() {
-  const plates = getLivePlates();
+export default async function BrowsePage() {
+  const plates = await getLivePlates();
   return (
     <main className="wrap">
       <Suspense>

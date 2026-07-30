@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Plate } from "@platelab/shared";
 import {
@@ -13,9 +13,9 @@ import {
 import { PlateCard } from "./PlateCard";
 
 /**
- * Client-side faceted search over the static catalog. Single-select per
- * facet group keeps the mental model simple; free text covers everything
- * else (title, location, tags, object labels).
+ * Faceted hybrid search. The initial database catalog renders immediately,
+ * then active filters are ranked through the server-side Postgres/pgvector
+ * search endpoint.
  */
 
 interface Filters {
@@ -34,34 +34,6 @@ const STAGE_LABELS: Record<string, string> = {
   "green-screen": "Green Screen",
   projection: "Projection",
 };
-
-function matches(p: Plate, f: Filters): boolean {
-  if (f.shotType && p.shotType !== f.shotType) return false;
-  if (f.timeOfDay && p.timeOfDay !== f.timeOfDay) return false;
-  if (f.weather && p.weather !== f.weather) return false;
-  if (f.speedBand && p.speedBand !== f.speedBand) return false;
-  if (f.stage && !p.stageCompat.includes(f.stage as any)) return false;
-  if (f.imuOnly && !p.imu.collected) return false;
-  if (f.tag && !p.tags.includes(f.tag)) return false;
-  if (f.q) {
-    const hay = [
-      p.sku,
-      p.title,
-      p.description,
-      p.location.name,
-      p.location.city,
-      p.location.region,
-      ...p.tags,
-      ...p.objects.map((o) => o.label),
-    ]
-      .join(" ")
-      .toLowerCase();
-    for (const word of f.q.toLowerCase().split(/\s+/).filter(Boolean)) {
-      if (!hay.includes(word)) return false;
-    }
-  }
-  return true;
-}
 
 function FacetGroup({
   label,
@@ -124,6 +96,9 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
     imuOnly: params.get("imu") === "1",
     tag: params.get("tag"),
   });
+  const [results, setResults] = useState(plates);
+  const [searching, setSearching] = useState(false);
+  const [semantic, setSemantic] = useState(false);
 
   const set = (patch: Partial<Filters>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -132,15 +107,7 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
   // Mirror the active filters into the URL. Done in an effect, not inside the
   // state updater, so we never trigger a Router update during render.
   useEffect(() => {
-    const sp = new URLSearchParams();
-    if (filters.q) sp.set("q", filters.q);
-    if (filters.shotType) sp.set("shotType", filters.shotType);
-    if (filters.timeOfDay) sp.set("timeOfDay", filters.timeOfDay);
-    if (filters.weather) sp.set("weather", filters.weather);
-    if (filters.speedBand) sp.set("speedBand", filters.speedBand);
-    if (filters.stage) sp.set("stage", filters.stage);
-    if (filters.imuOnly) sp.set("imu", "1");
-    if (filters.tag) sp.set("tag", filters.tag);
+    const sp = searchParamsForFilters(filters);
     router.replace(`/browse${sp.size ? `?${sp}` : ""}`, { scroll: false });
   }, [filters, router]);
 
@@ -154,10 +121,43 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
     !!filters.tag ||
     filters.imuOnly;
 
-  const results = useMemo(
-    () => plates.filter((p) => matches(p, filters)),
-    [plates, filters],
-  );
+  useEffect(() => {
+    if (!active) {
+      setResults(plates);
+      setSemantic(false);
+      setSearching(false);
+      return;
+    }
+
+    const abortController = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSearching(true);
+      try {
+        const response = await fetch(
+          `/api/catalog/search?${searchParamsForFilters(filters)}`,
+          { signal: abortController.signal },
+        );
+        if (!response.ok) throw new Error("search failed");
+        const body = (await response.json()) as {
+          plates: Plate[];
+          semantic: boolean;
+        };
+        setResults(body.plates);
+        setSemantic(body.semantic);
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          console.warn(error);
+        }
+      } finally {
+        if (!abortController.signal.aborted) setSearching(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      abortController.abort();
+    };
+  }, [active, filters, plates]);
 
   return (
     <div className="browse-layout">
@@ -234,6 +234,8 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
           <span className="mono dim">
             {results.length} plate{results.length === 1 ? "" : "s"}
             {active ? " · filtered" : ""}
+            {searching ? " · searching" : ""}
+            {semantic ? " · semantic" : ""}
           </span>
           {active && (
             <button
@@ -273,4 +275,17 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
       </div>
     </div>
   );
+}
+
+function searchParamsForFilters(filters: Filters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.q) params.set("q", filters.q);
+  if (filters.shotType) params.set("shotType", filters.shotType);
+  if (filters.timeOfDay) params.set("timeOfDay", filters.timeOfDay);
+  if (filters.weather) params.set("weather", filters.weather);
+  if (filters.speedBand) params.set("speedBand", filters.speedBand);
+  if (filters.stage) params.set("stage", filters.stage);
+  if (filters.imuOnly) params.set("imu", "1");
+  if (filters.tag) params.set("tag", filters.tag);
+  return params;
 }

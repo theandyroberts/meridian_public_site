@@ -1,63 +1,33 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import type { Plate } from "@platelab/shared";
+import { plateSchema, type Plate } from "@platelab/shared";
 import { PlateCard } from "@/components/PlateCard";
-import { getLivePlates } from "@/lib/catalog";
+import { createQueryEmbedding } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
+import {
+  addClipToScene,
+  updateSceneClipStatus,
+} from "@/app/projects/actions";
 
 type ScenePageProps = {
   params: Promise<{ projectId: string; sceneId: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; error?: string }>;
+};
+
+type SelectedClip = {
+  id: string;
+  status:
+    | "considering"
+    | "shortlisted"
+    | "selected"
+    | "rejected"
+    | "submitted";
+  version: number;
+  stockClipId: string;
+  plate: Plate;
 };
 
 export const dynamic = "force-dynamic";
-
-const BRIEF_STOP_WORDS = new Set([
-  "about",
-  "along",
-  "from",
-  "into",
-  "needs",
-  "outside",
-  "scene",
-  "sparse",
-  "that",
-  "the",
-  "this",
-  "through",
-  "travel",
-  "what",
-  "with",
-]);
-
-function briefScore(plate: Plate, brief: string): number {
-  const words = [...new Set(brief
-    .toLowerCase()
-    .split(/\W+/)
-    .filter(
-      (word) => word.length > 3 && !BRIEF_STOP_WORDS.has(word),
-    ))];
-  if (!words.length) return 0;
-
-  const searchable = [
-    plate.title,
-    plate.description,
-    plate.location.name,
-    plate.location.city,
-    plate.location.region,
-    plate.shotType,
-    plate.timeOfDay,
-    plate.weather,
-    ...plate.tags,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return words.reduce(
-    (score, word) => score + (searchable.includes(word) ? 1 : 0),
-    0,
-  );
-}
 
 export default async function ScenePage({
   params,
@@ -87,7 +57,7 @@ export default async function ScenePage({
     supabase
       .from("scenes")
       .select(
-        "id, project_id, scene_number, name, search_brief, vehicle, rough_shot",
+        "id, project_id, scene_number, name, search_brief, vehicle, rough_shot, structured_filters",
       )
       .eq("id", sceneId)
       .eq("project_id", projectId)
@@ -96,18 +66,51 @@ export default async function ScenePage({
 
   if (!project || !scene) notFound();
 
-  const plates = getLivePlates();
-  const suggested = scene.search_brief
-    ? plates
-        .map((plate) => ({
-          plate,
-          score: briefScore(plate, scene.search_brief!),
-        }))
-        .filter((result) => result.score > 0)
-        .sort((left, right) => right.score - left.score)
-        .slice(0, 6)
-        .map((result) => result.plate)
-    : plates.slice(0, 6);
+  const queryEmbedding = await createQueryEmbedding(scene.search_brief);
+  const [{ data: searchRows, error: searchError }, { data: selectedRows }] =
+    await Promise.all([
+      supabase.rpc("search_stock_clips", {
+        query_text: scene.search_brief || undefined,
+        query_embedding: queryEmbedding,
+        filters: scene.structured_filters,
+        match_count: 12,
+      }),
+      supabase
+        .from("scene_clips")
+        .select(
+          "id, status, version, stock_clip_id, stock_clips(source_metadata)",
+        )
+        .eq("scene_id", sceneId)
+        .order("sort_order")
+        .order("created_at"),
+    ]);
+
+  if (searchError) {
+    throw new Error(`Unable to search the catalog: ${searchError.message}`);
+  }
+
+  const suggested = (searchRows ?? []).map((row) => ({
+    id: row.id,
+    plate: plateSchema.parse(row.source_metadata),
+    keywordScore: row.keyword_score,
+    semanticScore: row.semantic_score,
+  }));
+  const selected: SelectedClip[] = (selectedRows ?? []).flatMap((row) => {
+    const relation = Array.isArray(row.stock_clips)
+      ? row.stock_clips[0]
+      : row.stock_clips;
+    if (!relation) return [];
+    return [
+      {
+        id: row.id,
+        status: row.status,
+        version: row.version,
+        stockClipId: row.stock_clip_id,
+        plate: plateSchema.parse(relation.source_metadata),
+      },
+    ];
+  });
+  const selectedIds = new Set(selected.map((item) => item.stockClipId));
   const browseQuery = new URLSearchParams();
   if (scene.search_brief) browseQuery.set("q", scene.search_brief);
 
@@ -123,6 +126,7 @@ export default async function ScenePage({
           catalog.
         </p>
       )}
+      {query.error && <p className="auth-alert">{query.error}</p>}
 
       <section className="scene-heading">
         <div>
@@ -141,11 +145,53 @@ export default async function ScenePage({
         </div>
       </section>
 
+      {selected.length > 0 && (
+        <section className="selection-stage">
+          <div className="section-head compact">
+            <div>
+              <p className="mono accent">Scene collection</p>
+              <h2>Saved clips ({selected.length})</h2>
+            </div>
+          </div>
+          <div className="plate-grid">
+            {selected.map((item) => (
+              <div key={item.id}>
+                <PlateCard plate={item.plate} />
+                <form action={updateSceneClipStatus} className="scene-clip-form">
+                  <input type="hidden" name="projectId" value={projectId} />
+                  <input type="hidden" name="sceneId" value={sceneId} />
+                  <input type="hidden" name="sceneClipId" value={item.id} />
+                  <input
+                    type="hidden"
+                    name="expectedVersion"
+                    value={item.version}
+                  />
+                  <select name="status" defaultValue={item.status}>
+                    <option value="considering">Considering</option>
+                    <option value="shortlisted">Shortlisted</option>
+                    <option value="selected">Selected</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="submitted">Submitted</option>
+                  </select>
+                  <button type="submit" className="filter-chip">
+                    Save status
+                  </button>
+                </form>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="selection-stage">
         <div className="section-head compact">
           <div>
             <p className="mono accent">Step 3 of 3 · Choose clips</p>
-            <h2>Plates for this scene</h2>
+            <h2>Search results for this scene</h2>
+            <p className="mono dimmer">
+              Hybrid metadata search
+              {queryEmbedding ? " + semantic similarity" : ""}
+            </p>
           </div>
           <Link
             href={`/browse${browseQuery.size ? `?${browseQuery}` : ""}`}
@@ -157,8 +203,24 @@ export default async function ScenePage({
 
         {suggested.length ? (
           <div className="plate-grid">
-            {suggested.map((plate) => (
-              <PlateCard key={plate.sku} plate={plate} />
+            {suggested.map((result) => (
+              <div key={result.plate.sku}>
+                <PlateCard plate={result.plate} />
+                <form action={addClipToScene} className="scene-clip-form">
+                  <input type="hidden" name="projectId" value={projectId} />
+                  <input type="hidden" name="sceneId" value={sceneId} />
+                  <input type="hidden" name="stockClipId" value={result.id} />
+                  <button
+                    type="submit"
+                    className="primary-button"
+                    disabled={selectedIds.has(result.id)}
+                  >
+                    {selectedIds.has(result.id)
+                      ? "Added to scene"
+                      : "Add to scene"}
+                  </button>
+                </form>
+              </div>
             ))}
           </div>
         ) : (

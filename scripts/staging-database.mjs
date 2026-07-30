@@ -97,6 +97,18 @@ if (action === "apply") {
           ) is not null as applied;
       `,
     },
+    {
+      path: "supabase/migrations/20260730040000_catalog_search_foundation.sql",
+      appliedSql: `
+        select
+          to_regclass('public.stock_clips') is not null
+          and to_regclass('public.clip_embeddings') is not null
+          and to_regclass('public.scene_clips') is not null
+          and to_regprocedure(
+            'public.search_stock_clips(text,extensions.vector,jsonb,integer)'
+          ) is not null as applied;
+      `,
+    },
   ];
 
   for (const migration of migrations) {
@@ -119,6 +131,7 @@ if (action === "apply") {
     "supabase/tests/0001_foundation_checks.sql",
     "supabase/tests/0002_rls_access_matrix.sql",
     "supabase/tests/0003_project_onboarding_checks.sql",
+    "supabase/tests/0004_catalog_search_checks.sql",
   ];
 
   for (const relativePath of tests) {
@@ -127,7 +140,7 @@ if (action === "apply") {
     console.log(`Passed ${relativePath}`);
   }
 
-  console.log("Staging foundation migration and access checks passed.");
+  console.log("Staging migrations and access checks passed.");
 }
 
 async function environmentOrSecretPrompt(name, prompt) {

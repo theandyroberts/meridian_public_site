@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@platelab/shared": "*",
+    "@supabase/supabase-js": "2.111.0",
     "nodemailer": "^9.0.3",
     "zod": "^3.24.1"
   },

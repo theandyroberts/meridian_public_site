@@ -56,8 +56,8 @@ test("removePlate: removes the plate and cleans up the lockfile", async () => {
   fs.mkdirSync(path.dirname(CATALOG_PATH), { recursive: true });
   fs.writeFileSync(CATALOG_PATH, JSON.stringify({ generatedAt: new Date().toISOString(), plates: [] }));
 
-  publishPlate(makePlate("PL-4839208"));
-  removePlate("PL-4839208", "test cleanup");
+  await publishPlate(makePlate("PL-4839208"));
+  await removePlate("PL-4839208", "test cleanup");
 
   const catalog = loadCatalog();
   assert.equal(catalog.plates.length, 0);
@@ -79,7 +79,7 @@ test("publishPlate: stale lockfile (crashed writer) is removed and retried", asy
   const old = new Date(Date.now() - 60_000);
   fs.utimesSync(lockPath, old, old);
 
-  publishPlate(makePlate("PL-4839208"));
+  await publishPlate(makePlate("PL-4839208"));
 
   const catalog = loadCatalog();
   assert.equal(catalog.plates.length, 1);

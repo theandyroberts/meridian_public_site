@@ -63,6 +63,314 @@ export type Database = {
           },
         ]
       }
+      clip_assets: {
+        Row: {
+          camera_id: string | null
+          created_at: string
+          duration_sec: number | null
+          height: number | null
+          id: string
+          is_public: boolean
+          kind: string
+          metadata: Json
+          mime_type: string | null
+          public_url: string | null
+          source: string
+          source_version: string | null
+          stock_clip_id: string
+          storage_bucket: string | null
+          storage_path: string | null
+          updated_at: string
+          width: number | null
+        }
+        Insert: {
+          camera_id?: string | null
+          created_at?: string
+          duration_sec?: number | null
+          height?: number | null
+          id?: string
+          is_public?: boolean
+          kind: string
+          metadata?: Json
+          mime_type?: string | null
+          public_url?: string | null
+          source: string
+          source_version?: string | null
+          stock_clip_id: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+          width?: number | null
+        }
+        Update: {
+          camera_id?: string | null
+          created_at?: string
+          duration_sec?: number | null
+          height?: number | null
+          id?: string
+          is_public?: boolean
+          kind?: string
+          metadata?: Json
+          mime_type?: string | null
+          public_url?: string | null
+          source?: string
+          source_version?: string | null
+          stock_clip_id?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clip_assets_stock_clip_id_fkey"
+            columns: ["stock_clip_id"]
+            isOneToOne: false
+            referencedRelation: "stock_clips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clip_descriptors: {
+        Row: {
+          category: string
+          confidence: number | null
+          created_at: string
+          end_frame: number | null
+          id: string
+          label: string
+          normalized_label: string
+          search_document: unknown
+          searchable: boolean
+          source: string
+          source_version: string | null
+          start_frame: number | null
+          stock_clip_id: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          category: string
+          confidence?: number | null
+          created_at?: string
+          end_frame?: number | null
+          id?: string
+          label: string
+          normalized_label: string
+          search_document?: unknown
+          searchable?: boolean
+          source: string
+          source_version?: string | null
+          start_frame?: number | null
+          stock_clip_id: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          category?: string
+          confidence?: number | null
+          created_at?: string
+          end_frame?: number | null
+          id?: string
+          label?: string
+          normalized_label?: string
+          search_document?: unknown
+          searchable?: boolean
+          source?: string
+          source_version?: string | null
+          start_frame?: number | null
+          stock_clip_id?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clip_descriptors_stock_clip_id_fkey"
+            columns: ["stock_clip_id"]
+            isOneToOne: false
+            referencedRelation: "stock_clips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clip_embeddings: {
+        Row: {
+          active: boolean
+          created_at: string
+          dimensions: number
+          embedding: string
+          id: string
+          input_hash: string
+          kind: string
+          model: string
+          segment_id: string | null
+          stock_clip_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          dimensions?: number
+          embedding: string
+          id?: string
+          input_hash: string
+          kind: string
+          model: string
+          segment_id?: string | null
+          stock_clip_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          dimensions?: number
+          embedding?: string
+          id?: string
+          input_hash?: string
+          kind?: string
+          model?: string
+          segment_id?: string | null
+          stock_clip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clip_embeddings_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "clip_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clip_embeddings_stock_clip_id_fkey"
+            columns: ["stock_clip_id"]
+            isOneToOne: false
+            referencedRelation: "stock_clips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clip_segments: {
+        Row: {
+          created_at: string
+          description: string
+          end_frame: number
+          end_sec: number
+          id: string
+          labels: string[]
+          search_document: unknown
+          search_text: string
+          segment_index: number
+          source: string
+          source_version: string | null
+          start_frame: number
+          start_sec: number
+          stock_clip_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          end_frame: number
+          end_sec: number
+          id?: string
+          labels?: string[]
+          search_document?: unknown
+          search_text?: string
+          segment_index: number
+          source: string
+          source_version?: string | null
+          start_frame: number
+          start_sec: number
+          stock_clip_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          end_frame?: number
+          end_sec?: number
+          id?: string
+          labels?: string[]
+          search_document?: unknown
+          search_text?: string
+          segment_index?: number
+          source?: string
+          source_version?: string | null
+          start_frame?: number
+          start_sec?: number
+          stock_clip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clip_segments_stock_clip_id_fkey"
+            columns: ["stock_clip_id"]
+            isOneToOne: false
+            referencedRelation: "stock_clips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      embedding_jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          dimensions: number
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["embedding_entity_type"]
+          id: string
+          input_hash: string
+          input_text: string
+          last_error: string | null
+          locked_at: string | null
+          model: string
+          status: Database["public"]["Enums"]["embedding_job_status"]
+          stock_clip_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          dimensions?: number
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["embedding_entity_type"]
+          id?: string
+          input_hash: string
+          input_text: string
+          last_error?: string | null
+          locked_at?: string | null
+          model?: string
+          status?: Database["public"]["Enums"]["embedding_job_status"]
+          stock_clip_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          dimensions?: number
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["embedding_entity_type"]
+          id?: string
+          input_hash?: string
+          input_text?: string
+          last_error?: string | null
+          locked_at?: string | null
+          model?: string
+          status?: Database["public"]["Enums"]["embedding_job_status"]
+          stock_clip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "embedding_jobs_stock_clip_id_fkey"
+            columns: ["stock_clip_id"]
+            isOneToOne: false
+            referencedRelation: "stock_clips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_memberships: {
         Row: {
           created_at: string
@@ -262,6 +570,66 @@ export type Database = {
           },
         ]
       }
+      scene_clips: {
+        Row: {
+          added_by: string
+          created_at: string
+          duration_tier_seconds: number | null
+          id: string
+          in_frame: number | null
+          out_frame: number | null
+          scene_id: string
+          sort_order: number
+          status: Database["public"]["Enums"]["scene_clip_status"]
+          stock_clip_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          added_by: string
+          created_at?: string
+          duration_tier_seconds?: number | null
+          id?: string
+          in_frame?: number | null
+          out_frame?: number | null
+          scene_id: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["scene_clip_status"]
+          stock_clip_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          added_by?: string
+          created_at?: string
+          duration_tier_seconds?: number | null
+          id?: string
+          in_frame?: number | null
+          out_frame?: number | null
+          scene_id?: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["scene_clip_status"]
+          stock_clip_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scene_clips_scene_id_fkey"
+            columns: ["scene_id"]
+            isOneToOne: false
+            referencedRelation: "scenes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scene_clips_stock_clip_id_fkey"
+            columns: ["stock_clip_id"]
+            isOneToOne: false
+            referencedRelation: "stock_clips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scenes: {
         Row: {
           archived_at: string | null
@@ -409,11 +777,153 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_clips: {
+        Row: {
+          availability: string
+          camera_originals: string | null
+          color_pipeline: string | null
+          created_at: string
+          description: string
+          duration_sec: number
+          fps: number
+          gps: Json | null
+          id: string
+          imu: Json
+          ingested_at: string | null
+          location_city: string
+          location_country: string
+          location_name: string
+          location_region: string
+          master_format: string | null
+          master_sha256: string | null
+          mmm_stock_clip_id: string | null
+          objects: Json
+          pricing: Json
+          public_renditions: Json
+          rig: string | null
+          search_document: unknown
+          search_text: string
+          season: string
+          shoot_date: string | null
+          shot_type: string
+          sku: string
+          source: string
+          source_metadata: Json
+          source_timecode: string | null
+          source_version: string | null
+          speed_band: string | null
+          stage_compat: string[]
+          status: string
+          stitched_resolution: string | null
+          tags: string[]
+          time_of_day: string
+          title: string
+          updated_at: string
+          version: number
+          watermarked: boolean
+          weather: string
+        }
+        Insert: {
+          availability: string
+          camera_originals?: string | null
+          color_pipeline?: string | null
+          created_at?: string
+          description: string
+          duration_sec: number
+          fps: number
+          gps?: Json | null
+          id?: string
+          imu?: Json
+          ingested_at?: string | null
+          location_city: string
+          location_country: string
+          location_name: string
+          location_region: string
+          master_format?: string | null
+          master_sha256?: string | null
+          mmm_stock_clip_id?: string | null
+          objects?: Json
+          pricing?: Json
+          public_renditions?: Json
+          rig?: string | null
+          search_document?: unknown
+          search_text?: string
+          season: string
+          shoot_date?: string | null
+          shot_type: string
+          sku: string
+          source: string
+          source_metadata: Json
+          source_timecode?: string | null
+          source_version?: string | null
+          speed_band?: string | null
+          stage_compat?: string[]
+          status?: string
+          stitched_resolution?: string | null
+          tags?: string[]
+          time_of_day: string
+          title: string
+          updated_at?: string
+          version?: number
+          watermarked?: boolean
+          weather: string
+        }
+        Update: {
+          availability?: string
+          camera_originals?: string | null
+          color_pipeline?: string | null
+          created_at?: string
+          description?: string
+          duration_sec?: number
+          fps?: number
+          gps?: Json | null
+          id?: string
+          imu?: Json
+          ingested_at?: string | null
+          location_city?: string
+          location_country?: string
+          location_name?: string
+          location_region?: string
+          master_format?: string | null
+          master_sha256?: string | null
+          mmm_stock_clip_id?: string | null
+          objects?: Json
+          pricing?: Json
+          public_renditions?: Json
+          rig?: string | null
+          search_document?: unknown
+          search_text?: string
+          season?: string
+          shoot_date?: string | null
+          shot_type?: string
+          sku?: string
+          source?: string
+          source_metadata?: Json
+          source_timecode?: string | null
+          source_version?: string | null
+          speed_band?: string | null
+          stage_compat?: string[]
+          status?: string
+          stitched_resolution?: string | null
+          tags?: string[]
+          time_of_day?: string
+          title?: string
+          updated_at?: string
+          version?: number
+          watermarked?: boolean
+          weather?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      add_clip_to_scene: {
+        Args: { target_scene_id: string; target_stock_clip_id: string }
+        Returns: string
+      }
       add_project_scene: {
         Args: {
           scene_name: string
@@ -421,6 +931,34 @@ export type Database = {
           target_project_id: string
         }
         Returns: string
+      }
+      search_stock_clips: {
+        Args: {
+          filters?: Json
+          match_count?: number
+          query_embedding?: string
+          query_text?: string
+        }
+        Returns: {
+          description: string
+          hybrid_score: number
+          id: string
+          keyword_score: number
+          matched_segment_description: string
+          matched_segment_id: string
+          semantic_score: number
+          sku: string
+          source_metadata: Json
+          title: string
+        }[]
+      }
+      set_scene_clip_status: {
+        Args: {
+          expected_version: number
+          next_status: Database["public"]["Enums"]["scene_clip_status"]
+          target_scene_clip_id: string
+        }
+        Returns: number
       }
       start_project: {
         Args: {
@@ -439,6 +977,8 @@ export type Database = {
       }
     }
     Enums: {
+      embedding_entity_type: "clip" | "segment"
+      embedding_job_status: "pending" | "processing" | "completed" | "failed"
       membership_status: "invited" | "active" | "suspended"
       organization_role: "owner" | "member"
       production_approach:
@@ -461,6 +1001,12 @@ export type Database = {
         | "interior_passenger_to_driver"
         | "interior_driver_to_passenger"
         | "interior_side_window"
+      scene_clip_status:
+        | "considering"
+        | "shortlisted"
+        | "selected"
+        | "rejected"
+        | "submitted"
       staff_role: "producer" | "catalog_admin" | "system_admin"
       vehicle_type: "sports_car" | "sedan" | "suv" | "none" | "undecided"
     }
@@ -590,6 +1136,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      embedding_entity_type: ["clip", "segment"],
+      embedding_job_status: ["pending", "processing", "completed", "failed"],
       membership_status: ["invited", "active", "suspended"],
       organization_role: ["owner", "member"],
       production_approach: [
@@ -613,6 +1161,13 @@ export const Constants = {
         "interior_passenger_to_driver",
         "interior_driver_to_passenger",
         "interior_side_window",
+      ],
+      scene_clip_status: [
+        "considering",
+        "shortlisted",
+        "selected",
+        "rejected",
+        "submitted",
       ],
       staff_role: ["producer", "catalog_admin", "system_admin"],
       vehicle_type: ["sports_car", "sedan", "suv", "none", "undecided"],

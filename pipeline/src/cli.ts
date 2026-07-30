@@ -30,18 +30,17 @@ async function main() {
       if (!arg) throw new Error(`usage: cli.ts ${command} <sku> [reason]`);
       const { isValidSku } = await import("@platelab/shared");
       if (!isValidSku(arg)) throw new Error(`invalid SKU (check digit): ${arg}`);
-      const { loadCatalog, publishPlate: upsert } = await import("./stages/publish.js");
-      const catalog = loadCatalog();
-      const plate = catalog.plates.find((p) => p.sku === arg);
+      const { loadPlate, publishPlate: upsert } = await import("./stages/publish.js");
+      const plate = await loadPlate(arg);
       if (!plate) throw new Error(`unknown SKU: ${arg}`);
       if (command === "approve") {
-        upsert({ ...plate, status: "live" });
+        await upsert({ ...plate, status: "live" });
         audit("cli.approve", { sku: arg });
         console.log(`✓ ${arg} → live`);
       } else {
         const { removePlate } = await import("./stages/publish.js");
         const reason = process.argv.slice(4).join(" ") || "rejected via cli";
-        removePlate(arg, reason);
+        await removePlate(arg, reason);
         audit("cli.reject", { sku: arg, reason });
         console.log(`✗ ${arg} removed (SKU retired, never reused)`);
       }

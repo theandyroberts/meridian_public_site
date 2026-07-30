@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -91,4 +92,95 @@ export async function createScene(formData: FormData) {
   }
 
   redirect(`/projects/${projectId}/scenes/${sceneId}?created=1`);
+}
+
+export async function addClipToScene(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const projectId = formString(formData, "projectId");
+  const sceneId = formString(formData, "sceneId");
+  const stockClipId = formString(formData, "stockClipId");
+
+  if (!user) {
+    redirect(
+      `/login?next=${encodeURIComponent(
+        `/projects/${projectId}/scenes/${sceneId}`,
+      )}`,
+    );
+  }
+  if (!sceneId || !stockClipId) {
+    formError(
+      `/projects/${projectId}/scenes/${sceneId}`,
+      "Choose a valid catalog clip.",
+    );
+  }
+
+  const { error } = await supabase.rpc("add_clip_to_scene", {
+    target_scene_id: sceneId,
+    target_stock_clip_id: stockClipId,
+  });
+  if (error) {
+    formError(
+      `/projects/${projectId}/scenes/${sceneId}`,
+      "The clip could not be added to this scene.",
+    );
+  }
+  revalidatePath(`/projects/${projectId}/scenes/${sceneId}`);
+}
+
+export async function updateSceneClipStatus(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const projectId = formString(formData, "projectId");
+  const sceneId = formString(formData, "sceneId");
+  const sceneClipId = formString(formData, "sceneClipId");
+  const status = formString(formData, "status");
+  const expectedVersion = Number(formString(formData, "expectedVersion"));
+  const statuses = new Set([
+    "considering",
+    "shortlisted",
+    "selected",
+    "rejected",
+    "submitted",
+  ]);
+
+  if (!user) {
+    redirect(
+      `/login?next=${encodeURIComponent(
+        `/projects/${projectId}/scenes/${sceneId}`,
+      )}`,
+    );
+  }
+  if (
+    !sceneClipId ||
+    !statuses.has(status) ||
+    !Number.isInteger(expectedVersion)
+  ) {
+    formError(
+      `/projects/${projectId}/scenes/${sceneId}`,
+      "Refresh the scene and try that status change again.",
+    );
+  }
+
+  const { error } = await supabase.rpc("set_scene_clip_status", {
+    target_scene_clip_id: sceneClipId,
+    next_status: status as
+      | "considering"
+      | "shortlisted"
+      | "selected"
+      | "rejected"
+      | "submitted",
+    expected_version: expectedVersion,
+  });
+  if (error) {
+    formError(
+      `/projects/${projectId}/scenes/${sceneId}`,
+      "The clip changed in another session. Refresh and retry.",
+    );
+  }
+  revalidatePath(`/projects/${projectId}/scenes/${sceneId}`);
 }

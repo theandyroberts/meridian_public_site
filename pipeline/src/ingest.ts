@@ -112,7 +112,7 @@ export async function ingestDiscovered(drop: Drop, opts: IngestOpts = {}): Promi
     ingestedAt: new Date().toISOString(),
   };
 
-  publishPlate(plate);
+  await publishPlate(plate);
   audit("ingest.done", { sku, ms: Date.now() - t0 });
   return plate;
 }

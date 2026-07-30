@@ -8,7 +8,9 @@ export const metadata = { title: "Drafts — TPL Admin" };
 
 export default async function DraftsPage() {
   await requireAdmin();
-  const drafts = getCatalog().plates.filter((p) => p.status === "draft");
+  const drafts = (await getCatalog({ includeDrafts: true })).plates.filter(
+    (p) => p.status === "draft",
+  );
   return (
     <main className="wrap" style={{ paddingTop: 48 }}>
       <div className="section-head">
