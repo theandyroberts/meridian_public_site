@@ -1,6 +1,7 @@
 import { login } from "./actions";
+import { siteTitle } from "@/lib/siteTitle";
 
-export const metadata = { title: "Admin — The Plate Lab" };
+export const metadata = { title: siteTitle("Admin — The Plate Lab") };
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage({

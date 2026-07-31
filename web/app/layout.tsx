@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import { Logo } from "@/components/Logo";
 import { SiteHeader } from "@/components/SiteHeader";
+import { siteTitle } from "@/lib/siteTitle";
 import "./globals.css";
 
 const hanken = Hanken_Grotesk({
@@ -17,7 +18,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Plate Lab — 360×180 Environments",
+  title: siteTitle("The Plate Lab — 360×180 Environments"),
   description:
     "Pro-stitched 360×180 driving plates for VFX, LED volumes & virtual production. Captured on the Spheris 9-camera array.",
 };

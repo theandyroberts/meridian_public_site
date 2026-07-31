@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { siteTitle } from "@/lib/siteTitle";
 
 export const metadata: Metadata = {
-  title: "LED Wall Stage Viewer — The Plate Lab",
+  title: siteTitle("LED Wall Stage Viewer — The Plate Lab"),
   description:
     "Preview 360 driving plates on a replica of the Amazon MGM Stage 15 LED volume, with a car and switchable vantage points.",
 };

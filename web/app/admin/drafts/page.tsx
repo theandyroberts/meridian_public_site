@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { getCatalog } from "@/lib/catalog";
 import { requireAdmin } from "@/lib/admin/session";
+import { siteTitle } from "@/lib/siteTitle";
 import { publishPlateAction, rejectPlateAction } from "../actions";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Drafts — TPL Admin" };
+export const metadata = { title: siteTitle("Drafts — TPL Admin") };
 
 export default async function DraftsPage() {
   await requireAdmin();

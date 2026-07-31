@@ -2,8 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { requireAdmin } from "@/lib/admin/session";
 import { getCatalog } from "@/lib/catalog";
+import { siteTitle } from "@/lib/siteTitle";
 
-export const metadata = { title: "Stitch reviews — TPL Admin" };
+export const metadata = { title: siteTitle("Stitch reviews — TPL Admin") };
 export const dynamic = "force-dynamic";
 
 const REPORTS_ROOT = path.join(process.cwd(), "data", "stitch-reports");
