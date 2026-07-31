@@ -5,6 +5,7 @@ import { InfoTooltip } from "@/components/InfoTooltip";
 import { PlateCard } from "@/components/PlateCard";
 import { SceneDeleteForm } from "@/components/SceneDeleteForm";
 import { createQueryEmbedding } from "@/lib/search";
+import { matchClosenessPercent } from "@/lib/matchCloseness";
 import { createClient } from "@/lib/supabase/server";
 import {
   addClipToScene,
@@ -83,8 +84,11 @@ export default async function ScenePage({
     .filter(Boolean)
     .join(" ");
   const queryEmbedding = await createQueryEmbedding(sceneSearchText);
-  const [{ data: searchRows, error: searchError }, { data: selectedRows }] =
-    await Promise.all([
+  const [
+    { data: searchRows, error: searchError },
+    { data: selectedRows },
+    { data: catalogFallback, error: catalogFallbackError },
+  ] = await Promise.all([
       supabase.rpc("search_stock_clips", {
         query_text: sceneSearchText || undefined,
         query_embedding: queryEmbedding,
@@ -99,18 +103,41 @@ export default async function ScenePage({
         .eq("scene_id", sceneId)
         .order("sort_order")
         .order("created_at"),
+      supabase
+        .from("stock_clips")
+        .select("id, source_metadata")
+        .eq("status", "live")
+        .order("title")
+        .limit(6),
     ]);
 
   if (searchError) {
-    throw new Error(`Unable to search the catalog: ${searchError.message}`);
+    console.warn(`Ranked catalog search unavailable: ${searchError.message}`);
+  }
+  if (catalogFallbackError) {
+    console.warn(
+      `Catalog fallback unavailable: ${catalogFallbackError.message}`,
+    );
   }
 
-  const suggested = (searchRows ?? []).map((row) => ({
+  const rankedMatches = (searchRows ?? []).map((row) => ({
     id: row.id,
     plate: plateSchema.parse(row.source_metadata),
     keywordScore: row.keyword_score,
     semanticScore: row.semantic_score,
   }));
+  const rankedIds = new Set(rankedMatches.map((result) => result.id));
+  const suggested = [
+    ...rankedMatches,
+    ...(catalogFallback ?? [])
+      .filter((row) => !rankedIds.has(row.id))
+      .map((row) => ({
+        id: row.id,
+        plate: plateSchema.parse(row.source_metadata),
+        keywordScore: 0,
+        semanticScore: 0,
+      })),
+  ].slice(0, 6);
   const selected: SelectedClip[] = (selectedRows ?? []).flatMap((row) => {
     const relation = Array.isArray(row.stock_clips)
       ? row.stock_clips[0]
@@ -332,9 +359,12 @@ export default async function ScenePage({
       <section className="selection-stage">
         <div className="section-head compact">
           <div>
-            <h2>Suggested plates</h2>
+            <div className="matched-plates-heading">
+              <h2>Top plate matches</h2>
+              <InfoTooltip text="Match closeness is a conservative blend of semantic similarity and exact metadata or keyword evidence. Low percentages are shown intentionally when the current library is not a close fit." />
+            </div>
             <p className="mono dimmer">
-              Hybrid metadata search
+              Six closest plates · hybrid metadata search
               {queryEmbedding ? " + semantic similarity" : ""}
             </p>
           </div>
@@ -352,7 +382,17 @@ export default async function ScenePage({
         {suggested.length ? (
           <div className="plate-grid">
             {suggested.map((result) => (
-              <div key={result.plate.sku}>
+              <div className="plate-match-result" key={result.plate.sku}>
+                <div className="match-closeness mono">
+                  <span>Match closeness</span>
+                  <strong>
+                    {matchClosenessPercent({
+                      keywordScore: result.keywordScore,
+                      semanticScore: result.semanticScore,
+                    })}
+                    %
+                  </strong>
+                </div>
                 <PlateCard plate={result.plate} />
                 <form action={addClipToScene} className="scene-clip-form">
                   <input type="hidden" name="projectId" value={projectId} />
@@ -373,11 +413,10 @@ export default async function ScenePage({
           </div>
         ) : (
           <div className="workspace-empty">
-            <p className="mono accent">Widen the search</p>
-            <h2>No direct catalog match yet.</h2>
+            <p className="mono accent">Catalog unavailable</p>
+            <h2>No plates can be loaded right now.</h2>
             <p>
-              Search the full collection, adjust the scene language, or send
-              the brief to the Plate Lab team for a custom capture.
+              The scene is saved. Try again shortly or open the full catalog.
             </p>
           </div>
         )}

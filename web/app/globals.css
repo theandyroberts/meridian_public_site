@@ -1125,6 +1125,38 @@ body::before {
   padding-top: 34px;
   border-top: 2px solid var(--orange);
 }
+.matched-plates-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.matched-plates-heading .info-tooltip-trigger {
+  width: 28px;
+  height: 28px;
+}
+.plate-match-result {
+  min-width: 0;
+}
+.match-closeness {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 38px;
+  padding: 7px 10px;
+  color: var(--paper-60);
+  border: 1px solid var(--hairline-strong);
+  border-bottom: 0;
+  background: var(--ink-2);
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.match-closeness strong {
+  color: var(--orange);
+  font-size: 15px;
+  letter-spacing: 0;
+}
 .scene-clip-form {
   display: flex;
   align-items: center;
