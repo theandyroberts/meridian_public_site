@@ -1,6 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { safeRedirectPath } from "@/lib/auth/redirect";
+import { getSiteUrl } from "@/lib/auth/siteUrl";
 import { createClient } from "@/lib/supabase/server";
 
 const OTP_TYPES = new Set<EmailOtpType>([
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
   const next = safeRedirectPath(
     requestedNext ?? (type === "recovery" ? "/reset-password" : "/projects"),
   );
+  const siteUrl = await getSiteUrl();
 
   if (tokenHash && isEmailOtpType(type)) {
     const supabase = await createClient();
@@ -31,10 +33,10 @@ export async function GET(request: NextRequest) {
       type,
     });
 
-    if (!error) return NextResponse.redirect(new URL(next, request.url));
+    if (!error) return NextResponse.redirect(new URL(next, siteUrl));
   }
 
-  const loginUrl = new URL("/login", request.url);
+  const loginUrl = new URL("/login", siteUrl);
   loginUrl.searchParams.set(
     "error",
     "That authentication link is invalid or has expired.",
