@@ -188,7 +188,7 @@ export default async function ProjectPage({
               <thead>
                 <tr>
                   <th scope="col">#</th>
-                  <th scope="col">Script</th>
+                  <th scope="col">Scene #</th>
                   <th scope="col">Page(s)</th>
                   <th scope="col">Scene</th>
                   <th scope="col">Plate brief</th>
