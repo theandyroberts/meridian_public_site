@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { Plate } from "@platelab/shared";
 import { GRID_ORDER, CAMERA_POSITIONS } from "@platelab/shared";
 import { publicMediaUrl } from "@/lib/publicMediaUrl";
@@ -24,7 +25,7 @@ function fmt(t: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}:${String(f).padStart(2, "0")}`;
 }
 
-export function SyncedPlayer({ plate }: { plate: Plate }) {
+export function SyncedPlayer({ plate, stageHref }: { plate: Plate; stageHref?: string }) {
   const masterRef = useRef<HTMLVideoElement>(null);
   const tileRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const [playing, setPlaying] = useState(false);
@@ -134,6 +135,20 @@ export function SyncedPlayer({ plate }: { plate: Plate }) {
           <span>9-cam lock</span>
         </div>
       </div>
+
+      {stageHref && (
+        <div className="plate-previs-action plate-previs-action--player">
+          <Link className="plate-previs-cta" href={stageHref}>
+            <span>
+              <span className="plate-previs-kicker mono">360 Stage Previs</span>
+              <strong>Open on the AMZ/MGM Stage 15 replica</strong>
+            </span>
+            <span className="plate-previs-arrow" aria-hidden="true">
+              →
+            </span>
+          </Link>
+        </div>
+      )}
 
       <div className="nine-grid">
         {GRID_ORDER.map((id) => (
