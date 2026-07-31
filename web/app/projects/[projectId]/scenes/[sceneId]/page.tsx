@@ -241,7 +241,7 @@ export default async function ScenePage({
               <textarea
                 name="searchBrief"
                 defaultValue={scene.search_brief ?? ""}
-                rows={8}
+                rows={4}
               />
               <small>
                 Saving refreshes the searchable keyword list from this
@@ -322,8 +322,7 @@ export default async function ScenePage({
       <section className="selection-stage">
         <div className="section-head compact">
           <div>
-            <p className="mono accent">Step 3 of 3 · Choose clips</p>
-            <h2>Search results for this scene</h2>
+            <h2>Suggested plates</h2>
             <p className="mono dimmer">
               Hybrid metadata search
               {queryEmbedding ? " + semantic similarity" : ""}

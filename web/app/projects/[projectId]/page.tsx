@@ -64,13 +64,11 @@ export default async function ProjectPage({
         ← Projects
       </Link>
 
-      <section className="workspace-intro project-heading">
+      <header className="workspace-intro project-heading">
         <div>
-          <p className="mono accent">Project · working title</p>
           <h1>{project.name}</h1>
           <p className="dim">
-            {project.client_name ||
-              "Add scenes, then choose the plates for each shot."}
+            {project.client_name || "No client specified"}
           </p>
         </div>
         <div className="project-heading-tools">
@@ -84,11 +82,7 @@ export default async function ProjectPage({
             <div className="project-details-panel">
               <div>
                 <p className="mono accent">Project details</p>
-                <h2>Keep the public label production-safe.</h2>
-                <p className="dim">
-                  The working title is used everywhere else. The actual title
-                  remains optional and is only visible in this editor.
-                </p>
+                <h2>Edit project</h2>
               </div>
               <form
                 action={updateProject}
@@ -155,7 +149,7 @@ export default async function ProjectPage({
             </div>
           </details>
         </div>
-      </section>
+      </header>
 
       {query.error && <p className="auth-alert error">{query.error}</p>}
       {query.created === "1" && (
@@ -189,7 +183,6 @@ export default async function ProjectPage({
         <div>
           <div className="section-head compact">
             <div>
-              <p className="mono accent">Step 2 of 3</p>
               <h2>Scenes</h2>
             </div>
             <div className="scene-list-actions">
@@ -271,8 +264,7 @@ export default async function ProjectPage({
         </div>
 
         <aside className="add-scene-card" id="add-scene">
-          <p className="mono accent">Add another scene</p>
-          <h2>What else is on the shot list?</h2>
+          <h2>Add scene</h2>
           <form action={createScene} className="workspace-form compact-form">
             <input type="hidden" name="projectId" value={project.id} />
             <label>
@@ -310,7 +302,7 @@ export default async function ProjectPage({
               <textarea
                 name="searchBrief"
                 placeholder="Open coast, clear horizon, late afternoon…"
-                rows={6}
+                rows={4}
               />
             </label>
             <div className="stacked-form-actions">

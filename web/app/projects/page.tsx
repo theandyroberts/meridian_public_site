@@ -48,18 +48,11 @@ export default async function ProjectsPage() {
 
   return (
     <main className="workspace-shell">
-      <section className="workspace-intro">
-        <div>
-          <p className="mono accent">Client workspace</p>
-          <h1>Projects</h1>
-          <p className="dim">
-            Build each production scene by scene, then find and review its
-            plates.
-          </p>
-        </div>
+      <header className="lab-task-header">
+        <h1>Projects</h1>
         <div className="workspace-actions">
           <Link href="/projects/new" className="primary-button">
-            Start a project
+            + New project
           </Link>
           <form action={signOut}>
             <button type="submit" className="secondary-button mono">
@@ -67,7 +60,7 @@ export default async function ProjectsPage() {
             </button>
           </form>
         </div>
-      </section>
+      </header>
 
       {error && (
         <p className="auth-alert error">
@@ -76,27 +69,29 @@ export default async function ProjectsPage() {
       )}
 
       {projects?.length ? (
-        <section className="project-grid" aria-label="Your projects">
+        <section className="project-list" aria-label="Your projects">
+          <div className="project-list-head mono" aria-hidden="true">
+            <span>Project</span>
+            <span>Client</span>
+            <span>Scenes</span>
+            <span>Updated</span>
+            <span />
+          </div>
           {projects.map((project) => {
             const count = sceneCounts.get(project.id) ?? 0;
             return (
               <Link
                 href={`/projects/${project.id}`}
-                className="project-card"
+                className="project-row"
                 key={project.id}
               >
-                <div>
-                  <p className="mono accent">
-                    {count} scene{count === 1 ? "" : "s"}
-                  </p>
-                  <h2>{project.name}</h2>
-                  <p className="dim">
-                    {project.client_name || "Production details not added yet"}
-                  </p>
-                </div>
-                <p className="mono dimmer">
-                  Updated {projectDate(project.last_activity_at)}
-                </p>
+                <strong>{project.name}</strong>
+                <span className="dim">{project.client_name || "—"}</span>
+                <span>{count}</span>
+                <span className="dim">
+                  {projectDate(project.last_activity_at)}
+                </span>
+                <span className="project-row-arrow">→</span>
               </Link>
             );
           })}
