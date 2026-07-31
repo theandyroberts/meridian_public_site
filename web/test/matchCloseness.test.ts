@@ -5,7 +5,7 @@ import { matchClosenessPercent } from "../lib/matchCloseness";
 test("weak or missing search evidence stays visibly low", () => {
   assert.equal(
     matchClosenessPercent({ keywordScore: 0, semanticScore: 0 }),
-    0,
+    1,
   );
   assert.equal(
     matchClosenessPercent({ keywordScore: 0, semanticScore: 0.54 }),

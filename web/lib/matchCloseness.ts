@@ -24,5 +24,12 @@ export function matchClosenessPercent({
     (Number.isFinite(keywordScore) ? Number(keywordScore) : 0) * 5,
   );
 
-  return Math.round((semanticSignal * 0.9 + keywordSignal * 0.1) * 100);
+  const calibrated = Math.round(
+    (semanticSignal * 0.9 + keywordSignal * 0.1) * 100,
+  );
+
+  // A displayed candidate has still been compared with the scene. Keep the
+  // weakest result distinct from "not evaluated" while catalog and embedding
+  // coverage are still small.
+  return Math.max(1, calibrated);
 }
