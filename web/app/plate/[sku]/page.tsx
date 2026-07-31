@@ -11,6 +11,7 @@ import { SyncedPlayer } from "@/components/SyncedPlayer";
 import { GpsPanel } from "@/components/GpsPanel";
 import { PriceBlock } from "@/components/PriceBlock";
 import { PlateCard } from "@/components/PlateCard";
+import { publicMediaUrl } from "@/lib/publicMediaUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,10 @@ export default async function PlatePage({
     "green-screen": "Green Screen",
     projection: "Projection",
   };
+  const stageQuery = new URLSearchParams({
+    video: publicMediaUrl(plate.renditions.stitchedPreview),
+    label: `${plate.sku} · ${plate.title}`,
+  });
 
   return (
     <main className="wrap">
@@ -75,6 +80,17 @@ export default async function PlatePage({
       </div>
 
       <SyncedPlayer plate={plate} />
+
+      {plate.stageCompat.includes("led-volume") && (
+        <div className="plate-previs-action">
+          <Link className="cta mono" href={`/stage?${stageQuery}`}>
+            Open in 360 stage previs →
+          </Link>
+          <span className="mono dimmer">
+            Loads this watermarked plate on the AMZ/MGM Stage 15 replica.
+          </span>
+        </div>
+      )}
 
       <div className="detail-cols">
         <div>

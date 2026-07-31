@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import type { Plate } from "@platelab/shared";
 import { formatUsd } from "@platelab/shared";
+import { publicMediaUrl } from "@/lib/publicMediaUrl";
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -39,10 +40,14 @@ export function PlateCard({ plate }: { plate: Plate }) {
     >
       <div className="frame">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={plate.renditions.poster} alt={plate.title} loading="lazy" />
+        <img
+          src={publicMediaUrl(plate.renditions.poster)}
+          alt={plate.title}
+          loading="lazy"
+        />
         <video
           ref={videoRef}
-          src={plate.renditions.stitchedPreview}
+          src={publicMediaUrl(plate.renditions.stitchedPreview)}
           muted
           loop
           playsInline

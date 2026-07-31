@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Plate } from "@platelab/shared";
 import { GRID_ORDER, CAMERA_POSITIONS } from "@platelab/shared";
+import { publicMediaUrl } from "@/lib/publicMediaUrl";
 
 /**
  * Stitched master + 9-grid sync player.
@@ -85,7 +86,7 @@ export function SyncedPlayer({ plate }: { plate: Plate }) {
       <div className="stitched">
         <video
           ref={masterRef}
-          src={plate.renditions.stitchedPreview}
+          src={publicMediaUrl(plate.renditions.stitchedPreview)}
           muted
           loop
           playsInline
@@ -142,7 +143,11 @@ export function SyncedPlayer({ plate }: { plate: Plate }) {
                 if (el) tileRefs.current.set(id, el);
                 else tileRefs.current.delete(id);
               }}
-              src={plate.renditions.cameraPreviews[id]}
+              src={
+                plate.renditions.cameraPreviews[id]
+                  ? publicMediaUrl(plate.renditions.cameraPreviews[id])
+                  : undefined
+              }
               muted
               loop
               playsInline

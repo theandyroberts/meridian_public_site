@@ -15,7 +15,17 @@ export const metadata: Metadata = {
  *
  * Fixed + high z-index so the viewer covers the site header/nav chrome.
  */
-export default function StageViewerPage() {
+export default async function StageViewerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ video?: string; label?: string }>;
+}) {
+  const query = await searchParams;
+  const viewerQuery = new URLSearchParams();
+  if (query.video) viewerQuery.set("video", query.video);
+  if (query.label) viewerQuery.set("label", query.label);
+  const viewerSrc = `/stage/index.html${viewerQuery.size ? `?${viewerQuery}` : ""}`;
+
   return (
     <div
       style={{
@@ -26,7 +36,7 @@ export default function StageViewerPage() {
       }}
     >
       <iframe
-        src="/stage/index.html"
+        src={viewerSrc}
         title="LED Wall Stage Viewer"
         allow="fullscreen"
         style={{ width: "100%", height: "100%", border: 0, display: "block" }}

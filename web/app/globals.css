@@ -1723,6 +1723,19 @@ body::before {
 .plate-card .meta { display: flex; justify-content: space-between; margin-top: 10px; align-items: center; }
 .plate-card .badges { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
 
+.plate-previs-action {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 20px 0 0;
+}
+
+.plate-previs-action .cta { display: inline-flex; }
+
+@media (max-width: 680px) {
+  .plate-previs-action { align-items: flex-start; flex-direction: column; }
+}
+
 .badge {
   font-family: var(--font-mono);
   font-size: 10px;

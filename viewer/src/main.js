@@ -547,6 +547,7 @@ buildControls()
 bindCameraNavigation()
 applyPreset('amazon')
 setView(state.selectedView, false)
+loadInitialFootage()
 
 function buildControls() {
   const presetSelect = document.querySelector('#presetSelect')
@@ -1482,6 +1483,17 @@ function loadVideoUrl() {
   const url = document.querySelector('#videoUrl').value.trim()
   if (!url) return
   loadVideoSource(url, 'URL footage')
+}
+
+function loadInitialFootage() {
+  const params = new URLSearchParams(window.location.search)
+  const footageUrl = params.get('video')?.trim()
+  if (!footageUrl) return
+
+  const label = params.get('label')?.trim() || 'Plate preview'
+  document.querySelector('#videoUrl').value = footageUrl
+  document.querySelector('#fileName').textContent = label
+  loadVideoSource(footageUrl, label)
 }
 
 async function loadVideoSource(src, label) {
