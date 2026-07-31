@@ -87,6 +87,40 @@ body::before {
   transition: background 0.15s, color 0.15s;
 }
 .site-nav .cta:hover { background: var(--orange); color: var(--ink); }
+.site-account {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--orange);
+  min-width: 0;
+}
+.site-account-name,
+.site-account-logout {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+.site-account-name {
+  max-width: 190px;
+  overflow: hidden;
+  color: var(--paper);
+  text-overflow: ellipsis;
+}
+.site-account form {
+  display: flex;
+  border-left: 1px solid rgba(197, 107, 62, 0.55);
+}
+.site-account-logout {
+  color: var(--paper-60);
+  transition: background 0.15s, color 0.15s;
+}
+.site-account-logout:hover,
+.site-account-logout:focus-visible {
+  color: var(--ink);
+  background: var(--orange);
+  outline: none;
+}
 
 .primary-button,
 .secondary-button {
@@ -1545,8 +1579,21 @@ body::before {
 }
 @media (max-width: 720px) {
   .site-header .wrap { gap: 16px; }
-  .site-nav { gap: 14px; }
-  .site-nav > a:not(.cta) { display: none; }
+  .site-nav { gap: 12px; }
+  .site-nav-secondary { display: none; }
+  .site-account-name { max-width: 96px; }
+}
+@media (max-width: 520px) {
+  .site-header .wrap { padding: 0 16px; }
+  .site-nav { gap: 9px; }
+  .site-nav .projects-link { font-size: 14px; }
+  .site-account-name,
+  .site-account-logout {
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 9px;
+  }
+  .site-account-name { max-width: 72px; }
 }
 
 .hero-globe {

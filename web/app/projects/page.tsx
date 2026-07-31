@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "../(auth)/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -54,11 +53,6 @@ export default async function ProjectsPage() {
           <Link href="/projects/new" className="primary-button">
             + New project
           </Link>
-          <form action={signOut}>
-            <button type="submit" className="secondary-button mono">
-              Sign out
-            </button>
-          </form>
         </div>
       </header>
 
