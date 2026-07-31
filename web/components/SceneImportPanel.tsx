@@ -129,7 +129,7 @@ export function SceneImportPanel(props: SceneImportPanelProps) {
             <h3>Paste the prompt and your script into Chat</h3>
             <p>
               Attach or paste the script in your Chat window. Review the
-              scenes it finds, then save the response as a <code>.json</code>
+              scenes it finds, then save the response as a <code>.json</code>{" "}
               scene file.
             </p>
           </div>
