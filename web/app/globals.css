@@ -105,6 +105,16 @@ body::before {
   max-width: 190px;
   overflow: hidden;
   color: var(--paper);
+  gap: 8px;
+}
+.site-account-state {
+  color: var(--orange);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+.site-account-identity {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 .site-account form {
@@ -1582,6 +1592,7 @@ body::before {
   .site-nav { gap: 12px; }
   .site-nav-secondary { display: none; }
   .site-account-name { max-width: 96px; }
+  .site-account-state { display: none; }
 }
 @media (max-width: 520px) {
   .site-header .wrap { padding: 0 16px; }

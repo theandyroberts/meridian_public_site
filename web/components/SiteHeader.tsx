@@ -45,8 +45,11 @@ export async function SiteHeader() {
           </Link>
           {user && displayName ? (
             <div className="site-account" aria-label={`Signed in as ${displayName}`}>
-              <span className="site-account-name mono" title={displayName}>
-                {displayName}
+              <span className="site-account-name mono">
+                <span className="site-account-state">Signed in</span>
+                <span className="site-account-identity" title={displayName}>
+                  {displayName}
+                </span>
               </span>
               <form action={signOut}>
                 <button type="submit" className="site-account-logout mono">
