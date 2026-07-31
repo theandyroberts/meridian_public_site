@@ -64,6 +64,7 @@ const shotGroups = [
       { key: 'mediumFrontLeft', label: 'Front L', position: [2.75, 0.68, 1.35], target: [0.48, 0.58, 0.04], fov: 43 },
       { key: 'mediumFrontRight', label: 'Front R', position: [2.75, 0.68, -1.35], target: [0.48, 0.58, -0.04], fov: 43 },
       { key: 'mediumRearLeft', label: 'Rear L', position: [-2.9, 0.7, 1.4], target: [-0.5, 0.58, 0.04], fov: 44 },
+      { key: 'mediumRear', label: 'Rear', position: [-2.9, 0.7, 0], target: [-0.5, 0.58, 0], fov: 44 },
       { key: 'mediumRearRight', label: 'Rear R', position: [-2.9, 0.7, -1.4], target: [-0.5, 0.58, -0.04], fov: 44 },
     ],
   },
@@ -131,7 +132,7 @@ const vehicleModels = {
 
 const state = {
   presetKey: 'amazon',
-  selectedView: 'wideFrontLeft',
+  selectedView: 'mediumRear',
   finishKey: 'silver',
   vehicleKey: 'ferrari',
   vehicleYaw: 0,
