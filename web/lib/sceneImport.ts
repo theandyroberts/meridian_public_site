@@ -17,15 +17,22 @@ export type SceneImportDocument = {
   scenes: SceneImportScene[];
 };
 
-export const SCENE_EXTRACTION_PROMPT = `Scan the attached screenplay and identify every scene that could be shot using driving plates on a volumetric 360-degree soundstage.
+export const SCENE_EXTRACTION_PROMPT = `Scan the attached screenplay—either a standard feature/spec screenplay or a numbered shooting script—and identify every scene that could use driving plates on a volumetric 360-degree soundstage.
 
 The screenplay is private. Do not quote dialogue or reproduce screenplay passages. Extract only the creator-controlled production metadata needed to find background plates.
 
+Handle both script formats:
+- Numbered shooting script: copy the printed scene number exactly, including lettered inserts such as "41A". Copy the printed script page labels exactly, including revision pages such as "74A", "74B", or "74A–75". Ignore scenes marked OMITTED or DELETED. Do not treat CONTINUED headings, shot numbers, setup numbers, revision marks, or camera directions as separate scenes by themselves.
+- Standard feature/spec screenplay: if no scene number is printed, use an empty string for script_scene_number. Use the printed screenplay page or page range when visible; otherwise use an empty string. Never substitute the PDF viewer's page count for a printed script page.
+- Either format: use the scene heading and action to understand the setting. Do not guess a missing scene number, page number, location, weather, traffic, direction, or time of day.
+
+Create one JSON scene for each distinct plate setup, not automatically one for every screenplay heading. Keep a continuous vehicle/window environment together. If one screenplay scene clearly needs different vehicles, locations, travel directions, times of day, or window orientations, split it into separate JSON scenes and give each a clear setup-specific name. Reuse the same printed scene number and page range for those split setups.
+
 For each qualifying scene:
 - scene_name: a concise, human-readable scene name. Do not append the page number.
-- script_scene_number: the screenplay scene number, or an empty string if none is printed.
-- script_pages: the script page or page range, for example "42" or "74–75".
-- description: plain-language description of what must appear outside the vehicle windows. Include relevant location, road type, weather, time of day, traffic, vehicle/camera travel direction, visible landmarks, and mood. Do not invent details that are not supported by the screenplay.
+- script_scene_number: the printed screenplay scene number exactly as shown, or an empty string if none is printed.
+- script_pages: the printed screenplay page label or inclusive range exactly as shown, for example "42", "74–75", or "74A–74B"; use an empty string if no printed page is visible.
+- description: a self-contained, plain-language plate brief describing only what must appear outside the vehicle windows. Include relevant location, road type, weather, time of day, traffic, vehicle/camera travel direction, window orientation, visible landmarks, motion or stationary state, and mood. Do not quote dialogue, repeat screenplay prose, expose plot twists, or invent unsupported details.
 - search_keywords: 6–16 short, specific search phrases derived from the scene, such as "private wooded road", "midnight", "cold mist", "guard gate", or "driver-side view".
 
 Return only valid JSON. Do not wrap it in Markdown or add commentary. Use this exact structure:
@@ -51,7 +58,7 @@ Return only valid JSON. Do not wrap it in Markdown or add commentary. Use this e
   ]
 }
 
-Include only scenes that genuinely need moving or stationary exterior views through vehicle windows. If no scenes qualify, return the same object with an empty scenes array.`;
+Include only scenes that genuinely need moving or stationary exterior views through vehicle windows. A parked-car view can qualify; an exterior-only vehicle shot with no required window view does not. If no scenes qualify, return the same object with an empty scenes array.`;
 
 export class SceneImportError extends Error {
   constructor(message: string) {

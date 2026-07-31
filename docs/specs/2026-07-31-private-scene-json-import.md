@@ -41,6 +41,22 @@ The canonical prompt is exported as `SCENE_EXTRACTION_PROMPT` from
 There is no screenplay file input, upload endpoint, storage bucket, or
 server-side screenplay parser.
 
+## Script-format behavior
+
+The guided prompt supports both common inputs without changing the JSON
+contract:
+
+- Numbered shooting scripts preserve printed alphanumeric scene numbers and
+  revision-page labels such as `41A` and `74A–74B`.
+- `OMITTED`, `DELETED`, and `CONTINUED` markers are not imported as scenes.
+- Standard feature/spec screenplays leave `script_scene_number` empty when
+  no number is printed.
+- Printed screenplay pages are used when visible. PDF viewer page counts are
+  never substituted for script page labels.
+- A single screenplay scene may produce multiple JSON scenes only when it
+  contains genuinely distinct plate setups, such as different vehicles,
+  locations, directions, window orientations, or times of day.
+
 ## Limits
 
 - Schema version must be `the-plate-lab.scene-import.v1`.
