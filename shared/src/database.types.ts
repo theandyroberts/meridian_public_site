@@ -636,7 +636,10 @@ export type Database = {
           created_at: string
           created_by: string
           custom_stage_name_override: string | null
+          generated_keywords: string[]
           id: string
+          keyword_generation_status: string
+          keywords_generated_at: string | null
           name: string
           production_approach_override:
             | Database["public"]["Enums"]["production_approach"]
@@ -646,6 +649,8 @@ export type Database = {
           scene_notes: string | null
           scene_number: number
           search_brief: string | null
+          script_pages: string | null
+          script_scene_number: string | null
           sort_order: number
           stage_profile_id_override: string | null
           structured_filters: Json
@@ -658,7 +663,10 @@ export type Database = {
           created_at?: string
           created_by: string
           custom_stage_name_override?: string | null
+          generated_keywords?: string[]
           id?: string
+          keyword_generation_status?: string
+          keywords_generated_at?: string | null
           name: string
           production_approach_override?:
             | Database["public"]["Enums"]["production_approach"]
@@ -668,6 +676,8 @@ export type Database = {
           scene_notes?: string | null
           scene_number: number
           search_brief?: string | null
+          script_pages?: string | null
+          script_scene_number?: string | null
           sort_order?: number
           stage_profile_id_override?: string | null
           structured_filters?: Json
@@ -680,7 +690,10 @@ export type Database = {
           created_at?: string
           created_by?: string
           custom_stage_name_override?: string | null
+          generated_keywords?: string[]
           id?: string
+          keyword_generation_status?: string
+          keywords_generated_at?: string | null
           name?: string
           production_approach_override?:
             | Database["public"]["Enums"]["production_approach"]
@@ -690,6 +703,8 @@ export type Database = {
           scene_notes?: string | null
           scene_number?: number
           search_brief?: string | null
+          script_pages?: string | null
+          script_scene_number?: string | null
           sort_order?: number
           stage_profile_id_override?: string | null
           structured_filters?: Json
@@ -926,10 +941,17 @@ export type Database = {
       }
       add_project_scene: {
         Args: {
+          generated_keywords?: string[]
           scene_name: string
           search_brief?: string
+          script_pages?: string
+          script_scene_number?: string
           target_project_id: string
         }
+        Returns: string
+      }
+      archive_project_scene: {
+        Args: { target_scene_id: string }
         Returns: string
       }
       search_stock_clips: {
@@ -974,6 +996,17 @@ export type Database = {
           project_id: string
           scene_id: string
         }[]
+      }
+      update_project_scene: {
+        Args: {
+          generated_keywords?: string[]
+          scene_name: string
+          search_brief?: string
+          script_pages?: string
+          script_scene_number?: string
+          target_scene_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

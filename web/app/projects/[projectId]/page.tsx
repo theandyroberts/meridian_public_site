@@ -5,7 +5,12 @@ import { createScene } from "../actions";
 
 type ProjectPageProps = {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{
+    added?: string;
+    created?: string;
+    deleted?: string;
+    error?: string;
+  }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -35,7 +40,9 @@ export default async function ProjectPage({
       .maybeSingle(),
     supabase
       .from("scenes")
-      .select("id, scene_number, name, search_brief, vehicle")
+      .select(
+        "id, scene_number, name, search_brief, vehicle, script_scene_number, script_pages",
+      )
       .eq("project_id", projectId)
       .is("archived_at", null)
       .order("sort_order")
@@ -68,6 +75,23 @@ export default async function ProjectPage({
       </section>
 
       {query.error && <p className="auth-alert error">{query.error}</p>}
+      {query.created === "1" && (
+        <p className="auth-alert success">
+          Project created. Keep adding scenes below, or open any saved scene
+          when you are ready to choose clips.
+        </p>
+      )}
+      {query.added === "1" && (
+        <p className="auth-alert success">
+          Scene saved. Add the next scene while the shot list is in front of
+          you.
+        </p>
+      )}
+      {query.deleted === "1" && (
+        <p className="auth-alert success">
+          Scene deleted from this project.
+        </p>
+      )}
 
       <section className="project-detail-grid">
         <div>
@@ -76,9 +100,14 @@ export default async function ProjectPage({
               <p className="mono accent">Step 2 of 3</p>
               <h2>Scenes</h2>
             </div>
-            <span className="mono dim">
-              {scenes?.length ?? 0} total
-            </span>
+            <div className="scene-list-actions">
+              <span className="mono dim">
+                {scenes?.length ?? 0} total
+              </span>
+              <a href="#add-scene" className="secondary-button">
+                + Add scene
+              </a>
+            </div>
           </div>
 
           <div className="scene-list">
@@ -89,10 +118,17 @@ export default async function ProjectPage({
                 key={scene.id}
               >
                 <span className="scene-number mono">
-                  {String(scene.scene_number).padStart(2, "0")}
+                  {scene.script_scene_number
+                    ? `Sc ${scene.script_scene_number}`
+                    : String(scene.scene_number).padStart(2, "0")}
                 </span>
                 <span>
                   <strong>{scene.name}</strong>
+                  {scene.script_pages && (
+                    <span className="scene-script-pages mono">
+                      Script p. {scene.script_pages}
+                    </span>
+                  )}
                   <small>
                     {scene.search_brief || "Add a search brief"}
                   </small>
@@ -103,32 +139,67 @@ export default async function ProjectPage({
           </div>
         </div>
 
-        <aside className="add-scene-card">
+        <aside className="add-scene-card" id="add-scene">
           <p className="mono accent">Add another scene</p>
           <h2>What else is on the shot list?</h2>
           <form action={createScene} className="workspace-form compact-form">
             <input type="hidden" name="projectId" value={project.id} />
             <label>
-              <span>Scene name</span>
+              <span>Scene title</span>
               <input
                 name="sceneName"
                 type="text"
-                placeholder="Day coastal drive"
+                placeholder="Ransom’s getaway"
                 maxLength={200}
                 required
               />
             </label>
+            <div className="form-grid compact-metadata-grid">
+              <label>
+                <span>Script scene <em>optional</em></span>
+                <input
+                  name="scriptSceneNumber"
+                  type="text"
+                  placeholder="41"
+                  maxLength={40}
+                />
+              </label>
+              <label>
+                <span>Page(s) <em>optional</em></span>
+                <input
+                  name="scriptPages"
+                  type="text"
+                  placeholder="74–75"
+                  maxLength={80}
+                />
+              </label>
+            </div>
             <label>
-              <span>Plate brief</span>
+              <span>Scene description / plate brief</span>
               <textarea
                 name="searchBrief"
                 placeholder="Open coast, clear horizon, late afternoon…"
-                rows={4}
+                rows={6}
               />
             </label>
-            <button type="submit" className="primary-button">
-              Add scene
-            </button>
+            <div className="stacked-form-actions">
+              <button
+                type="submit"
+                name="intent"
+                value="add-another"
+                className="primary-button"
+              >
+                + Save and add another
+              </button>
+              <button
+                type="submit"
+                name="intent"
+                value="find-plates"
+                className="secondary-button"
+              >
+                Save and find plates
+              </button>
+            </div>
           </form>
         </aside>
       </section>

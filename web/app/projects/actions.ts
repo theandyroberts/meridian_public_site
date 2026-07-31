@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { extractSceneKeywords } from "@/lib/sceneKeywords";
 import { createClient } from "@/lib/supabase/server";
 
 function formString(formData: FormData, field: string): string {
@@ -10,8 +11,40 @@ function formString(formData: FormData, field: string): string {
 }
 
 function formError(path: string, message: string): never {
-  const separator = path.includes("?") ? "&" : "?";
-  redirect(`${path}${separator}error=${encodeURIComponent(message)}`);
+  const [basePath, fragment] = path.split("#", 2);
+  const separator = basePath.includes("?") ? "&" : "?";
+  redirect(
+    `${basePath}${separator}error=${encodeURIComponent(message)}${
+      fragment ? `#${fragment}` : ""
+    }`,
+  );
+}
+
+function scenePath(projectId: string, sceneId: string): string {
+  return `/projects/${projectId}/scenes/${sceneId}`;
+}
+
+async function analyzeSceneKeywords(description: string): Promise<{
+  keywords: string[];
+  status: "not_needed" | "pending" | "ready";
+}> {
+  if (!description.trim()) {
+    return { keywords: [], status: "not_needed" };
+  }
+
+  try {
+    return {
+      keywords: await extractSceneKeywords(description),
+      status: "ready",
+    };
+  } catch (error) {
+    console.warn(
+      `Scene saved with AI keyword analysis pending: ${
+        error instanceof Error ? error.message : "unknown error"
+      }`,
+    );
+    return { keywords: [], status: "pending" };
+  }
 }
 
 export async function createProject(formData: FormData) {
@@ -26,6 +59,9 @@ export async function createProject(formData: FormData) {
   const projectName = formString(formData, "projectName");
   const firstSceneName = formString(formData, "firstSceneName");
   const searchBrief = formString(formData, "searchBrief");
+  const scriptSceneNumber = formString(formData, "scriptSceneNumber");
+  const scriptPages = formString(formData, "scriptPages");
+  const intent = formString(formData, "intent");
 
   if (!projectName || !firstSceneName) {
     formError(
@@ -34,6 +70,7 @@ export async function createProject(formData: FormData) {
     );
   }
 
+  const keywordAnalysis = await analyzeSceneKeywords(searchBrief);
   const { data, error } = await supabase.rpc("start_project", {
     organization_name: organizationName,
     project_name: projectName,
@@ -52,9 +89,30 @@ export async function createProject(formData: FormData) {
     );
   }
 
-  redirect(
-    `/projects/${result.project_id}/scenes/${result.scene_id}?created=1`,
-  );
+  const { error: sceneMetadataError } = await supabase
+    .from("scenes")
+    .update({
+      script_scene_number: scriptSceneNumber || null,
+      script_pages: scriptPages || null,
+      generated_keywords: keywordAnalysis.keywords,
+      keyword_generation_status: keywordAnalysis.status,
+      keywords_generated_at: keywordAnalysis.keywords.length
+        ? new Date().toISOString()
+        : null,
+    })
+    .eq("id", result.scene_id)
+    .eq("project_id", result.project_id);
+  if (sceneMetadataError) {
+    formError(
+      scenePath(result.project_id, result.scene_id),
+      "The project was created, but its first scene metadata could not be saved.",
+    );
+  }
+
+  if (intent === "find-plates") {
+    redirect(`${scenePath(result.project_id, result.scene_id)}?created=1`);
+  }
+  redirect(`/projects/${result.project_id}?created=1#add-scene`);
 }
 
 export async function createScene(formData: FormData) {
@@ -75,12 +133,18 @@ export async function createScene(formData: FormData) {
     formError(`/projects/${projectId}`, "Give the scene a name.");
   }
 
+  const searchBrief = formString(formData, "searchBrief");
+  const keywordAnalysis = await analyzeSceneKeywords(searchBrief);
   const { data: sceneId, error } = await supabase.rpc(
     "add_project_scene",
     {
       target_project_id: projectId,
       scene_name: sceneName,
-      search_brief: formString(formData, "searchBrief") || undefined,
+      search_brief: searchBrief || undefined,
+      script_scene_number:
+        formString(formData, "scriptSceneNumber") || undefined,
+      script_pages: formString(formData, "scriptPages") || undefined,
+      generated_keywords: keywordAnalysis.keywords,
     },
   );
 
@@ -91,7 +155,128 @@ export async function createScene(formData: FormData) {
     );
   }
 
+  if (formString(formData, "intent") === "add-another") {
+    redirect(`/projects/${projectId}?added=1#add-scene`);
+  }
   redirect(`/projects/${projectId}/scenes/${sceneId}?created=1`);
+}
+
+export async function updateScene(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const projectId = formString(formData, "projectId");
+  const sceneId = formString(formData, "sceneId");
+  const path = scenePath(projectId, sceneId);
+
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(path)}`);
+  }
+
+  const sceneName = formString(formData, "sceneName");
+  const searchBrief = formString(formData, "searchBrief");
+  if (!projectId || !sceneId || !sceneName) {
+    formError(path, "Give the scene a title.");
+  }
+
+  const keywordAnalysis = await analyzeSceneKeywords(searchBrief);
+  const { error } = await supabase.rpc("update_project_scene", {
+    target_scene_id: sceneId,
+    scene_name: sceneName,
+    search_brief: searchBrief || undefined,
+    script_scene_number:
+      formString(formData, "scriptSceneNumber") || undefined,
+    script_pages: formString(formData, "scriptPages") || undefined,
+    generated_keywords: keywordAnalysis.keywords,
+  });
+  if (error) {
+    formError(path, "The scene could not be updated. Please try again.");
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(path);
+  redirect(`${path}?updated=1`);
+}
+
+export async function refreshSceneKeywords(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const projectId = formString(formData, "projectId");
+  const sceneId = formString(formData, "sceneId");
+  const path = scenePath(projectId, sceneId);
+
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(path)}`);
+  }
+
+  const { data: scene, error: loadError } = await supabase
+    .from("scenes")
+    .select(
+      "name, search_brief, script_scene_number, script_pages",
+    )
+    .eq("id", sceneId)
+    .eq("project_id", projectId)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (loadError || !scene?.search_brief) {
+    formError(path, "Add a scene description before generating keywords.");
+  }
+
+  let keywords: string[];
+  try {
+    keywords = await extractSceneKeywords(scene.search_brief);
+  } catch {
+    formError(
+      path,
+      "OpenAI keyword analysis is still unavailable. Check API credits and try again.",
+    );
+  }
+
+  const { error } = await supabase.rpc("update_project_scene", {
+    target_scene_id: sceneId,
+    scene_name: scene.name,
+    search_brief: scene.search_brief,
+    script_scene_number: scene.script_scene_number || undefined,
+    script_pages: scene.script_pages || undefined,
+    generated_keywords: keywords,
+  });
+  if (error) {
+    formError(path, "The generated keywords could not be saved.");
+  }
+
+  revalidatePath(path);
+  redirect(`${path}?keywords=1`);
+}
+
+export async function archiveScene(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const projectId = formString(formData, "projectId");
+  const sceneId = formString(formData, "sceneId");
+  const path = scenePath(projectId, sceneId);
+
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(path)}`);
+  }
+  if (!projectId || !sceneId) {
+    formError(`/projects/${projectId}`, "Choose a valid scene.");
+  }
+
+  const { data: archivedProjectId, error } = await supabase.rpc(
+    "archive_project_scene",
+    { target_scene_id: sceneId },
+  );
+  if (error || archivedProjectId !== projectId) {
+    formError(path, "The scene could not be deleted. Please try again.");
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  redirect(`/projects/${projectId}?deleted=1`);
 }
 
 export async function addClipToScene(formData: FormData) {
@@ -112,7 +297,7 @@ export async function addClipToScene(formData: FormData) {
   }
   if (!sceneId || !stockClipId) {
     formError(
-      `/projects/${projectId}/scenes/${sceneId}`,
+      scenePath(projectId, sceneId),
       "Choose a valid catalog clip.",
     );
   }
@@ -123,11 +308,11 @@ export async function addClipToScene(formData: FormData) {
   });
   if (error) {
     formError(
-      `/projects/${projectId}/scenes/${sceneId}`,
+      scenePath(projectId, sceneId),
       "The clip could not be added to this scene.",
     );
   }
-  revalidatePath(`/projects/${projectId}/scenes/${sceneId}`);
+  revalidatePath(scenePath(projectId, sceneId));
 }
 
 export async function updateSceneClipStatus(formData: FormData) {
@@ -151,7 +336,7 @@ export async function updateSceneClipStatus(formData: FormData) {
   if (!user) {
     redirect(
       `/login?next=${encodeURIComponent(
-        `/projects/${projectId}/scenes/${sceneId}`,
+        scenePath(projectId, sceneId),
       )}`,
     );
   }
@@ -161,7 +346,7 @@ export async function updateSceneClipStatus(formData: FormData) {
     !Number.isInteger(expectedVersion)
   ) {
     formError(
-      `/projects/${projectId}/scenes/${sceneId}`,
+      scenePath(projectId, sceneId),
       "Refresh the scene and try that status change again.",
     );
   }
@@ -178,9 +363,9 @@ export async function updateSceneClipStatus(formData: FormData) {
   });
   if (error) {
     formError(
-      `/projects/${projectId}/scenes/${sceneId}`,
+      scenePath(projectId, sceneId),
       "The clip changed in another session. Refresh and retry.",
     );
   }
-  revalidatePath(`/projects/${projectId}/scenes/${sceneId}`);
+  revalidatePath(scenePath(projectId, sceneId));
 }

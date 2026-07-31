@@ -48,8 +48,9 @@ export default async function NewProjectPage({
         <p className="mono accent">Step 1 of 3 · Project</p>
         <h1>What are you shooting?</h1>
         <p>
-          Give the production a home and add one scene now. You can build out
-          the rest of the scene list next.
+          Give the production a home and start the shot list. After saving,
+          the + flow keeps you in scene entry until the whole script is
+          covered.
         </p>
       </section>
 
@@ -123,18 +124,36 @@ export default async function NewProjectPage({
           <p className="mono accent">First scene</p>
           <div className="form-grid">
             <label>
-              <span>Scene name</span>
+              <span>Scene title</span>
               <input
                 name="firstSceneName"
                 type="text"
-                placeholder="Night highway"
+                placeholder="Marta’s escape from the estate"
                 maxLength={200}
                 required
               />
             </label>
+            <label>
+              <span>Script scene number <em>optional</em></span>
+              <input
+                name="scriptSceneNumber"
+                type="text"
+                placeholder="41 or 41A"
+                maxLength={40}
+              />
+            </label>
+            <label>
+              <span>Script page(s) <em>optional</em></span>
+              <input
+                name="scriptPages"
+                type="text"
+                placeholder="74–75"
+                maxLength={80}
+              />
+            </label>
           </div>
           <label>
-            <span>What needs to be outside the windows?</span>
+            <span>Scene description / plate brief</span>
             <textarea
               name="searchBrief"
               placeholder="Wet urban highway at night, sparse traffic, clean forward travel…"
@@ -147,9 +166,24 @@ export default async function NewProjectPage({
           </label>
         </div>
 
-        <button type="submit" className="primary-button form-submit">
-          Create project and find plates
-        </button>
+        <div className="form-actions">
+          <button
+            type="submit"
+            name="intent"
+            value="add-more"
+            className="primary-button"
+          >
+            + Create project and add more scenes
+          </button>
+          <button
+            type="submit"
+            name="intent"
+            value="find-plates"
+            className="secondary-button"
+          >
+            Create and find plates
+          </button>
+        </div>
       </form>
     </main>
   );
