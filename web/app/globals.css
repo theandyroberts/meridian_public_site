@@ -1724,16 +1724,71 @@ body::before {
 .plate-card .badges { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
 
 .plate-previs-action {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  margin: 20px 0 0;
+  margin: 24px 0 0;
 }
 
-.plate-previs-action .cta { display: inline-flex; }
+.plate-previs-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  width: 100%;
+  min-height: 116px;
+  padding: 24px 30px;
+  color: var(--ink);
+  background: var(--orange);
+  border: 1px solid var(--orange);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.plate-previs-cta:hover,
+.plate-previs-cta:focus-visible {
+  background: #d97f50;
+  border-color: #d97f50;
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.plate-previs-cta > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.plate-previs-kicker { opacity: 0.72; }
+
+.plate-previs-cta strong {
+  font-size: clamp(22px, 2.7vw, 34px);
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.plate-previs-note {
+  font-size: 15px;
+  opacity: 0.72;
+}
+
+.plate-previs-arrow {
+  flex: 0 0 auto;
+  font-size: clamp(40px, 5vw, 68px);
+  font-weight: 300;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+
+.plate-previs-cta:hover .plate-previs-arrow,
+.plate-previs-cta:focus-visible .plate-previs-arrow {
+  transform: translateX(6px);
+}
 
 @media (max-width: 680px) {
-  .plate-previs-action { align-items: flex-start; flex-direction: column; }
+  .plate-previs-cta {
+    gap: 16px;
+    min-height: 104px;
+    padding: 20px;
+  }
+
+  .plate-previs-note { display: none; }
 }
 
 .badge {

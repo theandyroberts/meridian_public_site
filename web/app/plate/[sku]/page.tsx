@@ -83,12 +83,18 @@ export default async function PlatePage({
 
       {plate.stageCompat.includes("led-volume") && (
         <div className="plate-previs-action">
-          <Link className="cta mono" href={`/stage?${stageQuery}`}>
-            Open in 360 stage previs →
+          <Link className="plate-previs-cta" href={`/stage?${stageQuery}`}>
+            <span>
+              <span className="plate-previs-kicker mono">360 Stage Previs</span>
+              <strong>See this plate on the AMZ/MGM Stage 15 replica</strong>
+              <span className="plate-previs-note">
+                Opens the interactive LED volume with this watermarked plate playing.
+              </span>
+            </span>
+            <span className="plate-previs-arrow" aria-hidden="true">
+              →
+            </span>
           </Link>
-          <span className="mono dimmer">
-            Loads this watermarked plate on the AMZ/MGM Stage 15 replica.
-          </span>
         </div>
       )}
 
