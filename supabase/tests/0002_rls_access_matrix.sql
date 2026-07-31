@@ -160,8 +160,20 @@ select set_config('request.jwt.claims', '{"role":"anon"}', true);
 
 do $$
 begin
-  if (select count(*) from public.stage_profiles) <> 1 then
+  if (
+    select count(*)
+    from public.stage_profiles
+    where id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
+  ) <> 1 then
     raise exception 'anonymous users should see active stages only';
+  end if;
+
+  if exists (
+    select 1
+    from public.stage_profiles
+    where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
+  ) then
+    raise exception 'anonymous users must not see inactive stages';
   end if;
 end;
 $$;

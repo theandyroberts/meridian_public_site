@@ -152,6 +152,26 @@ if (action === "apply") {
           ) is not null as applied;
       `,
     },
+    {
+      path: "supabase/migrations/20260731180000_default_amz_mgm_stage_and_sedan.sql",
+      appliedSql: `
+        select
+          exists (
+            select 1
+            from public.stage_profiles
+            where id = 'a15a15a1-0000-4000-8000-000000000015'
+              and name = 'AMZ/MGM'
+              and active
+          )
+          and (
+            select column_default like '%sedan%'
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = 'scenes'
+              and column_name = 'vehicle'
+          ) as applied;
+      `,
+    },
   ];
 
   for (const migration of migrations) {
@@ -178,6 +198,7 @@ if (action === "apply") {
     "supabase/tests/0005_scene_workflow_checks.sql",
     "supabase/tests/0006_scene_json_import_checks.sql",
     "supabase/tests/0007_private_project_titles_checks.sql",
+    "supabase/tests/0008_default_stage_vehicle_checks.sql",
   ];
 
   for (const relativePath of tests) {

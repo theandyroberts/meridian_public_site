@@ -235,6 +235,16 @@ export default async function ScenePage({
                   maxLength={80}
                 />
               </label>
+              <label>
+                <span>Vehicle</span>
+                <select name="vehicle" defaultValue={scene.vehicle}>
+                  <option value="sedan">Sedan</option>
+                  <option value="suv">SUV</option>
+                  <option value="sports_car">Sports car</option>
+                  <option value="none">No vehicle</option>
+                  <option value="undecided">Undecided</option>
+                </select>
+              </label>
             </div>
             <label>
               <span>Scene description / plate brief</span>

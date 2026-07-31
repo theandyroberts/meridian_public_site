@@ -38,26 +38,51 @@ export default async function ProjectPage({
     redirect(`/login?next=${encodeURIComponent(`/projects/${projectId}`)}`);
   }
 
-  const [{ data: project }, { data: scenes }] = await Promise.all([
-    supabase
-      .from("projects")
-      .select(
-        "id, name, actual_title, client_name, description, due_date, production_approach",
-      )
-      .eq("id", projectId)
-      .maybeSingle(),
-    supabase
-      .from("scenes")
-      .select(
-        "id, scene_number, name, search_brief, vehicle, script_scene_number, script_pages, generated_keywords, keyword_generation_status",
-      )
-      .eq("project_id", projectId)
-      .is("archived_at", null)
-      .order("sort_order")
-      .order("scene_number"),
-  ]);
+  const [{ data: project }, { data: scenes }, { data: stages }] =
+    await Promise.all([
+      supabase
+        .from("projects")
+        .select(
+          "id, name, actual_title, client_name, description, due_date, production_approach, stage_profile_id, custom_stage_name",
+        )
+        .eq("id", projectId)
+        .maybeSingle(),
+      supabase
+        .from("scenes")
+        .select(
+          "id, scene_number, name, search_brief, vehicle, script_scene_number, script_pages, generated_keywords, keyword_generation_status",
+        )
+        .eq("project_id", projectId)
+        .is("archived_at", null)
+        .order("sort_order")
+        .order("scene_number"),
+      supabase
+        .from("stage_profiles")
+        .select("id, name")
+        .eq("active", true)
+        .order("name"),
+    ]);
 
   if (!project) notFound();
+
+  const stageProfile = stages?.find(
+    (stage) => stage.id === project.stage_profile_id,
+  );
+  const stageLabel =
+    project.production_approach === "listed_led_stage"
+      ? stageProfile?.name || "Listed LED stage"
+      : project.production_approach === "custom_led_stage"
+        ? project.custom_stage_name || "Custom LED stage"
+        : project.production_approach === "vfx_no_led_wall"
+          ? "VFX / no LED wall"
+          : "Stage undecided";
+  const stageChoice =
+    project.production_approach === "listed_led_stage" &&
+    project.stage_profile_id
+      ? `stage:${project.stage_profile_id}`
+      : project.production_approach === "custom_led_stage"
+        ? "keep_custom"
+        : project.production_approach;
 
   return (
     <main className="workspace-shell project-workspace">
@@ -74,9 +99,7 @@ export default async function ProjectPage({
         </div>
         <div className="project-heading-tools">
           <span className="status-chip mono">
-            {project.production_approach === "undecided"
-              ? "Stage undecided"
-              : project.production_approach.replaceAll("_", " ")}
+            {stageLabel}
           </span>
           <details className="project-details-editor">
             <summary className="secondary-button">Edit project</summary>
@@ -130,6 +153,25 @@ export default async function ProjectPage({
                       type="date"
                       defaultValue={project.due_date ?? ""}
                     />
+                  </label>
+                  <label>
+                    <span>Stage</span>
+                    <select name="stageChoice" defaultValue={stageChoice}>
+                      {stages?.map((stage) => (
+                        <option key={stage.id} value={`stage:${stage.id}`}>
+                          {stage.name}
+                        </option>
+                      ))}
+                      {project.production_approach === "custom_led_stage" && (
+                        <option value="keep_custom">
+                          {project.custom_stage_name || "Custom LED stage"}
+                        </option>
+                      )}
+                      <option value="undecided">Undecided</option>
+                      <option value="vfx_no_led_wall">
+                        VFX / no LED wall
+                      </option>
+                    </select>
                   </label>
                 </div>
                 <label>
@@ -283,6 +325,16 @@ export default async function ProjectPage({
                     placeholder="74–75"
                     maxLength={80}
                   />
+                </label>
+                <label>
+                  <span>Vehicle</span>
+                  <select name="vehicle" defaultValue="sedan">
+                    <option value="sedan">Sedan</option>
+                    <option value="suv">SUV</option>
+                    <option value="sports_car">Sports car</option>
+                    <option value="none">No vehicle</option>
+                    <option value="undecided">Undecided</option>
+                  </select>
                 </label>
               </div>
               <label>

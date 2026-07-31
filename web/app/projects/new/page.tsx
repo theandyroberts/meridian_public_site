@@ -57,6 +57,7 @@ export default async function NewProjectPage({
       {params.error && <p className="auth-alert error">{params.error}</p>}
 
       <form action={createProject} className="workspace-form dense-form">
+        <input type="hidden" name="vehicle" value="sedan" />
         {organization ? (
           <input
             name="organizationName"

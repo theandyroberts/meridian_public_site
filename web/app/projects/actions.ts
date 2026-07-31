@@ -15,6 +15,68 @@ function formString(formData: FormData, field: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+const vehicleTypes = new Set([
+  "sports_car",
+  "sedan",
+  "suv",
+  "none",
+  "undecided",
+]);
+
+function formVehicle(formData: FormData):
+  | "sports_car"
+  | "sedan"
+  | "suv"
+  | "none"
+  | "undecided" {
+  const vehicle = formString(formData, "vehicle");
+  return vehicleTypes.has(vehicle)
+    ? (vehicle as
+        | "sports_car"
+        | "sedan"
+        | "suv"
+        | "none"
+        | "undecided")
+    : "sedan";
+}
+
+function projectStageUpdate(formData: FormData):
+  | {
+      production_approach: "listed_led_stage";
+      stage_profile_id: string;
+      custom_stage_name: null;
+    }
+  | {
+      production_approach: "undecided" | "vfx_no_led_wall";
+      stage_profile_id: null;
+      custom_stage_name: null;
+    }
+  | null {
+  const choice = formString(formData, "stageChoice");
+  if (choice === "undecided" || choice === "vfx_no_led_wall") {
+    return {
+      production_approach: choice,
+      stage_profile_id: null,
+      custom_stage_name: null,
+    };
+  }
+
+  if (
+    choice.startsWith("stage:") &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      choice.slice(6),
+    )
+  ) {
+    return {
+      production_approach: "listed_led_stage",
+      stage_profile_id: choice.slice(6),
+      custom_stage_name: null,
+    };
+  }
+
+  return null;
+}
+
 function formError(path: string, message: string): never {
   const [basePath, fragment] = path.split("#", 2);
   const separator = basePath.includes("?") ? "&" : "?";
@@ -133,6 +195,7 @@ export async function createProject(formData: FormData) {
   const { error: sceneMetadataError } = await supabase
     .from("scenes")
     .update({
+      vehicle: formVehicle(formData),
       script_scene_number: scriptSceneNumber || null,
       script_pages: scriptPages || null,
       generated_keywords: keywordAnalysis.keywords,
@@ -212,6 +275,20 @@ export async function updateProject(formData: FormData) {
       path,
       "The project details could not be updated. Please try again.",
     );
+  }
+
+  const stageUpdate = projectStageUpdate(formData);
+  if (stageUpdate) {
+    const { error: stageError } = await supabase
+      .from("projects")
+      .update(stageUpdate)
+      .eq("id", projectId);
+    if (stageError) {
+      formError(
+        path,
+        "The project was saved, but its stage could not be updated.",
+      );
+    }
   }
 
   revalidatePath("/projects");
@@ -296,6 +373,17 @@ export async function createScene(formData: FormData) {
       "The scene could not be added. Please try again.",
     );
   }
+  const { error: vehicleError } = await supabase
+    .from("scenes")
+    .update({ vehicle: formVehicle(formData) })
+    .eq("id", sceneId)
+    .eq("project_id", projectId);
+  if (vehicleError) {
+    formError(
+      scenePath(projectId, sceneId),
+      "The scene was created, but its vehicle could not be saved.",
+    );
+  }
 
   if (formString(formData, "intent") === "add-another") {
     redirect(`/projects/${projectId}?added=1#add-scene`);
@@ -334,6 +422,14 @@ export async function updateScene(formData: FormData) {
   });
   if (error) {
     formError(path, "The scene could not be updated. Please try again.");
+  }
+  const { error: vehicleError } = await supabase
+    .from("scenes")
+    .update({ vehicle: formVehicle(formData) })
+    .eq("id", sceneId)
+    .eq("project_id", projectId);
+  if (vehicleError) {
+    formError(path, "The scene details were saved, but its vehicle was not.");
   }
 
   revalidatePath(`/projects/${projectId}`);

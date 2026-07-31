@@ -446,7 +446,8 @@ body::before {
   font-weight: 400;
 }
 .workspace-form input,
-.workspace-form textarea {
+.workspace-form textarea,
+.workspace-form select {
   width: 100%;
   padding: 14px 15px;
   color: var(--paper);
@@ -461,7 +462,8 @@ body::before {
   background: var(--ink);
 }
 .workspace-form input:focus,
-.workspace-form textarea:focus {
+.workspace-form textarea:focus,
+.workspace-form select:focus {
   outline: 1px solid var(--orange);
   border-color: var(--orange);
 }
@@ -1190,7 +1192,8 @@ body::before {
 }
 .lab-theme .workspace-form label { gap: 5px; font-size: 13px; }
 .lab-theme .workspace-form input,
-.lab-theme .workspace-form textarea {
+.lab-theme .workspace-form textarea,
+.lab-theme .workspace-form select {
   min-height: 40px;
   padding: 9px 11px;
   font-size: 14px;
@@ -1439,6 +1442,7 @@ body::before {
   .lab-theme .workspace-shell { padding: 20px 16px 32px; }
   .lab-theme .workspace-form input,
   .lab-theme .workspace-form textarea,
+  .lab-theme .workspace-form select,
   .lab-theme .primary-button,
   .lab-theme .secondary-button { min-height: 44px; }
   .scene-context { min-width: 0; }
