@@ -52,7 +52,7 @@ export function SceneImportPanel(props: SceneImportPanelProps) {
       await navigator.clipboard.writeText(SCENE_EXTRACTION_PROMPT);
       setCopyStatus("Prompt copied.");
     } catch {
-      setCopyStatus("Copy failed. Select the prompt text below.");
+      setCopyStatus("Copy failed. Select the prompt text shown below.");
     }
   }
 
@@ -87,29 +87,86 @@ export function SceneImportPanel(props: SceneImportPanelProps) {
     <section className="scene-import-panel">
       <div className="scene-import-heading">
         <div>
-          <p className="mono accent">Private script workflow</p>
-          <h2>Import scenes from JSON</h2>
+          <p className="mono accent">Script import</p>
+          <h2>Load your scenes automatically</h2>
           <p>
-            Your script never comes to The Plate Lab. Run the prompt in the AI
-            tool of your choice, review its JSON locally, then import only the
-            scene briefs you approve.
+            Your script stays in your Chat window. The Plate Lab receives only
+            the scene file you review and choose to upload.
           </p>
         </div>
         <span className="privacy-chip mono">Script stays with you</span>
       </div>
 
-      <details className="scene-import-prompt">
-        <summary>1. Copy the script-scanning prompt</summary>
-        <div className="scene-import-prompt-body">
-          <p>
-            Attach the screenplay directly to your AI tool, paste this prompt,
-            and save its response as a <code>.json</code> file.
-          </p>
+      <ol className="scene-import-steps">
+        <li className="scene-import-step">
+          <span className="scene-import-step-number mono">1</span>
+          <div>
+            <h3>Copy the scene-prep prompt</h3>
+            <p>
+              This tells Chat how to find plate scenes and format the scene
+              file for The Plate Lab.
+            </p>
+            <div className="inline-actions">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={copyPrompt}
+              >
+                Copy prompt
+              </button>
+              {copyStatus && (
+                <span className="mono dim" role="status">
+                  {copyStatus}
+                </span>
+              )}
+            </div>
+          </div>
+        </li>
+
+        <li className="scene-import-step">
+          <span className="scene-import-step-number mono">2</span>
+          <div>
+            <h3>Paste the prompt and your script into Chat</h3>
+            <p>
+              Attach or paste the script in your Chat window. Review the
+              scenes it finds, then save the response as a <code>.json</code>
+              scene file.
+            </p>
+          </div>
+        </li>
+
+        <li className="scene-import-step scene-import-upload-step">
+          <span className="scene-import-step-number mono">3</span>
+          <div>
+            <h3>Upload the scene file here</h3>
+            <p>
+              We validate the file and let you edit every scene before it is
+              added to the project.
+            </p>
+          </div>
+          <div className="scene-import-upload-action">
+            <label htmlFor={fileInputId} className="secondary-button file-button">
+              Upload scene file
+            </label>
+            {fileName && <span className="mono dim">{fileName}</span>}
+          </div>
+          <input
+            id={fileInputId}
+            className="visually-hidden"
+            type="file"
+            accept=".json,application/json"
+            onChange={(event) => loadFile(event.target.files?.[0])}
+          />
+        </li>
+      </ol>
+
+      {copyStatus.startsWith("Copy failed") && (
+        <div className="scene-import-prompt-reference">
           <textarea
             aria-label="Script-scanning prompt"
             value={SCENE_EXTRACTION_PROMPT}
             readOnly
-            rows={12}
+            rows={10}
           />
           <div className="inline-actions">
             <button
@@ -126,27 +183,7 @@ export function SceneImportPanel(props: SceneImportPanelProps) {
             )}
           </div>
         </div>
-      </details>
-
-      <div className="scene-import-file-step">
-        <div>
-          <p className="mono accent">2. Review, then choose the JSON</p>
-          <p className="dim">
-            The browser validates and previews the file before anything is
-            submitted.
-          </p>
-        </div>
-        <label htmlFor={fileInputId} className="secondary-button file-button">
-          Choose JSON file
-        </label>
-        <input
-          id={fileInputId}
-          className="visually-hidden"
-          type="file"
-          accept=".json,application/json"
-          onChange={(event) => loadFile(event.target.files?.[0])}
-        />
-      </div>
+      )}
 
       {error && (
         <p className="auth-alert error" role="alert">
@@ -158,7 +195,7 @@ export function SceneImportPanel(props: SceneImportPanelProps) {
         <div className="scene-import-review">
           <div className="section-head compact">
             <div>
-              <p className="mono accent">3. Approve the structured scenes</p>
+              <p className="mono accent">Review before import</p>
               <h3>
                 {scenes.length} scene{scenes.length === 1 ? "" : "s"} ready
               </h3>

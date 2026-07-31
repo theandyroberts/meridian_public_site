@@ -248,6 +248,53 @@ body::before {
 }
 .auth-links a:hover { color: var(--orange); }
 
+/* ── Lab workspace theme ────────────────────────────────────────────────
+   Project planning and production data live on paper; catalog, sales, and
+   moving-image surfaces retain the dark presentation theme. */
+.lab-theme {
+  --ink: #f2efe8;
+  --ink-2: #fffdf9;
+  --ink-3: #e8e3d9;
+  --paper: #18181a;
+  --paper-60: rgba(24, 24, 26, 0.68);
+  --paper-38: rgba(24, 24, 26, 0.48);
+  --hairline: rgba(24, 24, 26, 0.1);
+  --hairline-strong: rgba(24, 24, 26, 0.2);
+  --orange-soft: rgba(197, 107, 62, 0.1);
+  min-height: calc(100vh - 72px);
+  color: var(--paper);
+  color-scheme: light;
+  background:
+    linear-gradient(90deg, rgba(24, 24, 26, 0.025) 1px, transparent 1px),
+    linear-gradient(rgba(24, 24, 26, 0.025) 1px, transparent 1px),
+    var(--ink);
+  background-size: 32px 32px;
+}
+.lab-theme + .site-footer { margin-top: 0; }
+.lab-theme .dim { color: var(--paper-60); }
+.lab-theme .dimmer { color: var(--paper-38); }
+.lab-theme .primary-button {
+  color: #fffaf4;
+  box-shadow: 0 5px 14px rgba(124, 60, 28, 0.14);
+}
+.lab-theme .secondary-button {
+  color: var(--paper);
+  background: rgba(255, 253, 249, 0.72);
+}
+.lab-theme .auth-alert.error,
+.lab-theme .danger-button,
+.lab-theme .danger-text-button:hover,
+.lab-theme .danger-text-button:focus-visible { color: #963b27; }
+.lab-theme .auth-alert.success {
+  color: #245e40;
+  border-color: rgba(47, 117, 78, 0.34);
+  background: rgba(47, 117, 78, 0.08);
+}
+.lab-theme .scene-search-state.is-ready { color: #2f754e; }
+.lab-theme .project-details-panel {
+  box-shadow: 0 28px 80px rgba(42, 34, 24, 0.2);
+}
+
 .workspace-shell {
   max-width: var(--max);
   min-height: calc(100vh - 240px);
@@ -625,10 +672,13 @@ body::before {
   margin-top: 64px;
   padding: 32px;
   border: 1px solid var(--hairline);
+  border-left: 3px solid var(--orange);
   background: var(--ink-2);
+  box-shadow: 0 22px 54px rgba(38, 31, 22, 0.08);
 }
 .workspace-form > .scene-import-panel {
-  margin-top: 14px;
+  margin-top: 22px;
+  margin-left: clamp(0px, 4vw, 48px);
 }
 .scene-import-heading {
   display: flex;
@@ -651,30 +701,55 @@ body::before {
   color: var(--orange);
   border: 1px solid rgba(197, 107, 62, 0.56);
 }
-.scene-import-prompt {
-  border: 1px solid var(--hairline-strong);
+.scene-import-steps {
+  display: grid;
+  list-style: none;
+  border-top: 1px solid var(--hairline-strong);
+}
+.scene-import-step {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  padding: 24px 4px;
+  border-bottom: 1px solid var(--hairline);
+}
+.scene-import-step-number {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--orange);
+  border: 1px solid var(--orange);
+  border-radius: 50%;
+}
+.scene-import-step h3 {
+  font-size: 19px;
+  line-height: 1.25;
+}
+.scene-import-step p {
+  max-width: 64ch;
+  margin-top: 7px;
+  color: var(--paper-60);
+}
+.scene-import-step .inline-actions { margin-top: 16px; }
+.scene-import-upload-step {
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+}
+.scene-import-upload-action {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+.scene-import-prompt-reference {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--hairline);
   background: var(--ink);
 }
-.scene-import-prompt > summary {
-  padding: 16px 18px;
-  color: var(--paper-60);
-  cursor: pointer;
-  font-weight: 650;
-}
-.scene-import-prompt > summary:hover,
-.scene-import-prompt > summary:focus-visible {
-  color: var(--orange);
-}
-.scene-import-prompt-body {
-  display: grid;
-  gap: 16px;
-  padding: 20px;
-  border-top: 1px solid var(--hairline);
-}
-.scene-import-prompt-body > p {
-  color: var(--paper-60);
-}
-.scene-import-prompt textarea {
+.scene-import-prompt-reference textarea {
   width: 100%;
   padding: 16px;
   color: var(--paper-60);
@@ -1002,10 +1077,18 @@ body::before {
     gap: 12px;
   }
   .scene-import-panel { padding: 24px 20px; }
+  .workspace-form > .scene-import-panel { margin-left: 0; }
   .scene-import-heading,
   .scene-import-file-step {
     align-items: stretch;
     flex-direction: column;
+  }
+  .scene-import-upload-step {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+  .scene-import-upload-action {
+    grid-column: 2;
+    justify-items: stretch;
   }
   .privacy-chip,
   .file-button,
