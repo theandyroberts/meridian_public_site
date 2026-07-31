@@ -101,6 +101,90 @@ final result: passed
 
 ---
 
+# Authenticated Header Refinement Design QA
+
+## Evidence
+
+- Source visual truth:
+  `docs/qa/authenticated-header-audie-source.png`
+- Browser-rendered implementation:
+  `docs/qa/authenticated-header-audie-implementation.png`
+- Combined comparison:
+  `docs/qa/authenticated-header-audie-comparison.png`
+- Route:
+  `https://staging.theplatelab.site/projects`
+- State:
+  Authenticated project owner with one active project and the corrected profile
+  name `Audie`.
+
+## Normalization
+
+- Source capture: 908 × 1006 pixels at the submitted screenshot density.
+- Implementation capture: 1316 × 768 pixels at the active Safari density.
+- Combined comparison: both images constrained to 900 pixels on their longest
+  side and placed in one 1712 × 900 canvas.
+- The source is an annotated crop rather than a pixel-exact mock. The comparison
+  therefore evaluates the three explicit targets: `Projects (1)`, a non-action
+  signed-in status, and `Audie` as the visible identity.
+
+## Full-View Comparison
+
+The implementation retains the existing Plate Lab header height, logo,
+navigation rhythm, and dark/light workspace boundary. Removing the account
+group's outer border does not disturb the page frame or project-table density.
+
+## Focused Header Comparison
+
+The project count appears beside the persistent Projects link. `Signed in` and
+`Audie` are now unboxed status text, while the separate `Log out` control keeps
+the horizon-orange action outline. This resolves the annotated ambiguity
+without introducing a new component treatment.
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: Existing Hanken Grotesk and IBM Plex Mono treatments
+  remain unchanged; the stacked status/identity hierarchy stays legible.
+- Spacing and layout rhythm: A 14-pixel gap separates status from the outlined
+  action while preserving the established navigation spacing.
+- Colors and visual tokens: Existing ink, paper, muted-paper, and horizon-orange
+  tokens are reused.
+- Image quality and asset fidelity: No new image or icon asset was required; the
+  existing Plate Lab logo is unchanged.
+- Copy and content: The browser state visibly reads `Projects (1)`, `Signed in`,
+  `Audie`, and `Log out`.
+
+## Interaction Checks
+
+- Confirmed the live authenticated session resolves the updated profile name.
+- Confirmed the active project query returns one project and the same value is
+  presented in the header preview.
+- Confirmed Projects remains a named link and Log out remains a distinct named
+  button in the accessibility tree.
+- Did not submit Log out, preserving the authenticated QA session.
+- No new console errors appeared during the header preview.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain.
+
+## Comparison History
+
+- Source finding (P2): the orange border grouped passive account status with an
+  action and made the identity resemble a button.
+- Fix: removed the group border, retained the border only on Log out, added the
+  active-project count, and corrected the profile record to `Audie`.
+- Post-fix browser evidence shows all three requested changes with no remaining
+  P0/P1/P2 issue.
+
+## Follow-Up Polish
+
+- P3: Add this authenticated header state to the future automated responsive
+  screenshot suite.
+
+final result: passed
+
+---
+
 # Authenticated Header Design QA
 
 ## Evidence
