@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { SceneImportPanel } from "@/components/SceneImportPanel";
+import { SceneInputWorkspace } from "@/components/SceneInputWorkspace";
 import { createClient } from "@/lib/supabase/server";
 import {
   createScene,
@@ -179,22 +180,9 @@ export default async function ProjectPage({
         <p className="auth-alert success">Project details updated.</p>
       )}
 
-      <section className="project-detail-grid">
-        <div>
-          <div className="section-head compact">
-            <div>
-              <h2>Scenes</h2>
-            </div>
-            <div className="scene-list-actions">
-              <span className="mono dim">
-                {scenes?.length ?? 0} total
-              </span>
-              <a href="#add-scene" className="secondary-button">
-                + Add scene
-              </a>
-            </div>
-          </div>
-
+      <SceneInputWorkspace
+        sceneCount={scenes?.length ?? 0}
+        sceneTable={
           <div className="scene-table-wrap">
             <table className="scene-table">
               <thead>
@@ -261,76 +249,78 @@ export default async function ProjectPage({
               </tbody>
             </table>
           </div>
-        </div>
-
-        <aside className="add-scene-card" id="add-scene">
-          <h2>Add scene</h2>
-          <form action={createScene} className="workspace-form compact-form">
-            <input type="hidden" name="projectId" value={project.id} />
-            <label>
-              <span>Scene title</span>
-              <input
-                name="sceneName"
-                type="text"
-                placeholder="Ransom’s getaway"
-                maxLength={200}
-                required
-              />
-            </label>
-            <div className="form-grid compact-metadata-grid">
+        }
+        addScenePanel={
+          <aside className="add-scene-card" id="add-scene">
+            <h2>Add scene</h2>
+            <form action={createScene} className="workspace-form compact-form">
+              <input type="hidden" name="projectId" value={project.id} />
               <label>
-                <span>Script scene <em>optional</em></span>
+                <span>Scene title</span>
                 <input
-                  name="scriptSceneNumber"
+                  name="sceneName"
                   type="text"
-                  placeholder="41"
-                  maxLength={40}
+                  placeholder="Ransom’s getaway"
+                  maxLength={200}
+                  required
                 />
               </label>
+              <div className="form-grid compact-metadata-grid">
+                <label>
+                  <span>Script scene <em>optional</em></span>
+                  <input
+                    name="scriptSceneNumber"
+                    type="text"
+                    placeholder="41"
+                    maxLength={40}
+                  />
+                </label>
+                <label>
+                  <span>Page(s) <em>optional</em></span>
+                  <input
+                    name="scriptPages"
+                    type="text"
+                    placeholder="74–75"
+                    maxLength={80}
+                  />
+                </label>
+              </div>
               <label>
-                <span>Page(s) <em>optional</em></span>
-                <input
-                  name="scriptPages"
-                  type="text"
-                  placeholder="74–75"
-                  maxLength={80}
+                <span>Scene description / plate brief</span>
+                <textarea
+                  name="searchBrief"
+                  placeholder="Open coast, clear horizon, late afternoon…"
+                  rows={4}
                 />
               </label>
-            </div>
-            <label>
-              <span>Scene description / plate brief</span>
-              <textarea
-                name="searchBrief"
-                placeholder="Open coast, clear horizon, late afternoon…"
-                rows={4}
-              />
-            </label>
-            <div className="stacked-form-actions">
-              <button
-                type="submit"
-                name="intent"
-                value="add-another"
-                className="primary-button"
-              >
-                + Save and add another
-              </button>
-              <button
-                type="submit"
-                name="intent"
-                value="find-plates"
-                className="secondary-button"
-              >
-                Save and find plates
-              </button>
-            </div>
-          </form>
-        </aside>
-      </section>
-
-      <SceneImportPanel
-        variant="existing-project"
-        projectId={project.id}
-        action={importScenes}
+              <div className="stacked-form-actions">
+                <button
+                  type="submit"
+                  name="intent"
+                  value="add-another"
+                  className="primary-button"
+                >
+                  + Save and add another
+                </button>
+                <button
+                  type="submit"
+                  name="intent"
+                  value="find-plates"
+                  className="secondary-button"
+                >
+                  Save and find plates
+                </button>
+              </div>
+            </form>
+          </aside>
+        }
+        importPanel={
+          <SceneImportPanel
+            variant="existing-project"
+            projectId={project.id}
+            action={importScenes}
+          />
+        }
       />
     </main>
   );

@@ -101,6 +101,93 @@ final result: passed
 
 ---
 
+# Scene Workspace Controls Design QA
+
+## Evidence
+
+- Source visual truth:
+  `docs/qa/scene-workspace-controls-source.png`
+- Browser-rendered implementation:
+  `docs/qa/scene-workspace-controls-implementation.jpg`
+- Combined comparison:
+  `docs/qa/scene-workspace-controls-comparison.jpg`
+- Route:
+  `https://staging.theplatelab.site/projects/38600927-e4dd-4807-8598-08f0dab9401e?imported=9`
+- State:
+  Authenticated project owner; nine imported scenes; both scene-entry panels
+  closed.
+
+## Normalization
+
+- Source capture: 2852 × 1674 pixels at the submitted screenshot density.
+- Implementation capture: 1316 × 768 pixels at the active Safari density.
+- Both captures were constrained to 1200 × 900 without upscaling and placed in
+  one 2400 × 704 comparison image.
+- The implementation capture uses the live authenticated staging data with the
+  code-equivalent closed-panel layout applied for pre-deployment visual QA.
+
+## Full-View Comparison
+
+The revised workspace removes both persistent entry forms, gives the nine-scene
+table the full available width, and keeps every scene above the fold. The
+project heading, success notice, table columns, and footer retain the existing
+light Lab composition.
+
+## Focused Scene-Table Comparison
+
+The source rows inherited a dark translucent wrapper and read as disabled. The
+implementation gives the wrapper and every resting row the Lab cream surface,
+while preserving hairline dividers, green search readiness, and the existing
+orange hover state. `Import` and `+ Add scene` are now adjacent controls beside
+the scene total.
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: Existing Hanken Grotesk body/table text and IBM Plex
+  Mono metadata remain unchanged. Dense single-line truncation is preserved.
+- Spacing and layout rhythm: The table expands to one full-width column when no
+  panel is open. Controls align with the scene total and do not add a new row.
+- Colors and visual tokens: Resting rows now use `var(--ink-2)` (`#fffdf9`) and
+  retain `var(--orange-soft)` on hover.
+- Image quality and asset fidelity: No new imagery or icon assets were needed;
+  the existing Plate Lab logo remains unchanged.
+- Copy and content: The controls read `Import` and `+ Add scene`; scene count,
+  metadata, descriptions, and search-term status are unchanged.
+
+## Interaction Checks
+
+- Confirmed both controls are exposed as collapsed buttons in the Safari
+  accessibility tree.
+- The client component enforces a single `import | add | null` state, so opening
+  either panel closes the other and clicking the active control closes it.
+- Existing `#add-scene` deep links still open the manual form on mount.
+- The complete web test suite and production build pass.
+- A live click-through was interrupted when the active Safari window changed;
+  this remains a P3 verification gap rather than a visible or structural issue.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain.
+
+## Comparison History
+
+- Source finding (P1): dark resting rows communicated a disabled table state.
+- Source finding (P2): simultaneous manual and import forms consumed most of
+  the workspace and duplicated the scene-entry decision.
+- Fix: set explicit cream resting surfaces and move both forms behind mutually
+  exclusive scene-entry controls.
+- Post-fix comparison shows an active cream table and no form competing with
+  the scene list.
+
+## Follow-Up Polish
+
+- P3: Capture automated screenshots of the Import-open and Add-scene-open states
+  after the next staging deployment.
+
+final result: passed
+
+---
+
 # Authenticated Header Refinement Design QA
 
 ## Evidence
