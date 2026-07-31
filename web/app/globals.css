@@ -1724,7 +1724,7 @@ body::before {
 .plate-card .badges { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
 
 .plate-previs-action {
-  margin: 24px 0 0;
+  margin: 24px 0 28px;
 }
 
 .plate-previs-cta {

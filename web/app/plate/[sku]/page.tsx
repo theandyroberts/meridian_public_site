@@ -79,8 +79,6 @@ export default async function PlatePage({
         </div>
       </div>
 
-      <SyncedPlayer plate={plate} />
-
       {plate.stageCompat.includes("led-volume") && (
         <div className="plate-previs-action">
           <Link className="plate-previs-cta" href={`/stage?${stageQuery}`}>
@@ -97,6 +95,8 @@ export default async function PlatePage({
           </Link>
         </div>
       )}
+
+      <SyncedPlayer plate={plate} />
 
       <div className="detail-cols">
         <div>
