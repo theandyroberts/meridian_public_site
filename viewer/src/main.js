@@ -4,8 +4,9 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { detectDecodedFootagePreset } from './footage-layout.js'
+import { FEET_TO_SCENE_UNITS, feetToSceneUnits, scaleModelToLength } from './scene-scale.js'
 
-const FEET_TO_UNITS = 0.18
+const FEET_TO_UNITS = FEET_TO_SCENE_UNITS
 const CAMERA_SENSOR_WIDTH_MM = 36
 
 const presets = {
@@ -68,16 +69,16 @@ const shotGroups = [
   {
     name: 'Interior',
     shots: [
-      { key: 'overShoulder', label: 'Over Shoulder', position: [-0.72, 1.02, 0.38], target: [1.25, 0.9, -0.22], fov: 58 },
-      { key: 'passengerToDriver', label: 'Passenger -> Driver', position: [0.15, 0.94, -0.72], target: [0.12, 0.86, 0.58], fov: 55 },
-      { key: 'driverToPassenger', label: 'Driver -> Passenger', position: [0.15, 0.94, 0.72], target: [0.12, 0.86, -0.58], fov: 55 },
-      { key: 'sideWindow', label: 'Side Window', position: [0.18, 0.98, 2.1], target: [0.08, 0.78, 0], fov: 48 },
+      { key: 'overShoulder', label: 'Over Shoulder', position: [-0.48, 0.76, 0.24], target: [0.9, 0.58, -0.14], fov: 58 },
+      { key: 'passengerToDriver', label: 'Passenger -> Driver', position: [0, 0.72, -0.32], target: [0, 0.58, 0.3], fov: 55 },
+      { key: 'driverToPassenger', label: 'Driver -> Passenger', position: [0, 0.72, 0.32], target: [0, 0.58, -0.3], fov: 55 },
+      { key: 'sideWindow', label: 'Side Window', position: [0.1, 0.7, 1.25], target: [0.05, 0.52, 0], fov: 48 },
     ],
   },
   {
     name: 'Utility',
     shots: [
-      { key: 'paintReflection', label: 'Paint', position: [2.35, 0.62, 1.0], target: [0.35, 0.52, 0], fov: 42 },
+      { key: 'paintReflection', label: 'Paint', position: [1.55, 0.46, 0.72], target: [0.25, 0.36, 0], fov: 42 },
       { key: 'ceiling', label: 'Ceiling', position: [0, 2.45, 0.1], target: [0, 0.25, 0], fov: 82 },
       { key: 'top', label: 'Plan', position: [0, 18, 0], target: [0, 0, 0], fov: 50 },
     ],
@@ -106,7 +107,7 @@ const vehicleModels = {
     file: `${import.meta.env.BASE_URL}models/ferrari.glb`,
     credit: 'Ferrari 458 Italia by vicent091036 via the official Three.js car materials example.',
     rotationY: -Math.PI / 2,
-    targetLength: 4.65,
+    targetLengthFt: 14.86,
     shadow: 'ferrari',
   },
   bmwM5: {
@@ -114,7 +115,7 @@ const vehicleModels = {
     file: `${import.meta.env.BASE_URL}models/bmw_m5.glb`,
     credit: 'BMW M5 sedan test model from Get3DModels/DreamCar.',
     rotationY: 0,
-    targetLength: 4.96,
+    targetLengthFt: 16.27,
     shadow: 'soft',
   },
   escalade: {
@@ -122,7 +123,7 @@ const vehicleModels = {
     file: `${import.meta.env.BASE_URL}models/escalade.glb`,
     credit: 'Cadillac Escalade ESV test model from Get3DModels/OUTPISTON.',
     rotationY: 0,
-    targetLength: 5.7,
+    targetLengthFt: 18.92,
     shadow: 'soft',
   },
 }
@@ -892,8 +893,9 @@ function updateMetrics(radius, height, arc) {
   document.querySelector('#heightMetric').textContent = `${state.dimensions.heightFt} ft`
   document.querySelector('#arcMetric').textContent = `${state.dimensions.arcDeg} deg`
 
-  const carScale = Math.max(0.82, Math.min(1.12, radius / 7.2))
-  carGroup.scale.setScalar(carScale)
+  // Vehicles and stages share one physical scale. Changing the selected
+  // volume must never make the vehicle grow or shrink.
+  carGroup.scale.setScalar(1)
   controls.maxDistance = Math.max(18, radius * 3.2)
 }
 
@@ -1010,7 +1012,7 @@ function normalizeVehicleModel(carModel, vehicle) {
   const size = new THREE.Vector3()
   box.getSize(size)
   const length = Math.max(size.x, size.z)
-  const scale = vehicle.targetLength / Math.max(length, 0.001)
+  const scale = scaleModelToLength(length, vehicle.targetLengthFt)
   carModel.scale.setScalar(scale)
   carModel.updateMatrixWorld(true)
 
@@ -1023,6 +1025,7 @@ function normalizeVehicleModel(carModel, vehicle) {
 }
 
 function makeVehicleShadow(vehicle) {
+  const targetLength = feetToSceneUnits(vehicle.targetLengthFt)
   const materialOptions = {
     blending: THREE.MultiplyBlending,
     toneMapped: false,
@@ -1033,7 +1036,7 @@ function makeVehicleShadow(vehicle) {
   if (vehicle.shadow === 'ferrari') materialOptions.map = ferrariShadowTexture
 
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(vehicle.targetLength * 1.06, vehicle.targetLength * 0.5),
+    new THREE.PlaneGeometry(targetLength * 1.06, targetLength * 0.5),
     new THREE.MeshBasicMaterial(materialOptions),
   )
   shadow.rotation.x = -Math.PI / 2
@@ -1049,12 +1052,24 @@ function updateVehicleCredit() {
 }
 
 function buildFallbackCar() {
-  const body = roundedBox(4.8, 0.8, 2.05, 0.22, carMaterials.paint)
-  body.position.y = 0.85
+  const body = roundedBox(
+    feetToSceneUnits(15.2),
+    feetToSceneUnits(2.6),
+    feetToSceneUnits(6.5),
+    feetToSceneUnits(0.7),
+    carMaterials.paint,
+  )
+  body.position.y = feetToSceneUnits(2.8)
   carGroup.add(body)
 
-  const cabin = roundedBox(2.25, 0.75, 1.65, 0.18, carMaterials.glass)
-  cabin.position.set(-0.18, 1.45, -0.08)
+  const cabin = roundedBox(
+    feetToSceneUnits(7.4),
+    feetToSceneUnits(2.4),
+    feetToSceneUnits(5.4),
+    feetToSceneUnits(0.6),
+    carMaterials.glass,
+  )
+  cabin.position.set(feetToSceneUnits(-0.6), feetToSceneUnits(4.6), feetToSceneUnits(-0.25))
   carGroup.add(cabin)
 }
 
