@@ -89,8 +89,8 @@ body::before {
 .site-nav .cta:hover { background: var(--orange); color: var(--ink); }
 .site-account {
   display: flex;
-  align-items: stretch;
-  border: 1px solid var(--orange);
+  align-items: center;
+  gap: 14px;
   min-width: 0;
 }
 .site-account-name,
@@ -124,7 +124,7 @@ body::before {
 }
 .site-account form {
   display: flex;
-  border-left: 1px solid rgba(197, 107, 62, 0.55);
+  border: 1px solid var(--orange);
 }
 .site-account-logout {
   color: var(--paper-60);

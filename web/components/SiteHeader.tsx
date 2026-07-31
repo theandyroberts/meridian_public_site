@@ -11,15 +11,23 @@ export async function SiteHeader() {
   } = await supabase.auth.getUser();
 
   let profileName: string | null = null;
+  let projectCount: number | null = null;
 
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle();
+    const [{ data: profile }, { count }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("projects")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active"),
+    ]);
 
     profileName = profile?.display_name ?? null;
+    projectCount = count;
   }
 
   const displayName = user
@@ -41,7 +49,7 @@ export async function SiteHeader() {
             LED volume
           </Link>
           <Link className="projects-link" href="/projects">
-            Projects
+            Projects{projectCount !== null ? ` (${projectCount})` : ""}
           </Link>
           {user && displayName ? (
             <div className="site-account" aria-label={`Signed in as ${displayName}`}>
