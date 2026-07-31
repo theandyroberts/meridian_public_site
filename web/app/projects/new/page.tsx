@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { SceneImportPanel } from "@/components/SceneImportPanel";
 import { createClient } from "@/lib/supabase/server";
 import { createProject } from "../actions";
 
@@ -120,8 +121,10 @@ export default async function NewProjectPage({
           </label>
         </div>
 
+        <SceneImportPanel variant="new-project" />
+
         <div className="form-section">
-          <p className="mono accent">First scene</p>
+          <p className="mono accent">Or enter the first scene manually</p>
           <div className="form-grid">
             <label>
               <span>Scene title</span>
@@ -130,7 +133,6 @@ export default async function NewProjectPage({
                 type="text"
                 placeholder="Marta’s escape from the estate"
                 maxLength={200}
-                required
               />
             </label>
             <label>

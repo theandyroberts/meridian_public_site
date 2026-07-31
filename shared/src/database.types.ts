@@ -954,6 +954,10 @@ export type Database = {
         Args: { target_scene_id: string }
         Returns: string
       }
+      import_project_scenes: {
+        Args: { scene_payload: Json; target_project_id: string }
+        Returns: number
+      }
       search_stock_clips: {
         Args: {
           filters?: Json

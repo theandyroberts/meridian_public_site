@@ -474,6 +474,176 @@ body::before {
   font-size: 25px;
   line-height: 1.2;
 }
+.scene-import-form,
+.scene-import-panel {
+  display: grid;
+}
+.scene-import-panel {
+  gap: 24px;
+  margin-top: 64px;
+  padding: 32px;
+  border: 1px solid var(--hairline);
+  background: var(--ink-2);
+}
+.workspace-form > .scene-import-panel {
+  margin-top: 14px;
+}
+.scene-import-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+}
+.scene-import-heading h2 {
+  margin-top: 8px;
+  font-size: clamp(28px, 3.4vw, 42px);
+}
+.scene-import-heading > div > p:last-child {
+  max-width: 66ch;
+  margin-top: 12px;
+  color: var(--paper-60);
+}
+.privacy-chip {
+  flex: none;
+  padding: 8px 10px;
+  color: var(--orange);
+  border: 1px solid rgba(197, 107, 62, 0.56);
+}
+.scene-import-prompt {
+  border: 1px solid var(--hairline-strong);
+  background: var(--ink);
+}
+.scene-import-prompt > summary {
+  padding: 16px 18px;
+  color: var(--paper-60);
+  cursor: pointer;
+  font-weight: 650;
+}
+.scene-import-prompt > summary:hover,
+.scene-import-prompt > summary:focus-visible {
+  color: var(--orange);
+}
+.scene-import-prompt-body {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-top: 1px solid var(--hairline);
+}
+.scene-import-prompt-body > p {
+  color: var(--paper-60);
+}
+.scene-import-prompt textarea {
+  width: 100%;
+  padding: 16px;
+  color: var(--paper-60);
+  border: 1px solid var(--hairline);
+  background: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  resize: vertical;
+}
+.inline-actions,
+.scene-import-file-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.scene-import-file-step {
+  justify-content: space-between;
+  padding: 22px;
+  border: 1px dashed var(--hairline-strong);
+}
+.scene-import-file-step > div {
+  display: grid;
+  gap: 7px;
+}
+.file-button {
+  flex: none;
+  cursor: pointer;
+}
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+.scene-import-review {
+  display: grid;
+  gap: 18px;
+  padding-top: 8px;
+}
+.scene-import-review h3 {
+  margin-top: 8px;
+  font-size: 28px;
+}
+.scene-import-list {
+  display: grid;
+  gap: 16px;
+}
+.scene-import-row {
+  display: grid;
+  min-width: 0;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--hairline);
+  background: var(--ink);
+}
+.scene-import-row legend {
+  padding: 0 8px;
+  color: var(--orange);
+}
+.scene-import-row label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+.scene-import-row input,
+.scene-import-row textarea {
+  width: 100%;
+  padding: 13px 14px;
+  color: var(--paper);
+  border: 1px solid var(--hairline-strong);
+  background: var(--ink-2);
+  font: inherit;
+  resize: vertical;
+}
+.scene-import-row input:focus,
+.scene-import-row textarea:focus {
+  outline: 1px solid var(--orange);
+  border-color: var(--orange);
+}
+.scene-import-row small {
+  color: var(--paper-38);
+  font-weight: 400;
+}
+.text-button {
+  justify-self: start;
+  padding: 0;
+  color: var(--paper-60);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.danger-text-button:hover,
+.danger-text-button:focus-visible {
+  color: #ffb8a6;
+}
+.scene-import-submit {
+  justify-self: start;
+}
+.scene-import-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
 .compact-form {
   gap: 18px;
   margin-top: 26px;
@@ -677,6 +847,15 @@ body::before {
     grid-template-columns: 54px minmax(0, 1fr) 20px;
     gap: 12px;
   }
+  .scene-import-panel { padding: 24px 20px; }
+  .scene-import-heading,
+  .scene-import-file-step {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .privacy-chip,
+  .file-button,
+  .scene-import-submit { width: 100%; }
   .expand-search-action { align-items: flex-start; }
   .keyword-retry-form { align-items: stretch; flex-direction: column; }
 }

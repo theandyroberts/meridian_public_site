@@ -128,6 +128,14 @@ if (action === "apply") {
           ) is not null as applied;
       `,
     },
+    {
+      path: "supabase/migrations/20260731040000_scene_json_import.sql",
+      appliedSql: `
+        select to_regprocedure(
+          'public.import_project_scenes(uuid,jsonb)'
+        ) is not null as applied;
+      `,
+    },
   ];
 
   for (const migration of migrations) {
@@ -152,6 +160,7 @@ if (action === "apply") {
     "supabase/tests/0003_project_onboarding_checks.sql",
     "supabase/tests/0004_catalog_search_checks.sql",
     "supabase/tests/0005_scene_workflow_checks.sql",
+    "supabase/tests/0006_scene_json_import_checks.sql",
   ];
 
   for (const relativePath of tests) {

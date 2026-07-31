@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { SceneImportPanel } from "@/components/SceneImportPanel";
 import { createClient } from "@/lib/supabase/server";
-import { createScene } from "../actions";
+import { createScene, importScenes } from "../actions";
 
 type ProjectPageProps = {
   params: Promise<{ projectId: string }>;
@@ -10,6 +11,7 @@ type ProjectPageProps = {
     created?: string;
     deleted?: string;
     error?: string;
+    imported?: string;
   }>;
 };
 
@@ -90,6 +92,12 @@ export default async function ProjectPage({
       {query.deleted === "1" && (
         <p className="auth-alert success">
           Scene deleted from this project.
+        </p>
+      )}
+      {query.imported && (
+        <p className="auth-alert success">
+          Imported {query.imported} approved scene
+          {query.imported === "1" ? "" : "s"} from JSON.
         </p>
       )}
 
@@ -203,6 +211,12 @@ export default async function ProjectPage({
           </form>
         </aside>
       </section>
+
+      <SceneImportPanel
+        variant="existing-project"
+        projectId={project.id}
+        action={importScenes}
+      />
     </main>
   );
 }
