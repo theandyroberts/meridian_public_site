@@ -99,6 +99,74 @@ No actionable P0, P1, or P2 findings remain.
 
 final result: passed
 
+# Scene Number Column Width Design QA
+
+## Evidence
+
+- Source visual truth:
+  `docs/qa/scene-number-column-source.png`
+- Browser-rendered implementation:
+  `docs/qa/scene-number-column-implementation.jpg`
+- Focused side-by-side comparison:
+  `docs/qa/scene-number-column-comparison.jpg`
+- Route:
+  `https://staging.theplatelab.site/projects/38600927-e4dd-4807-8598-08f0dab9401e?imported=9`
+- State:
+  Authenticated project workspace with nine imported scenes and both scene-input
+  panels collapsed.
+
+## Normalization
+
+- Source capture: 226 × 1042 pixels, a Retina-density crop of the original
+  narrow Scene # column.
+- Implementation capture: 1316 × 768 pixels at the active Safari viewport.
+- Focused source and implementation crops were normalized to 360 pixels high
+  and placed in one comparison image. The comparison evaluates the table
+  header and populated Scene # cells rather than surrounding browser chrome.
+
+## Full-View Comparison
+
+The full staging capture preserves the dense project-table layout while giving
+the Scene # column enough room to avoid stealing meaningful space from Scene
+or Plate brief.
+
+## Focused Region Comparison
+
+The original column wrapped `Scene #` and truncated `42, 44, 46`. The revised
+112px column keeps `Scene #` on one line and displays all three imported scene
+numbers without an ellipsis.
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: Existing IBM Plex Mono table typography, weight,
+  letter spacing, and size are unchanged; only wrapping is prevented.
+- Spacing and layout rhythm: The Scene # track grows from 72px to 112px while
+  table row heights, cell padding, and adjacent column alignment remain intact.
+- Colors and visual tokens: No color or state-token changes.
+- Image quality and asset fidelity: No visible raster or icon assets are part
+  of this table-width change; the browser capture is sharp enough to verify
+  header wrapping and cell truncation.
+- Copy and content: `Scene #` remains the header and `42, 44, 46` is fully
+  visible in the longest populated row.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain.
+
+## Comparison History
+
+- P2 source finding: the header wrapped and multi-scene values were truncated.
+- Fix: increased the second table track to 112px and set the header to
+  `white-space: nowrap`.
+- Post-fix evidence: the live staging focused comparison shows the header on
+  one line and the longest imported value without truncation.
+
+## Follow-Up Polish
+
+No P3 follow-up is required for this scoped change.
+
+final result: passed
+
 ---
 
 # Scene Workspace Controls Design QA
