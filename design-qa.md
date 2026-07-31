@@ -98,3 +98,88 @@ No actionable P0, P1, or P2 findings remain.
   most often.
 
 final result: passed
+
+---
+
+# Scene Upload Design QA
+
+## Evidence
+
+- Source visual truth:
+  `/var/folders/mq/2l9529213mqf0_sng1n02nlc0000gn/T/TemporaryItems/NSIRD_screencaptureui_FFlflb/Screenshot 2026-07-31 at 10.02.34 AM.png`
+- Browser-rendered implementation:
+  `/var/folders/mq/2l9529213mqf0_sng1n02nlc0000gn/T/com.openai.sky.CUAService/Safari Screenshot 2026-07-31 at 10.21.15 AM.jpeg`
+- Route:
+  `https://staging.theplatelab.site/projects/new`
+- State:
+  Authenticated production-company user; new-project screen; scene import idle
+  state.
+
+## Normalization
+
+- Source capture: 808 × 482 pixels. It is a generic, full-size modal upload
+  reference rather than an exact Plate Lab layout target.
+- Implementation capture: 1316 × 768 pixels at the active Safari window
+  density.
+- The comparison therefore focuses on the upload control's interaction
+  hierarchy: dashed target, recognizable file-upload icon, centered primary
+  action, and secondary drag/drop/paste guidance.
+- Scale is intentionally reduced in the implementation because the upload is
+  the third step in a compact, above-the-fold business workflow rather than a
+  standalone modal.
+
+## Full-View Comparison
+
+The implementation keeps project identity, script-import instructions, all
+three steps, and the manual-entry alternative visible above the fold. The
+drop target is visually distinct without competing with the project fields or
+the primary Copy prompt action.
+
+## Focused Upload Comparison
+
+The staged target carries forward the source reference's dashed boundary,
+centered file icon, strong click action, and drag/drop/paste affordance. Copy
+is narrowed to the accepted artifact and operational limit: `JSON` and
+`1 MB max`.
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: Existing Hanken Grotesk and IBM Plex Mono brand tokens
+  are retained; upload copy is compact and remains legible in the workflow.
+- Spacing and layout rhythm: The control fits the established three-column
+  import grid and preserves the page's information-dense business layout.
+- Colors and visual tokens: Existing paper, ink, horizon-orange, muted-ink,
+  and semantic-success tokens are reused.
+- Icon fidelity: The upload uses the Phosphor `FileArrowUp` icon rather than a
+  text glyph or CSS-drawn substitute.
+- Copy and content: The idle state clearly supports click, drag and drop, and
+  pasted file input. The accepted format and size limit are visible before
+  interaction.
+
+## Interaction Checks
+
+- Clicked the staged drop target and confirmed Safari opened the native file
+  picker with the title `Choose Files to Upload`.
+- Cancelled the picker without selecting or transmitting a local file.
+- Confirmed the control exposes a named button and a file-upload element to
+  assistive technology.
+- Drag/drop, pasted-file handling, JSON parsing, validation, and ready-state
+  rendering are covered by the component implementation and the passing web
+  test suite; the staged visual check did not transmit a test file.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain.
+
+## Comparison History
+
+- Initial staging deployment failed during Coolify's temporary clone cleanup.
+  Retrying the unchanged commit completed successfully.
+- Browser comparison passed without follow-up UI changes.
+
+## Follow-Up Polish
+
+- P3: Capture a dedicated staged screenshot of the drag-active state if the
+  team later formalizes visual regression snapshots for transient states.
+
+final result: passed
