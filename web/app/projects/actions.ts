@@ -80,7 +80,9 @@ export async function createProject(formData: FormData) {
   if (!user) redirect("/login?next=/projects/new");
 
   const organizationName = formString(formData, "organizationName");
-  const projectName = formString(formData, "projectName");
+  const projectName =
+    formString(formData, "workingTitle") ||
+    formString(formData, "projectName");
   const sceneImport = sceneImportFromForm(formData, "/projects/new");
   const importedFirstScene = sceneImport?.scenes[0];
   const firstSceneName =
@@ -100,7 +102,7 @@ export async function createProject(formData: FormData) {
   if (!projectName || !firstSceneName) {
     formError(
       "/projects/new",
-      "Give the project a name and either import scene JSON or enter the first scene.",
+      "Give the project a working title and either import scene JSON or enter the first scene.",
     );
   }
 
@@ -116,7 +118,7 @@ export async function createProject(formData: FormData) {
     first_scene_name: firstSceneName,
     search_brief: searchBrief || undefined,
     display_name: formString(formData, "displayName") || undefined,
-    production_name: formString(formData, "productionName") || undefined,
+    actual_title: formString(formData, "actualTitle") || undefined,
     client_name: formString(formData, "clientName") || undefined,
   });
 
@@ -176,6 +178,45 @@ export async function createProject(formData: FormData) {
     redirect(`${scenePath(result.project_id, result.scene_id)}?created=1`);
   }
   redirect(`/projects/${result.project_id}?created=1#add-scene`);
+}
+
+export async function updateProject(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const projectId = formString(formData, "projectId");
+  const path = `/projects/${projectId}`;
+
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(path)}`);
+  }
+
+  const workingTitle = formString(formData, "workingTitle");
+  if (!projectId || !workingTitle) {
+    formError(path, "Give the project a working title or code name.");
+  }
+
+  const dueDate = formString(formData, "dueDate");
+  const { error } = await supabase.rpc("update_project_details", {
+    target_project_id: projectId,
+    working_title: workingTitle,
+    actual_title: formString(formData, "actualTitle") || undefined,
+    client_name: formString(formData, "clientName") || undefined,
+    project_description:
+      formString(formData, "projectDescription") || undefined,
+    project_due_date: dueDate || undefined,
+  });
+  if (error) {
+    formError(
+      path,
+      "The project details could not be updated. Please try again.",
+    );
+  }
+
+  revalidatePath("/projects");
+  revalidatePath(path);
+  redirect(`${path}?updated=1`);
 }
 
 export async function importScenes(formData: FormData) {

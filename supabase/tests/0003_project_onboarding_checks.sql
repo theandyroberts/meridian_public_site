@@ -17,7 +17,7 @@ select set_config(
 select *
 from public.start_project(
   'New Owner Productions',
-  'Automotive Campaign',
+  'AUTOMOTIVE_CAMPAIGN',
   'Night highway',
   'Wet highway at night with sparse traffic',
   'New Owner',
@@ -43,10 +43,11 @@ begin
   into created_project_id
   from public.projects as project
   where project.created_by = auth.uid()
-    and project.name = 'Automotive Campaign';
+    and project.name = 'AUTOMOTIVE_CAMPAIGN'
+    and project.actual_title = 'Automotive Campaign';
 
   if created_project_id is null then
-    raise exception 'start_project must create a visible project';
+    raise exception 'start_project must keep the working title visible and actual title private';
   end if;
 
   if (

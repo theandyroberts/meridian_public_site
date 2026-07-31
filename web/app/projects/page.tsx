@@ -24,7 +24,7 @@ export default async function ProjectsPage() {
   const { data: projects, error } = await supabase
     .from("projects")
     .select(
-      "id, name, production_name, client_name, status, last_activity_at",
+      "id, name, client_name, status, last_activity_at",
     )
     .eq("status", "active")
     .order("last_activity_at", { ascending: false });
@@ -91,9 +91,7 @@ export default async function ProjectsPage() {
                   </p>
                   <h2>{project.name}</h2>
                   <p className="dim">
-                    {[project.production_name, project.client_name]
-                      .filter(Boolean)
-                      .join(" · ") || "Production details not added yet"}
+                    {project.client_name || "Production details not added yet"}
                   </p>
                 </div>
                 <p className="mono dimmer">

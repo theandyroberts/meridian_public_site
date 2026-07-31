@@ -136,6 +136,22 @@ if (action === "apply") {
         ) is not null as applied;
       `,
     },
+    {
+      path: "supabase/migrations/20260731070000_private_project_titles.sql",
+      appliedSql: `
+        select
+          exists (
+            select 1
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = 'projects'
+              and column_name = 'actual_title'
+          )
+          and to_regprocedure(
+            'public.update_project_details(uuid,text,text,text,text,date)'
+          ) is not null as applied;
+      `,
+    },
   ];
 
   for (const migration of migrations) {
@@ -161,6 +177,7 @@ if (action === "apply") {
     "supabase/tests/0004_catalog_search_checks.sql",
     "supabase/tests/0005_scene_workflow_checks.sql",
     "supabase/tests/0006_scene_json_import_checks.sql",
+    "supabase/tests/0007_private_project_titles_checks.sql",
   ];
 
   for (const relativePath of tests) {

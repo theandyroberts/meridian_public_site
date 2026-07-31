@@ -498,6 +498,7 @@ export type Database = {
       projects: {
         Row: {
           archived_at: string | null
+          actual_title: string | null
           client_name: string | null
           created_at: string
           created_by: string
@@ -517,6 +518,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          actual_title?: string | null
           client_name?: string | null
           created_at?: string
           created_by: string
@@ -536,6 +538,7 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          actual_title?: string | null
           client_name?: string | null
           created_at?: string
           created_by?: string
@@ -988,11 +991,11 @@ export type Database = {
       }
       start_project: {
         Args: {
+          actual_title?: string
           client_name?: string
           display_name?: string
           first_scene_name: string
           organization_name: string
-          production_name?: string
           project_name: string
           search_brief?: string
         }
@@ -1011,6 +1014,17 @@ export type Database = {
           target_scene_id: string
         }
         Returns: undefined
+      }
+      update_project_details: {
+        Args: {
+          actual_title?: string
+          client_name?: string
+          project_description?: string
+          project_due_date?: string
+          target_project_id: string
+          working_title: string
+        }
+        Returns: number
       }
     }
     Enums: {

@@ -2,7 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { SceneImportPanel } from "@/components/SceneImportPanel";
 import { createClient } from "@/lib/supabase/server";
-import { createScene, importScenes } from "../actions";
+import {
+  createScene,
+  importScenes,
+  updateProject,
+} from "../actions";
 
 type ProjectPageProps = {
   params: Promise<{ projectId: string }>;
@@ -12,6 +16,7 @@ type ProjectPageProps = {
     deleted?: string;
     error?: string;
     imported?: string;
+    updated?: string;
   }>;
 };
 
@@ -36,14 +41,14 @@ export default async function ProjectPage({
     supabase
       .from("projects")
       .select(
-        "id, name, production_name, client_name, production_approach",
+        "id, name, actual_title, client_name, description, due_date, production_approach",
       )
       .eq("id", projectId)
       .maybeSingle(),
     supabase
       .from("scenes")
       .select(
-        "id, scene_number, name, search_brief, vehicle, script_scene_number, script_pages",
+        "id, scene_number, name, search_brief, vehicle, script_scene_number, script_pages, generated_keywords, keyword_generation_status",
       )
       .eq("project_id", projectId)
       .is("archived_at", null)
@@ -54,26 +59,102 @@ export default async function ProjectPage({
   if (!project) notFound();
 
   return (
-    <main className="workspace-shell">
+    <main className="workspace-shell project-workspace">
       <Link href="/projects" className="mono dim back-link">
         ← Projects
       </Link>
 
       <section className="workspace-intro project-heading">
         <div>
-          <p className="mono accent">Project</p>
+          <p className="mono accent">Project · working title</p>
           <h1>{project.name}</h1>
           <p className="dim">
-            {[project.production_name, project.client_name]
-              .filter(Boolean)
-              .join(" · ") || "Add scenes, then choose the plates for each shot."}
+            {project.client_name ||
+              "Add scenes, then choose the plates for each shot."}
           </p>
         </div>
-        <span className="status-chip mono">
-          {project.production_approach === "undecided"
-            ? "Stage undecided"
-            : project.production_approach.replaceAll("_", " ")}
-        </span>
+        <div className="project-heading-tools">
+          <span className="status-chip mono">
+            {project.production_approach === "undecided"
+              ? "Stage undecided"
+              : project.production_approach.replaceAll("_", " ")}
+          </span>
+          <details className="project-details-editor">
+            <summary className="secondary-button">Edit project</summary>
+            <div className="project-details-panel">
+              <div>
+                <p className="mono accent">Project details</p>
+                <h2>Keep the public label production-safe.</h2>
+                <p className="dim">
+                  The working title is used everywhere else. The actual title
+                  remains optional and is only visible in this editor.
+                </p>
+              </div>
+              <form
+                action={updateProject}
+                className="workspace-form compact-form"
+              >
+                <input type="hidden" name="projectId" value={project.id} />
+                <div className="form-grid">
+                  <label>
+                    <span>Working title or code name</span>
+                    <input
+                      name="workingTitle"
+                      type="text"
+                      defaultValue={project.name}
+                      maxLength={200}
+                      required
+                    />
+                  </label>
+                  <label>
+                    <span>
+                      Actual production title <em>optional · private</em>
+                    </span>
+                    <input
+                      name="actualTitle"
+                      type="text"
+                      defaultValue={project.actual_title ?? ""}
+                      placeholder="Leave blank unless it is useful"
+                      maxLength={200}
+                      autoComplete="off"
+                    />
+                  </label>
+                  <label>
+                    <span>Client <em>optional</em></span>
+                    <input
+                      name="clientName"
+                      type="text"
+                      defaultValue={project.client_name ?? ""}
+                      maxLength={200}
+                    />
+                  </label>
+                  <label>
+                    <span>Needed by <em>optional</em></span>
+                    <input
+                      name="dueDate"
+                      type="date"
+                      defaultValue={project.due_date ?? ""}
+                    />
+                  </label>
+                </div>
+                <label>
+                  <span>Internal project notes <em>optional</em></span>
+                  <textarea
+                    name="projectDescription"
+                    defaultValue={project.description ?? ""}
+                    rows={3}
+                    placeholder="Production context, stage constraints, delivery notes…"
+                  />
+                </label>
+                <div className="form-actions">
+                  <button type="submit" className="primary-button">
+                    Save project details
+                  </button>
+                </div>
+              </form>
+            </div>
+          </details>
+        </div>
       </section>
 
       {query.error && <p className="auth-alert error">{query.error}</p>}
@@ -100,6 +181,9 @@ export default async function ProjectPage({
           {query.imported === "1" ? "" : "s"} from JSON.
         </p>
       )}
+      {query.updated === "1" && (
+        <p className="auth-alert success">Project details updated.</p>
+      )}
 
       <section className="project-detail-grid">
         <div>
@@ -118,32 +202,71 @@ export default async function ProjectPage({
             </div>
           </div>
 
-          <div className="scene-list">
-            {scenes?.map((scene) => (
-              <Link
-                href={`/projects/${project.id}/scenes/${scene.id}`}
-                className="scene-row"
-                key={scene.id}
-              >
-                <span className="scene-number mono">
-                  {scene.script_scene_number
-                    ? `Sc ${scene.script_scene_number}`
-                    : String(scene.scene_number).padStart(2, "0")}
-                </span>
-                <span>
-                  <strong>{scene.name}</strong>
-                  {scene.script_pages && (
-                    <span className="scene-script-pages mono">
-                      Script p. {scene.script_pages}
-                    </span>
-                  )}
-                  <small>
-                    {scene.search_brief || "Add a search brief"}
-                  </small>
-                </span>
-                <span className="scene-arrow" aria-hidden="true">→</span>
-              </Link>
-            ))}
+          <div className="scene-table-wrap">
+            <table className="scene-table">
+              <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Script</th>
+                  <th scope="col">Page(s)</th>
+                  <th scope="col">Scene</th>
+                  <th scope="col">Plate brief</th>
+                  <th scope="col">Vehicle</th>
+                  <th scope="col">Search</th>
+                  <th scope="col" aria-label="Open scene" />
+                </tr>
+              </thead>
+              <tbody>
+                {scenes?.map((scene) => {
+                  const href = `/projects/${project.id}/scenes/${scene.id}`;
+                  const keywordCount = scene.generated_keywords?.length ?? 0;
+                  return (
+                    <tr key={scene.id}>
+                      <td className="scene-sequence mono">
+                        {String(scene.scene_number).padStart(2, "0")}
+                      </td>
+                      <td className="scene-script mono-md">
+                        {scene.script_scene_number || "—"}
+                      </td>
+                      <td className="scene-pages mono-md">
+                        {scene.script_pages || "—"}
+                      </td>
+                      <td className="scene-name-cell">
+                        <Link href={href}>{scene.name}</Link>
+                      </td>
+                      <td className="scene-brief">
+                        <Link href={href}>
+                          {scene.search_brief || "Add a plate brief"}
+                        </Link>
+                      </td>
+                      <td className="scene-vehicle mono">
+                        {scene.vehicle === "undecided"
+                          ? "—"
+                          : scene.vehicle.replaceAll("_", " ")}
+                      </td>
+                      <td>
+                        <span
+                          className={`scene-search-state mono ${
+                            keywordCount ? "is-ready" : ""
+                          }`}
+                        >
+                          {keywordCount
+                            ? `${keywordCount} terms`
+                            : scene.keyword_generation_status === "pending"
+                              ? "Pending"
+                              : "—"}
+                        </span>
+                      </td>
+                      <td className="scene-open-cell">
+                        <Link href={href} aria-label={`Open ${scene.name}`}>
+                          →
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 

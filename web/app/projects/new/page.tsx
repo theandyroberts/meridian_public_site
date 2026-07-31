@@ -47,11 +47,11 @@ export default async function NewProjectPage({
 
       <section className="onboarding-heading">
         <p className="mono accent">Step 1 of 3 · Project</p>
-        <h1>What are you shooting?</h1>
+        <h1>Name the production safely.</h1>
         <p>
-          Give the production a home and start the shot list. After saving,
-          the + flow keeps you in scene entry until the whole script is
-          covered.
+          Use a working title or code name throughout the workspace. The
+          actual production title is optional, private, and never used as the
+          project heading.
         </p>
       </section>
 
@@ -91,24 +91,33 @@ export default async function NewProjectPage({
 
         <div className="form-grid">
           <label>
-            <span>Project name</span>
+            <span>Working title or code name</span>
             <input
-              name="projectName"
+              name="workingTitle"
               type="text"
-              placeholder="Untitled automotive spot"
+              placeholder="BLACKLIST_MOVIE"
               maxLength={200}
               required
               autoFocus
             />
+            <small>
+              This is the only title shown in project lists and workspace
+              headings.
+            </small>
           </label>
           <label>
-            <span>Production name <em>optional</em></span>
+            <span>Actual production title <em>optional · private</em></span>
             <input
-              name="productionName"
+              name="actualTitle"
               type="text"
-              placeholder="Working title"
+              placeholder="Leave blank unless it is useful"
               maxLength={200}
+              autoComplete="off"
             />
+            <small>
+              Stored privately for your team and only shown inside Edit
+              project.
+            </small>
           </label>
           <label>
             <span>Client <em>optional</em></span>
