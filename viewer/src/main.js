@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { detectDecodedFootagePreset } from './footage-layout.js'
 import { FEET_TO_SCENE_UNITS, feetToSceneUnits, scaleModelToLength } from './scene-scale.js'
+import { VEHICLE_PHYSICAL_LENGTHS_FT } from './vehicle-specs.js'
 
 const FEET_TO_UNITS = FEET_TO_SCENE_UNITS
 const CAMERA_SENSOR_WIDTH_MM = 36
@@ -107,7 +108,7 @@ const vehicleModels = {
     file: `${import.meta.env.BASE_URL}models/ferrari.glb`,
     credit: 'Ferrari 458 Italia by vicent091036 via the official Three.js car materials example.',
     rotationY: -Math.PI / 2,
-    targetLengthFt: 14.86,
+    targetLengthFt: VEHICLE_PHYSICAL_LENGTHS_FT.ferrari,
     shadow: 'ferrari',
   },
   bmwM5: {
@@ -115,7 +116,7 @@ const vehicleModels = {
     file: `${import.meta.env.BASE_URL}models/bmw_m5.glb`,
     credit: 'BMW M5 sedan test model from Get3DModels/DreamCar.',
     rotationY: 0,
-    targetLengthFt: 16.27,
+    targetLengthFt: VEHICLE_PHYSICAL_LENGTHS_FT.bmwM5,
     shadow: 'soft',
   },
   escalade: {
@@ -123,7 +124,7 @@ const vehicleModels = {
     file: `${import.meta.env.BASE_URL}models/escalade.glb`,
     credit: 'Cadillac Escalade ESV test model from Get3DModels/OUTPISTON.',
     rotationY: 0,
-    targetLengthFt: 18.92,
+    targetLengthFt: VEHICLE_PHYSICAL_LENGTHS_FT.escalade,
     shadow: 'soft',
   },
 }
@@ -1048,7 +1049,8 @@ function makeVehicleShadow(vehicle) {
 function updateVehicleCredit() {
   const credit = document.querySelector('#vehicleCredit')
   if (!credit) return
-  credit.textContent = vehicleModels[state.vehicleKey]?.credit || vehicleModels.ferrari.credit
+  const vehicle = vehicleModels[state.vehicleKey] || vehicleModels.ferrari
+  credit.textContent = `Stage scale: ${vehicle.targetLengthFt.toFixed(1)} ft long. ${vehicle.credit}`
 }
 
 function buildFallbackCar() {
