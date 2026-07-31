@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { detectDecodedFootagePreset } from './footage-layout.js'
 
 const FEET_TO_UNITS = 0.18
 const CAMERA_SENSOR_WIDTH_MM = 36
@@ -95,6 +96,7 @@ const finishPresets = {
 const footagePresets = {
   canyon: { label: 'Canyon', sourceMode: 'sphere', cropTop: 7, cropBottom: 57, ceilingTop: 7, ceilingBottom: 25, vertical: 0 },
   dtla: { label: 'DTLA', sourceMode: 'sphere', cropTop: 0, cropBottom: 62, ceilingTop: 0, ceilingBottom: 22, vertical: 0 },
+  ringStrip: { label: 'Panoramic ring strip', sourceMode: 'strip', cropTop: 0, cropBottom: 100, ceilingTop: 0, ceilingBottom: 20, vertical: 0 },
   fullSphere: { label: 'Full 360 sphere', sourceMode: 'sphere', cropTop: 0, cropBottom: 100, ceilingTop: 0, ceilingBottom: 50, vertical: 0 },
 }
 
@@ -196,6 +198,7 @@ app.innerHTML = `
           <select id="footagePreset">
             <option value="canyon" selected>Canyon</option>
             <option value="dtla">DTLA</option>
+            <option value="ringStrip">Panoramic ring strip</option>
             <option value="fullSphere">Full 360 sphere</option>
             <option value="custom">Custom</option>
           </select>
@@ -1429,13 +1432,6 @@ function persistCustomShots() {
   localStorage.setItem('plateLabCustomViews', JSON.stringify(state.customShots))
 }
 
-function detectFootagePreset(label) {
-  const normalized = label.toLowerCase()
-  if (normalized.includes('a001a003') || normalized.includes('stitch_v01')) return 'dtla'
-  if (normalized.includes('fp_c15')) return 'canyon'
-  return footagePresets[state.footagePreset] ? state.footagePreset : 'canyon'
-}
-
 function applyFootagePreset(key, texture = stageVideoUniforms.map.value) {
   const preset = footagePresets[key]
   if (!preset) return
@@ -1497,18 +1493,35 @@ function loadInitialFootage() {
 }
 
 async function loadVideoSource(src, label) {
-  video.src = src
-  video.playbackRate = state.playRate
-  video.load()
-
   const texture = new THREE.VideoTexture(video)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.mapping = THREE.EquirectangularReflectionMapping
   texture.minFilter = THREE.LinearFilter
   texture.magFilter = THREE.LinearFilter
   texture.generateMipmaps = false
+
+  let layoutApplied = false
+  const applyDecodedLayout = () => {
+    if (layoutApplied || !video.videoWidth || !video.videoHeight) return
+    layoutApplied = true
+    applyFootagePreset(
+      detectDecodedFootagePreset({
+        width: video.videoWidth,
+        height: video.videoHeight,
+        label,
+        fallback: footagePresets[state.footagePreset] ? state.footagePreset : 'canyon',
+      }),
+      texture,
+    )
+  }
+
+  video.addEventListener('loadedmetadata', applyDecodedLayout, { once: true })
+  video.src = src
+  video.playbackRate = state.playRate
+  video.load()
+
   stageVideoUniforms.map.value = texture
-  applyFootagePreset(detectFootagePreset(label), texture)
+  if (video.readyState >= HTMLMediaElement.HAVE_METADATA) applyDecodedLayout()
   screenMaterial.needsUpdate = true
   ceilingMaterial.needsUpdate = true
   syncEnvironment(texture)
