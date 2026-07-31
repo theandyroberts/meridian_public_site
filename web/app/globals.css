@@ -742,6 +742,48 @@ body::before {
   justify-items: end;
   gap: 8px;
 }
+.scene-file-dropzone {
+  grid-column: 2 / -1;
+  display: grid;
+  width: 100%;
+  min-height: 128px;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  padding: 18px;
+  color: var(--paper-60);
+  border: 1px dashed var(--hairline-strong);
+  background: var(--ink);
+  text-align: center;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.scene-file-dropzone svg { color: var(--paper-38); }
+.scene-file-dropzone strong {
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: 650;
+}
+.scene-file-dropzone strong span { color: var(--orange); }
+.scene-file-dropzone > span {
+  color: var(--paper-38);
+  font-size: 12px;
+}
+.scene-file-dropzone:hover,
+.scene-file-dropzone:focus-visible,
+.scene-file-dropzone.is-dragging {
+  color: var(--paper);
+  border-color: var(--orange);
+  background: var(--orange-soft);
+  outline: none;
+}
+.scene-file-dropzone:hover svg,
+.scene-file-dropzone:focus-visible svg,
+.scene-file-dropzone.is-dragging svg { color: var(--orange); }
+.scene-file-dropzone.has-file {
+  border-style: solid;
+  border-color: rgba(47, 117, 78, 0.5);
+  background: rgba(47, 117, 78, 0.07);
+}
 .scene-import-prompt-reference {
   display: grid;
   gap: 14px;
@@ -1269,6 +1311,11 @@ body::before {
   justify-items: start;
   margin-top: 10px;
 }
+.lab-theme .scene-file-dropzone {
+  min-height: 108px;
+  margin-top: 10px;
+  padding: 12px;
+}
 .lab-theme .scene-import-file-step { padding: 14px; }
 .lab-theme .scene-import-review { gap: 12px; }
 .lab-theme .scene-import-list { gap: 10px; }
@@ -1360,6 +1407,7 @@ body::before {
     grid-column: 2;
     justify-items: stretch;
   }
+  .scene-file-dropzone { grid-column: 1 / -1; }
   .privacy-chip,
   .file-button,
   .scene-import-submit { width: 100%; }

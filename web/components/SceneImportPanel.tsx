@@ -1,6 +1,15 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { FileArrowUp } from "@phosphor-icons/react";
+import {
+  type DragEvent as ReactDragEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   MAX_SCENE_IMPORT_BYTES,
   SCENE_EXTRACTION_PROMPT,
@@ -32,11 +41,13 @@ function updateScene(
 
 export function SceneImportPanel(props: SceneImportPanelProps) {
   const fileInputId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [scenes, setScenes] = useState<SceneImportScene[]>([]);
   const [keywordDrafts, setKeywordDrafts] = useState<string[]>([]);
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   const payload = useMemo(() => {
     if (!scenes.length) return "";
@@ -56,7 +67,7 @@ export function SceneImportPanel(props: SceneImportPanelProps) {
     }
   }
 
-  async function loadFile(file: File | undefined) {
+  const loadFile = useCallback(async (file: File | undefined) => {
     setError("");
     setScenes([]);
     setKeywordDrafts([]);
@@ -81,6 +92,24 @@ export function SceneImportPanel(props: SceneImportPanelProps) {
           : "The scene file could not be read.",
       );
     }
+  }, []);
+
+  useEffect(() => {
+    function handleWindowPaste(event: globalThis.ClipboardEvent) {
+      const file = event.clipboardData?.files.item(0);
+      if (!file) return;
+      event.preventDefault();
+      void loadFile(file);
+    }
+
+    window.addEventListener("paste", handleWindowPaste);
+    return () => window.removeEventListener("paste", handleWindowPaste);
+  }, [loadFile]);
+
+  function handleFileDrop(event: ReactDragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    setIsDraggingFile(false);
+    void loadFile(event.dataTransfer.files.item(0) ?? undefined);
   }
 
   const content = (
@@ -144,18 +173,57 @@ export function SceneImportPanel(props: SceneImportPanelProps) {
               added to the project.
             </p>
           </div>
-          <div className="scene-import-upload-action">
-            <label htmlFor={fileInputId} className="secondary-button file-button">
-              Upload scene file
-            </label>
-            {fileName && <span className="mono dim">{fileName}</span>}
-          </div>
+          <button
+            type="button"
+            className={`scene-file-dropzone${isDraggingFile ? " is-dragging" : ""}${fileName ? " has-file" : ""}`}
+            onClick={() => fileInputRef.current?.click()}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setIsDraggingFile(true);
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "copy";
+              setIsDraggingFile(true);
+            }}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                setIsDraggingFile(false);
+              }
+            }}
+            onDrop={handleFileDrop}
+            aria-describedby={`${fileInputId}-help`}
+          >
+            <FileArrowUp aria-hidden="true" size={28} weight="light" />
+            {fileName ? (
+              <>
+                <strong>{fileName}</strong>
+                <span>
+                  {scenes.length} scene{scenes.length === 1 ? "" : "s"} ready
+                  · choose another file to replace
+                </span>
+              </>
+            ) : (
+              <>
+                <strong>
+                  Drop JSON here or <span>choose a file</span>
+                </strong>
+                <span id={`${fileInputId}-help`}>
+                  You can also paste a copied file · 1 MB max
+                </span>
+              </>
+            )}
+          </button>
           <input
+            ref={fileInputRef}
             id={fileInputId}
             className="visually-hidden"
             type="file"
             accept=".json,application/json"
-            onChange={(event) => loadFile(event.target.files?.[0])}
+            onChange={(event) => {
+              void loadFile(event.target.files?.[0]);
+              event.target.value = "";
+            }}
           />
         </li>
       </ol>

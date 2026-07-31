@@ -9,6 +9,7 @@
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@platelab/shared": "*",
     "@supabase/ssr": "0.12.4",
     "@supabase/supabase-js": "2.111.0",
