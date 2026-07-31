@@ -101,6 +101,99 @@ final result: passed
 
 ---
 
+# Authenticated Header Design QA
+
+## Evidence
+
+- Source visual truth:
+  `/var/folders/mq/2l9529213mqf0_sng1n02nlc0000gn/T/com.openai.sky.CUAService/Safari Screenshot 2026-07-31 at 10.21.15 AM.jpeg`
+- Browser-rendered implementation:
+  `/var/folders/mq/2l9529213mqf0_sng1n02nlc0000gn/T/com.openai.sky.CUAService/Safari Screenshot 2026-07-31 at 10.50.02 AM.jpeg`
+- Route:
+  `https://staging.theplatelab.site/projects`
+- State:
+  Authenticated production-company user with the saved profile name
+  `Start_Project`.
+
+## Normalization
+
+- Source and implementation captures are both 1316 × 768 pixels from the
+  same Safari window and density.
+- The source route is `/projects/new` and the implementation route is
+  `/projects`; the relevant shared site-header region is the same width,
+  theme, session, and navigation state.
+- Full-view review checked that the header change did not disturb the page
+  frame. Focused review used the shared header region because that is the only
+  requested visual surface.
+
+## Full-View Comparison
+
+The header retains the logo position, 72-pixel bar, dark glass treatment,
+navigation rhythm, paper text, and horizon-orange border treatment. The
+Projects workspace remains aligned to the existing light Lab canvas.
+
+## Focused Header Comparison
+
+`Projects` remains a persistent primary link. The former `Start a project`
+CTA is replaced for authenticated users by a bordered account block containing
+an explicit `Signed in` state, the saved user name, and a separate `Log out`
+button. The final iteration stacks the state label over the identity so the
+full `Start_Project` name remains visible rather than reading like the former
+CTA.
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: Existing Hanken Grotesk navigation and IBM Plex Mono
+  account-label treatments are preserved. The account state uses the smaller
+  telemetry scale already present in the brand system.
+- Spacing and layout rhythm: The account group reuses the former CTA height and
+  border placement, preserving header balance and existing nav gaps.
+- Colors and visual tokens: Existing paper, muted-paper, ink, hairline, and
+  horizon-orange tokens are reused without introducing a new semantic color.
+- Image quality and asset fidelity: No new image or icon asset was required;
+  the existing Plate Lab logo remains unchanged.
+- Copy and content: `Signed in`, the actual saved profile name, `Log out`, and
+  `Projects` are all visible simultaneously. Logged-out users retain the
+  existing `Start a project` CTA.
+
+## Interaction Checks
+
+- Confirmed the authenticated header renders from the live Supabase session.
+- Confirmed the profile name is read from the authenticated user's profile and
+  has metadata/email fallbacks covered by unit tests.
+- Confirmed `Projects` is a named link and `Log out` is a named form button in
+  the staged accessibility tree.
+- Did not submit Log out during QA, preserving the user's authenticated Safari
+  session; the action reuses the existing tested Supabase sign-out server
+  action.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain.
+
+## Comparison History
+
+- Pass 1 finding (P2): the saved profile name `Start_Project` visually
+  resembled the former Start a project CTA and was not an unambiguous login
+  indicator. Added the explicit `Signed in` label.
+- Pass 2 finding (P2): the inline state label compressed and truncated the
+  visible profile name. Stacked the state label above the identity and widened
+  the desktop identity allowance.
+- Pass 3: the browser-rendered staging comparison shows the full saved name,
+  explicit authenticated state, persistent Projects link, and adjacent Log out
+  action with no remaining P0/P1/P2 issue.
+
+## Follow-Up Polish
+
+- P3: When a dedicated mobile visual-regression harness is added, capture the
+  compact breakpoint as a separate golden image. The implemented breakpoint
+  keeps Projects visible, hides only the secondary catalog links, and truncates
+  unusually long account names safely.
+
+final result: passed
+
+---
+
 # Scene Upload Design QA
 
 ## Evidence
