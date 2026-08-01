@@ -3,19 +3,24 @@ import test from "node:test";
 import { publicMediaUrl } from "../lib/publicMediaUrl";
 
 test("staging resolves local catalog paths through Supabase Storage", () => {
-  assert.equal(
-    publicMediaUrl("/media/PL-4180192/poster.jpg", {
-      siteUrl: "https://staging.theplatelab.site",
-      supabaseUrl: "https://supabase-staging.theplatelab.site",
-    }),
-    "https://supabase-staging.theplatelab.site/storage/v1/object/public/plate-previews/PL-4180192/poster.jpg",
-  );
+  for (const siteUrl of [
+    "https://staging.theplatelab.site",
+    "https://staging.theplatelab.studio",
+  ]) {
+    assert.equal(
+      publicMediaUrl("/media/PL-4180192/poster.jpg", {
+        siteUrl,
+        supabaseUrl: "https://supabase-staging.theplatelab.site",
+      }),
+      "https://supabase-staging.theplatelab.site/storage/v1/object/public/plate-previews/PL-4180192/poster.jpg",
+    );
+  }
 });
 
 test("production and already-hosted assets are unchanged", () => {
   assert.equal(
     publicMediaUrl("/media/PL-4180192/poster.jpg", {
-      siteUrl: "https://theplatelab.site",
+      siteUrl: "https://theplatelab.studio",
       supabaseUrl: "https://supabase.theplatelab.site",
     }),
     "/media/PL-4180192/poster.jpg",

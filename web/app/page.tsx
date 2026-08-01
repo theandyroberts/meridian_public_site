@@ -1,13 +1,25 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getLivePlates } from "@/lib/catalog";
 import { GlobeMark } from "@/components/Logo";
 import { HeroSearch } from "@/components/HeroSearch";
 import { PlateCard } from "@/components/PlateCard";
+import { ComingSoon } from "@/components/ComingSoon";
 import { PER_MINUTE_USD, formatUsd } from "@platelab/shared";
+import { hostnameFromHost, isComingSoonHostname } from "@/lib/siteHosts";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const requestHeaders = await headers();
+  const hostname = hostnameFromHost(
+    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host"),
+  );
+
+  if (isComingSoonHostname(hostname)) {
+    return <ComingSoon />;
+  }
+
   const plates = await getLivePlates();
   const featured = plates.slice(0, 6);
 

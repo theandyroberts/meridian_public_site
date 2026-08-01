@@ -1,4 +1,5 @@
-const STAGING_HOSTNAME = "staging.theplatelab.site";
+import { isStagingHostname } from "@/lib/siteHosts";
+
 const PREVIEW_BUCKET = "plate-previews";
 
 type PublicMediaEnvironment = {
@@ -19,7 +20,7 @@ export function publicMediaUrl(
     if (
       !environment.siteUrl ||
       !environment.supabaseUrl ||
-      new URL(environment.siteUrl).hostname !== STAGING_HOSTNAME
+      !isStagingHostname(new URL(environment.siteUrl).hostname)
     ) {
       return assetUrl;
     }

@@ -1,4 +1,4 @@
-const STAGING_HOSTNAME = "staging.theplatelab.site";
+import { isStagingHostname } from "@/lib/siteHosts";
 
 export function siteTitle(
   productionTitle: string,
@@ -7,7 +7,7 @@ export function siteTitle(
   if (!configuredSiteUrl) return productionTitle;
 
   try {
-    return new URL(configuredSiteUrl).hostname === STAGING_HOSTNAME
+    return isStagingHostname(new URL(configuredSiteUrl).hostname)
       ? "TPL staging"
       : productionTitle;
   } catch {

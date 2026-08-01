@@ -47,6 +47,107 @@ body::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* ── temporary public launch page ── */
+.coming-soon-host {
+  min-height: 100vh;
+  overflow: hidden;
+}
+.coming-soon {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  overflow: hidden;
+  isolation: isolate;
+}
+.coming-soon-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  opacity: 0.16;
+  background-image:
+    linear-gradient(var(--hairline-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hairline-strong) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to right, #000, transparent 70%);
+}
+.coming-soon-orbit {
+  position: absolute;
+  z-index: -2;
+  top: 50%;
+  right: -120px;
+  width: min(62vw, 760px);
+  color: var(--orange);
+  opacity: 0.24;
+  transform: translateY(-50%);
+}
+.coming-soon-orbit svg {
+  width: 100%;
+  height: auto;
+}
+.coming-soon-content {
+  align-self: center;
+  width: min(780px, calc(100% - 64px));
+  margin-left: max(32px, calc((100vw - var(--max)) / 2 + 32px));
+  padding: 72px 0;
+}
+.coming-soon-content .coming-soon-horizon {
+  width: min(100%, 620px);
+  height: 2px;
+  margin: 54px 0 34px;
+  background: var(--orange);
+}
+.coming-soon-content h1 {
+  max-width: 800px;
+  margin-top: 18px;
+  font-size: clamp(56px, 8.5vw, 126px);
+  line-height: 0.88;
+  letter-spacing: -0.055em;
+}
+.coming-soon-lede {
+  max-width: 600px;
+  margin-top: 36px;
+  color: var(--paper-60);
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.45;
+}
+.coming-soon-status {
+  margin-top: 48px;
+  color: var(--paper);
+}
+.coming-soon-status::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 12px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 18px var(--orange);
+}
+.coming-soon-footer {
+  position: absolute;
+  right: 32px;
+  bottom: 28px;
+  color: var(--paper-38);
+}
+
+@media (max-width: 700px) {
+  .coming-soon-orbit {
+    top: auto;
+    right: -30vw;
+    bottom: -18vw;
+    width: 100vw;
+  }
+  .coming-soon-content {
+    width: calc(100% - 40px);
+    margin-left: 20px;
+    padding: 36px 0 108px;
+  }
+  .coming-soon-content .coming-soon-horizon { margin: 38px 0 28px; }
+  .coming-soon-content h1 { font-size: clamp(52px, 17vw, 78px); }
+  .coming-soon-footer { right: 20px; bottom: 18px; }
+}
+
 .wrap { max-width: var(--max); margin: 0 auto; padding: 0 32px; }
 
 /* mono utility — spaced uppercase labels, the brand's data voice */
