@@ -99,6 +99,7 @@ async function encodeRingPano(
 export interface RenditionPaths {
   dir: string;
   stitchedPreview: string;
+  stagePreview?: string;
   cameraPreviews: Record<CameraId, string>;
   poster: string;
 }
@@ -113,12 +114,21 @@ export async function buildRenditions(
 
   const graded = drop.meta.colorState === "graded";
   const stitchedPreview = path.join(outDir, "stitched_preview.mp4");
+  let stagePreview: string | undefined;
   if (drop.stitchedMaster) {
     await encodePreview(
       drop.stitchedMaster,
       stitchedPreview,
       960,
       watermarkFilter(font, sku),
+      graded,
+    );
+    stagePreview = path.join(outDir, "stage_preview.mp4");
+    await encodePreview(
+      drop.stitchedMaster,
+      stagePreview,
+      2048,
+      watermarkFilter(font, sku, "360 STAGE PREVIS · FULL SPHERE"),
       graded,
     );
   } else {
@@ -154,5 +164,5 @@ export async function buildRenditions(
     ]);
   }
 
-  return { dir: outDir, stitchedPreview, cameraPreviews, poster };
+  return { dir: outDir, stitchedPreview, stagePreview, cameraPreviews, poster };
 }

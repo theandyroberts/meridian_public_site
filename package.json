@@ -35,6 +35,8 @@
     "catalog:staging:import": "node --env-file-if-exists=.env --import tsx scripts/catalog-database.ts import staging",
     "catalog:staging:check": "node --env-file-if-exists=.env --import tsx scripts/catalog-database.ts check staging",
     "catalog:staging:embed": "node --env-file-if-exists=.env --import tsx scripts/catalog-database.ts embed staging",
+    "stage:previews:build": "bash pipeline/stitch/build-stage-previews.sh",
+    "stage:previews:check": "node scripts/check-stage-previews.mjs",
     "staging:smoke:email": "node scripts/staging-auth-email-smoke.mjs",
     "test": "npm test -w pipeline"
   }

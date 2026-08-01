@@ -55,10 +55,12 @@ export default async function PlatePage({
     "green-screen": "Green Screen",
     projection: "Projection",
   };
-  const stageQuery = new URLSearchParams({
-    video: publicMediaUrl(plate.renditions.stitchedPreview),
-    label: `${plate.sku} · ${plate.title}`,
-  });
+  const stageQuery = plate.renditions.stagePreview
+    ? new URLSearchParams({
+        video: publicMediaUrl(plate.renditions.stagePreview),
+        label: `${plate.sku} · ${plate.title}`,
+      })
+    : null;
 
   return (
     <main className="wrap">
@@ -81,7 +83,11 @@ export default async function PlatePage({
 
       <SyncedPlayer
         plate={plate}
-        stageHref={plate.stageCompat.includes("led-volume") ? `/stage?${stageQuery}` : undefined}
+        stageHref={
+          plate.stageCompat.includes("led-volume") && stageQuery
+            ? `/stage?${stageQuery}`
+            : undefined
+        }
       />
 
       <div className="detail-cols">

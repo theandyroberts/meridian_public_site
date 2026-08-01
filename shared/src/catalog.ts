@@ -80,8 +80,14 @@ export const objectLabelSchema = z.object({
 });
 
 export const renditionsSchema = z.object({
-  /** Watermarked equirect preview MP4, the master clock in the player. */
+  /** Watermarked horizontal ring preview MP4, the master clock in the player. */
   stitchedPreview: z.string(),
+  /**
+   * Watermarked 2:1 equirectangular full-sphere preview for LED-volume previs.
+   * Kept separate from stitchedPreview so a cropped ring is never stretched
+   * over the virtual stage.
+   */
+  stagePreview: z.string().optional(),
   /** Watermarked per-camera preview MP4s, keyed by camera id. */
   cameraPreviews: z.record(z.enum(CAMERA_IDS), z.string()),
   poster: z.string(),

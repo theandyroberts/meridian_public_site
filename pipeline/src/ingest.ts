@@ -105,6 +105,9 @@ export async function ingestDiscovered(drop: Drop, opts: IngestOpts = {}): Promi
     },
     renditions: {
       stitchedPreview: uploaded.stitchedPreviewUrl,
+      ...(uploaded.stagePreviewUrl
+        ? { stagePreview: uploaded.stagePreviewUrl }
+        : {}),
       cameraPreviews: uploaded.cameraPreviewUrls,
       poster: uploaded.posterUrl,
     },

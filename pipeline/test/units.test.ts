@@ -4,6 +4,7 @@ import {
   priceForDuration,
   speedBandForAvg,
   plateSchema,
+  catalogDatabaseRecordForPlate,
 } from "@platelab/shared";
 import { signScreenerAccess, verifyScreenerAccess } from "../src/sign.js";
 import { summarizeTelemetry } from "../src/stages/telemetry.js";
@@ -63,7 +64,12 @@ test("plate schema v2: opaque sku, status default, mmm block, optional gps", () 
     imu: { collected: false },
     stageCompat: ["led-volume"], availability: "available",
     pricing: { perMinuteUsd: 8000, totalUsd: 8000, minimumMinutes: 1 },
-    renditions: { stitchedPreview: "/m/s.mp4", cameraPreviews: {}, poster: "/m/p.jpg" },
+    renditions: {
+      stitchedPreview: "/m/s.mp4",
+      stagePreview: "/m/stage.mp4",
+      cameraPreviews: {},
+      poster: "/m/p.jpg",
+    },
     security: { masterSha256: "a".repeat(64), watermarked: true },
     ingestedAt: "2026-07-08T00:00:00Z",
   };
@@ -71,6 +77,16 @@ test("plate schema v2: opaque sku, status default, mmm block, optional gps", () 
   assert.equal(parsed.status, "live"); // default for legacy entries
   assert.equal(parsed.mmm?.stockClipId.startsWith("SPH-STK"), true);
   assert.equal(parsed.gps, undefined); // gps now optional
+  const databaseRecord = catalogDatabaseRecordForPlate(parsed, "test-v1");
+  const stageAsset = databaseRecord.assets.find(
+    (asset) => asset.kind === "lab_preview",
+  );
+  assert.equal(stageAsset?.public_url, "/m/stage.mp4");
+  assert.deepEqual(stageAsset?.metadata, {
+    projection: "equirectangular",
+    coverage: "full-sphere",
+    purpose: "led-volume-previs",
+  });
   assert.throws(() => plateSchema.parse({ ...base, sku: "PL26161-0042" }));
   assert.throws(() => plateSchema.parse({ ...base, sku: "PL-4839207" })); // bad check digit is format-valid; regex passes — see refine
 });

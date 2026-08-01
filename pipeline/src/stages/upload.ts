@@ -19,6 +19,7 @@ import type { RenditionPaths } from "./renditions.js";
 export interface UploadResult {
   mode: "local" | "s3";
   stitchedPreviewUrl: string;
+  stagePreviewUrl?: string;
   cameraPreviewUrls: Record<CameraId, string>;
   posterUrl: string;
 }
@@ -53,6 +54,9 @@ export async function uploadRenditions(
     return {
       mode,
       stitchedPreviewUrl: `${base}/stitched_preview.mp4`,
+      ...(renditions.stagePreview
+        ? { stagePreviewUrl: `${base}/stage_preview.mp4` }
+        : {}),
       cameraPreviewUrls: Object.fromEntries(
         (Object.keys(renditions.cameraPreviews) as CameraId[]).map((id) => [
           id,
@@ -73,6 +77,9 @@ export async function uploadRenditions(
   return {
     mode,
     stitchedPreviewUrl: `${base}/stitched_preview.mp4`,
+    ...(renditions.stagePreview
+      ? { stagePreviewUrl: `${base}/stage_preview.mp4` }
+      : {}),
     cameraPreviewUrls: Object.fromEntries(
       (Object.keys(renditions.cameraPreviews) as CameraId[]).map((id) => [
         id,

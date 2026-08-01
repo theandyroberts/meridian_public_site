@@ -17,6 +17,7 @@ ingest-inbox/
 sample-data/reference/
 pipeline/stitch/.venv/
 pipeline/stitch/reports/
+pipeline/stitch/source-cache/
 web/data/stitch-reports/
 
 # Stage viewer (viewer/) — only its install deps stay out of git; the models

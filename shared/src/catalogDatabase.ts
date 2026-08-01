@@ -133,6 +133,27 @@ export function catalogDatabaseRecordForPlate(
         source_version: sourceVersion,
         metadata: { projection: "equirectangular" },
       },
+      ...(plate.renditions.stagePreview
+        ? [
+            {
+              kind: "lab_preview",
+              camera_id: null,
+              public_url: plate.renditions.stagePreview,
+              mime_type: "video/mp4",
+              width: 2048,
+              height: 1024,
+              duration_sec: plate.media.durationSec,
+              is_public: true,
+              source,
+              source_version: sourceVersion,
+              metadata: {
+                projection: "equirectangular",
+                coverage: "full-sphere",
+                purpose: "led-volume-previs",
+              },
+            },
+          ]
+        : []),
       ...CAMERA_IDS.flatMap((cameraId) => {
         const publicUrl = plate.renditions.cameraPreviews[cameraId];
         return publicUrl
