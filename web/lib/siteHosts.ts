@@ -8,6 +8,12 @@ export const COMING_SOON_HOSTNAMES = new Set([
   "www.theplatelab.studio",
 ]);
 
+const LEGACY_WEB_HOST_REDIRECTS = new Map([
+  ["theplatelab.site", "theplatelab.studio"],
+  ["www.theplatelab.site", "theplatelab.studio"],
+  ["staging.theplatelab.site", "staging.theplatelab.studio"],
+]);
+
 export function hostnameFromHost(host: string | null | undefined): string {
   if (!host) return "";
 
@@ -24,4 +30,8 @@ export function isStagingHostname(hostname: string): boolean {
 
 export function isComingSoonHostname(hostname: string): boolean {
   return COMING_SOON_HOSTNAMES.has(hostname.toLowerCase());
+}
+
+export function canonicalWebHostname(hostname: string): string | null {
+  return LEGACY_WEB_HOST_REDIRECTS.get(hostname.toLowerCase()) ?? null;
 }
