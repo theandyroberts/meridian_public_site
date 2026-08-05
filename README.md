@@ -49,14 +49,30 @@ npm test                 # pipeline unit tests
 5. **describe** — title/description (Claude or template)
 6. **renditions** — watermarked previews (stitched or 6-cam ring panorama),
    9 camera tiles, poster; preview-only viewing grade for log footage
-7. **upload** — local (`web/public/media/`) or S3 (private vault bucket for
-   originals, public bucket for renditions)
+7. **upload** — local (`web/public/media/`), S3 (private vault bucket for
+   originals, public bucket for renditions), or Hippius S3-compatible storage
 8. **publish** — schema-validated atomic upsert into `web/data/catalog.json`
 
 Every stage appends to `sample-data/audit.jsonl` (chain of custody).
 Originals never reach a web-served path; previews are burned with SKU +
 `NOT FOR PRODUCTION`. Screening-room access to masters uses HMAC-signed
 expiring links (`pipeline/src/sign.ts`, verified by `/api/screener`).
+
+### Hippius upload
+
+The pipeline reads root `.env.local` before uploading. To send MMM output to
+Hippius, set:
+
+```bash
+HIPPIUS_BUCKET=your-bucket
+HIPPIUS_ACCESS_KEY=...
+HIPPIUS_SECRET=...
+```
+
+With `HIPPIUS_BUCKET` present, upload defaults to `hippius` mode. Optional
+overrides: `HIPPIUS_ENDPOINT_URL` (defaults to `https://s3.hippius.com`) and
+`HIPPIUS_REGION` (defaults to `decentralized`). The upload stage still shells
+out to the AWS CLI.
 
 ## Pricing
 
