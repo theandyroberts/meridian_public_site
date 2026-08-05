@@ -4,7 +4,21 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { detectDecodedFootagePreset } from './footage-layout.js'
-import { FEET_TO_SCENE_UNITS, feetToSceneUnits, scaleModelToLength } from './scene-scale.js'
+import {
+  formatFrameTimecode,
+  formatRelativeTimecode,
+  formatSourceTimecode,
+  normalizeFps,
+  parseOptionalFrame,
+  secondsToFrame,
+  selectionDurationFrames,
+} from './playback-selection.js'
+import {
+  FEET_TO_SCENE_UNITS,
+  clampPointToStageInterior,
+  feetToSceneUnits,
+  scaleModelToLength,
+} from './scene-scale.js'
 import { VEHICLE_PHYSICAL_LENGTHS_FT } from './vehicle-specs.js'
 
 const FEET_TO_UNITS = FEET_TO_SCENE_UNITS
@@ -140,6 +154,15 @@ const state = {
   panelGrid: true,
   reflections: true,
   playRate: 1,
+  playback: {
+    fps: 24,
+    sourceTimecode: '00:00:00:00',
+    inFrame: null,
+    outFrame: null,
+    sceneClipId: null,
+    version: null,
+    saveState: 'local',
+  },
   footageYaw: 0,
   footageVertical: 0,
   footagePreset: 'canyon',
@@ -172,6 +195,32 @@ app.innerHTML = `
         <div class="status" id="playbackStatus">No footage loaded</div>
       </div>
       <canvas id="stageCanvas"></canvas>
+      <section class="transport" aria-label="Footage playback and selection">
+        <div class="transport__timeline">
+          <button class="transport__play" id="transportPlayPause" type="button" aria-label="Play footage" disabled>
+            <span data-icon="play"></span>
+          </button>
+          <output class="transport__clock mono" id="currentTime">00:00:00:00</output>
+          <label class="transport__scrubber">
+            <span class="sr-only">Footage timeline</span>
+            <input id="timeline" type="range" min="0" max="0" step="0.0416667" value="0" disabled />
+          </label>
+          <output class="transport__clock mono" id="totalTime">00:00:00:00</output>
+        </div>
+        <div class="transport__selection">
+          <button class="transport__marker" id="setIn" type="button" disabled>Set In</button>
+          <button class="transport__marker" id="setOut" type="button" disabled>Set Out</button>
+          <dl class="transport__readout">
+            <div><dt>Source TC</dt><dd class="mono" id="sourceTimecode">00:00:00:00</dd></div>
+            <div><dt>From In</dt><dd class="mono" id="relativeTime">--:--:--:--</dd></div>
+            <div><dt>In</dt><dd class="mono" id="inTimecode">--:--:--:--</dd></div>
+            <div><dt>Out</dt><dd class="mono" id="outTimecode">--:--:--:--</dd></div>
+            <div><dt>Selected</dt><dd class="mono" id="selectionDuration">--:--:--:--</dd></div>
+          </dl>
+          <button class="transport__save" id="saveSelection" type="button" disabled>Save selection</button>
+          <span class="transport__feedback" id="selectionFeedback" role="status" aria-live="polite">Open from a saved scene clip to persist a selection.</span>
+        </div>
+      </section>
       <div class="view-strip" id="viewStrip" aria-label="Camera views"></div>
       <button id="panelToggle" class="panel-toggle" type="button" title="Hide controls" aria-label="Hide controls">›</button>
     </section>
@@ -708,10 +757,25 @@ function buildControls() {
     applyFootageTransform()
   })
   document.querySelector('#playPause').addEventListener('click', togglePlayback)
+  document.querySelector('#transportPlayPause').addEventListener('click', togglePlayback)
+  document.querySelector('#timeline').addEventListener('input', seekFromTimeline)
+  document.querySelector('#setIn').addEventListener('click', setInPoint)
+  document.querySelector('#setOut').addEventListener('click', setOutPoint)
+  document.querySelector('#saveSelection').addEventListener('click', saveSelection)
   document.querySelector('#resetView').addEventListener('click', () => setView(state.selectedView, false))
 
-  video.addEventListener('play', () => setPlaybackStatus('Playing'))
-  video.addEventListener('pause', () => setPlaybackStatus('Paused'))
+  video.addEventListener('loadedmetadata', initializeTransport)
+  video.addEventListener('durationchange', initializeTransport)
+  video.addEventListener('timeupdate', updateTransport)
+  video.addEventListener('seeked', updateTransport)
+  video.addEventListener('play', () => {
+    setPlaybackStatus('Playing')
+    updatePlaybackButtons()
+  })
+  video.addEventListener('pause', () => {
+    setPlaybackStatus('Paused')
+    updatePlaybackButtons()
+  })
   video.addEventListener('error', () => setPlaybackStatus('Video could not load'))
 }
 
@@ -1490,12 +1554,14 @@ function loadVideoFile(event) {
   if (!file) return
   const url = URL.createObjectURL(file)
   document.querySelector('#fileName').textContent = file.name
+  clearPlaybackContext()
   loadVideoSource(url, file.name)
 }
 
 function loadVideoUrl() {
   const url = document.querySelector('#videoUrl').value.trim()
   if (!url) return
+  clearPlaybackContext()
   loadVideoSource(url, 'URL footage')
 }
 
@@ -1505,9 +1571,42 @@ function loadInitialFootage() {
   if (!footageUrl) return
 
   const label = params.get('label')?.trim() || 'Plate preview'
+  configurePlaybackContext(params)
   document.querySelector('#videoUrl').value = footageUrl
   document.querySelector('#fileName').textContent = label
   loadVideoSource(footageUrl, label)
+}
+
+function configurePlaybackContext(params) {
+  state.playback.fps = normalizeFps(params.get('fps'))
+  state.playback.sourceTimecode = params.get('sourceTimecode')?.trim() || '00:00:00:00'
+  state.playback.sceneClipId = params.get('sceneClipId')?.trim() || null
+  const version = parseOptionalFrame(params.get('version'))
+  state.playback.version = version !== null && version > 0 ? version : null
+
+  const inFrame = parseOptionalFrame(params.get('inFrame'))
+  const outFrame = parseOptionalFrame(params.get('outFrame'))
+  if (inFrame !== null && outFrame !== null && outFrame > inFrame) {
+    state.playback.inFrame = inFrame
+    state.playback.outFrame = outFrame
+    state.playback.saveState = 'saved'
+  } else {
+    state.playback.inFrame = null
+    state.playback.outFrame = null
+    state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
+  }
+  renderSelection()
+}
+
+function clearPlaybackContext() {
+  state.playback.fps = 24
+  state.playback.sourceTimecode = '00:00:00:00'
+  state.playback.sceneClipId = null
+  state.playback.version = null
+  state.playback.inFrame = null
+  state.playback.outFrame = null
+  state.playback.saveState = 'local'
+  renderSelection()
 }
 
 async function loadVideoSource(src, label) {
@@ -1562,6 +1661,165 @@ function togglePlayback() {
   } else {
     video.pause()
   }
+}
+
+function initializeTransport() {
+  const duration = Number.isFinite(video.duration) ? Math.max(0, video.duration) : 0
+  const timeline = document.querySelector('#timeline')
+  timeline.max = String(duration)
+  timeline.step = String(1 / state.playback.fps)
+  timeline.disabled = duration <= 0
+  document.querySelector('#transportPlayPause').disabled = duration <= 0
+  document.querySelector('#setIn').disabled = duration <= 0
+  document.querySelector('#setOut').disabled = duration <= 0
+  updatePlaybackButtons()
+  updateTransport()
+}
+
+function seekFromTimeline(event) {
+  if (!video.src || !Number.isFinite(video.duration)) return
+  video.currentTime = THREE.MathUtils.clamp(Number(event.target.value), 0, video.duration)
+  updateTransport()
+}
+
+function updateTransport() {
+  const fps = state.playback.fps
+  const duration = Number.isFinite(video.duration) ? video.duration : 0
+  const currentFrame = currentPlaybackFrame()
+  const totalFrames = secondsToFrame(duration, fps)
+  const timeline = document.querySelector('#timeline')
+
+  timeline.value = String(Math.min(video.currentTime || 0, duration))
+  document.querySelector('#currentTime').textContent = formatFrameTimecode(currentFrame, fps)
+  document.querySelector('#totalTime').textContent = formatFrameTimecode(totalFrames, fps)
+  document.querySelector('#sourceTimecode').textContent = formatSourceTimecode(
+    currentFrame,
+    fps,
+    state.playback.sourceTimecode,
+  )
+  document.querySelector('#relativeTime').textContent = formatRelativeTimecode(
+    currentFrame,
+    state.playback.inFrame,
+    fps,
+  )
+}
+
+function updatePlaybackButtons() {
+  const playing = Boolean(video.src && !video.paused)
+  ;['playPause', 'transportPlayPause'].forEach((id) => {
+    const button = document.querySelector(`#${id}`)
+    if (!button) return
+    button.classList.toggle('is-playing', playing)
+    button.setAttribute('aria-label', playing ? 'Pause footage' : 'Play footage')
+    button.title = playing ? 'Pause footage' : 'Play footage'
+    const icon = button.querySelector('[data-icon]')
+    if (icon) icon.dataset.icon = playing ? 'pause' : 'play'
+  })
+}
+
+function setInPoint() {
+  if (!video.src) return
+  const frame = currentPlaybackFrame()
+  state.playback.inFrame = frame
+  if (state.playback.outFrame !== null && state.playback.outFrame <= frame) {
+    state.playback.outFrame = null
+  }
+  state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
+  renderSelection()
+  updateTransport()
+}
+
+function setOutPoint() {
+  if (!video.src) return
+  if (state.playback.inFrame === null) {
+    setSelectionFeedback('Set an In point before setting Out.', 'error')
+    return
+  }
+  const frame = currentPlaybackFrame()
+  if (frame <= state.playback.inFrame) {
+    setSelectionFeedback('Move later than the In point before setting Out.', 'error')
+    return
+  }
+  state.playback.outFrame = frame
+  state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
+  renderSelection()
+  updateTransport()
+}
+
+function renderSelection() {
+  const { fps, sourceTimecode, inFrame, outFrame, sceneClipId, saveState } = state.playback
+  const durationFrames = selectionDurationFrames(inFrame, outFrame)
+  const saveButton = document.querySelector('#saveSelection')
+  if (!saveButton) return
+
+  document.querySelector('#inTimecode').textContent = Number.isInteger(inFrame)
+    ? formatSourceTimecode(inFrame, fps, sourceTimecode)
+    : '--:--:--:--'
+  document.querySelector('#outTimecode').textContent = Number.isInteger(outFrame)
+    ? formatSourceTimecode(outFrame, fps, sourceTimecode)
+    : '--:--:--:--'
+  document.querySelector('#selectionDuration').textContent = durationFrames
+    ? formatFrameTimecode(durationFrames, fps)
+    : '--:--:--:--'
+
+  saveButton.disabled = !sceneClipId || !durationFrames || saveState === 'saving' || saveState === 'saved'
+  saveButton.textContent = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Selection saved' : 'Save selection'
+
+  if (!sceneClipId) {
+    setSelectionFeedback('Open Studio from a saved scene clip to persist a selection.')
+  } else if (!durationFrames) {
+    setSelectionFeedback('Set an In point and a later Out point.')
+  } else if (saveState === 'saved') {
+    setSelectionFeedback('In and Out points are saved to this scene clip.', 'success')
+  } else if (saveState === 'saving') {
+    setSelectionFeedback('Saving selection…')
+  } else {
+    setSelectionFeedback('Selection has unsaved changes.')
+  }
+}
+
+function currentPlaybackFrame() {
+  const frame = secondsToFrame(video.currentTime, state.playback.fps)
+  if (!Number.isFinite(video.duration) || video.duration <= 0) return frame
+  return Math.min(frame, Math.max(0, secondsToFrame(video.duration, state.playback.fps) - 1))
+}
+
+async function saveSelection() {
+  const { sceneClipId, version, inFrame, outFrame } = state.playback
+  if (!sceneClipId || !Number.isInteger(version) || selectionDurationFrames(inFrame, outFrame) === null) return
+
+  state.playback.saveState = 'saving'
+  renderSelection()
+  try {
+    const response = await fetch(`/api/scene-clips/${encodeURIComponent(sceneClipId)}/selection`, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ inFrame, outFrame, expectedVersion: version }),
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(result.error || 'Selection could not be saved.')
+
+    state.playback.version = result.version
+    state.playback.saveState = 'saved'
+    const params = new URLSearchParams(window.location.search)
+    params.set('inFrame', String(result.inFrame))
+    params.set('outFrame', String(result.outFrame))
+    params.set('version', String(result.version))
+    window.history.replaceState(null, '', `${window.location.pathname}?${params}`)
+    renderSelection()
+  } catch (error) {
+    state.playback.saveState = 'idle'
+    renderSelection()
+    setSelectionFeedback(error instanceof Error ? error.message : 'Selection could not be saved.', 'error')
+  }
+}
+
+function setSelectionFeedback(message, tone = '') {
+  const feedback = document.querySelector('#selectionFeedback')
+  if (!feedback) return
+  feedback.textContent = message
+  feedback.dataset.tone = tone
 }
 
 function syncEnvironment(texture = stageVideoUniforms.map.value) {
@@ -1668,9 +1926,18 @@ function resizeRenderer() {
   camera.updateProjectionMatrix()
 }
 
+function constrainCameraToStageInterior() {
+  const nextCamera = clampPointToStageInterior(camera.position, state.dimensions)
+  const nextTarget = clampPointToStageInterior(controls.target, state.dimensions)
+
+  camera.position.set(nextCamera.x, nextCamera.y, nextCamera.z)
+  controls.target.set(nextTarget.x, nextTarget.y, nextTarget.z)
+}
+
 function animate() {
   resizeRenderer()
   controls.update()
+  constrainCameraToStageInterior()
   if (state.reflections) {
     carGroup.visible = false
     reflectionCamera.position.set(0, 1.05, 0)

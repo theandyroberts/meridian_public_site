@@ -59,6 +59,10 @@ export default async function PlatePage({
     ? new URLSearchParams({
         video: publicMediaUrl(plate.renditions.stagePreview),
         label: `${plate.sku} · ${plate.title}`,
+        fps: String(plate.media.fps),
+        ...(plate.media.timecode
+          ? { sourceTimecode: plate.media.timecode }
+          : {}),
       })
     : null;
 

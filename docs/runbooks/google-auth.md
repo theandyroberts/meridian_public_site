@@ -5,12 +5,12 @@ hidden until both Google and the self-hosted Auth service are configured.
 
 ## Staging URLs
 
-- Website origin: `https://staging.theplatelab.site`
+- Website origin: `https://staging.theplatelab.studio`
 - Supabase API: `https://supabase-staging.theplatelab.site`
 - Google authorized redirect URI:
   `https://supabase-staging.theplatelab.site/auth/v1/callback`
 - Supabase application redirect allow-list:
-  `https://staging.theplatelab.site/auth/callback**`
+  `https://staging.theplatelab.studio/auth/callback**`
 
 ## Google Cloud
 
@@ -32,7 +32,7 @@ GOTRUE_EXTERNAL_GOOGLE_ENABLED=true
 GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID=<Google OAuth client ID>
 GOTRUE_EXTERNAL_GOOGLE_SECRET=<Google OAuth client secret>
 GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI=https://supabase-staging.theplatelab.site/auth/v1/callback
-GOTRUE_URI_ALLOW_LIST=https://staging.theplatelab.site/auth/callback**
+GOTRUE_URI_ALLOW_LIST=https://staging.theplatelab.studio/auth/callback**
 ```
 
 The Coolify Supabase compose template may map stack-level variables such as

@@ -18,12 +18,32 @@ export const metadata: Metadata = {
 export default async function StageViewerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ video?: string; label?: string }>;
+  searchParams: Promise<{
+    video?: string;
+    label?: string;
+    fps?: string;
+    sourceTimecode?: string;
+    sceneClipId?: string;
+    version?: string;
+    inFrame?: string;
+    outFrame?: string;
+  }>;
 }) {
   const query = await searchParams;
   const viewerQuery = new URLSearchParams();
-  if (query.video) viewerQuery.set("video", query.video);
-  if (query.label) viewerQuery.set("label", query.label);
+  const forwardedParameters = [
+    "video",
+    "label",
+    "fps",
+    "sourceTimecode",
+    "sceneClipId",
+    "version",
+    "inFrame",
+    "outFrame",
+  ] as const;
+  for (const name of forwardedParameters) {
+    if (query[name]) viewerQuery.set(name, query[name]);
+  }
   const viewerSrc = `/stage/index.html${viewerQuery.size ? `?${viewerQuery}` : ""}`;
 
   return (

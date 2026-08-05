@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { SceneImportPanel } from "@/components/SceneImportPanel";
 import { SceneInputWorkspace } from "@/components/SceneInputWorkspace";
+import { sceneClipCounts } from "@/lib/sceneClipCounts";
 import { createClient } from "@/lib/supabase/server";
 import {
   createScene,
@@ -50,7 +51,7 @@ export default async function ProjectPage({
       supabase
         .from("scenes")
         .select(
-          "id, scene_number, name, search_brief, vehicle, script_scene_number, script_pages, generated_keywords, keyword_generation_status",
+          "id, scene_number, name, search_brief, vehicle, script_scene_number, script_pages, generated_keywords, keyword_generation_status, scene_clips(status)",
         )
         .eq("project_id", projectId)
         .is("archived_at", null)
@@ -236,6 +237,8 @@ export default async function ProjectPage({
                   <th scope="col">Plate brief</th>
                   <th scope="col">Vehicle</th>
                   <th scope="col">Search</th>
+                  <th scope="col">Considering</th>
+                  <th scope="col">Selected</th>
                   <th scope="col" aria-label="Open scene" />
                 </tr>
               </thead>
@@ -243,6 +246,7 @@ export default async function ProjectPage({
                 {scenes?.map((scene) => {
                   const href = `/projects/${project.id}/scenes/${scene.id}`;
                   const keywordCount = scene.generated_keywords?.length ?? 0;
+                  const clipCounts = sceneClipCounts(scene.scene_clips);
                   return (
                     <tr key={scene.id}>
                       <td className="scene-sequence mono">
@@ -279,6 +283,12 @@ export default async function ProjectPage({
                               ? "Pending"
                               : "—"}
                         </span>
+                      </td>
+                      <td className="scene-clip-count mono-md">
+                        {clipCounts.considering}
+                      </td>
+                      <td className="scene-clip-count is-selected mono-md">
+                        {clipCounts.selected}
                       </td>
                       <td className="scene-open-cell">
                         <Link href={href} aria-label={`Open ${scene.name}`}>

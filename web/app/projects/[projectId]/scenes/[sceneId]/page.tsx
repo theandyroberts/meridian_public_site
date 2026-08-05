@@ -3,15 +3,17 @@ import { notFound, redirect } from "next/navigation";
 import { plateSchema, type Plate } from "@platelab/shared";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { PlateCard } from "@/components/PlateCard";
+import { SceneClipStatusControl } from "@/components/SceneClipStatusControl";
 import { SceneDeleteForm } from "@/components/SceneDeleteForm";
 import { createQueryEmbedding } from "@/lib/search";
 import { matchClosenessPercent } from "@/lib/matchCloseness";
+import { publicMediaUrl } from "@/lib/publicMediaUrl";
+import { formatSceneClipSelectionDuration } from "@/lib/sceneClipSelection";
 import { createClient } from "@/lib/supabase/server";
 import {
   addClipToScene,
   refreshSceneKeywords,
   updateScene,
-  updateSceneClipStatus,
 } from "@/app/projects/actions";
 
 type ScenePageProps = {
@@ -33,11 +35,69 @@ type SelectedClip = {
     | "rejected"
     | "submitted";
   version: number;
+  inFrame: number | null;
+  outFrame: number | null;
   stockClipId: string;
   plate: Plate;
 };
 
 export const dynamic = "force-dynamic";
+
+type StudioSelectionContext = Pick<
+  SelectedClip,
+  "id" | "version" | "inFrame" | "outFrame"
+>;
+
+function studioHref(
+  plate: Plate,
+  selection?: StudioSelectionContext,
+): string | null {
+  if (
+    !plate.stageCompat.includes("led-volume") ||
+    !plate.renditions.stagePreview
+  ) {
+    return null;
+  }
+
+  const query = new URLSearchParams({
+    video: publicMediaUrl(plate.renditions.stagePreview),
+    label: `${plate.sku} · ${plate.title}`,
+    fps: String(plate.media.fps),
+  });
+  if (plate.media.timecode) {
+    query.set("sourceTimecode", plate.media.timecode);
+  }
+  if (selection) {
+    query.set("sceneClipId", selection.id);
+    query.set("version", String(selection.version));
+    if (selection.inFrame !== null && selection.outFrame !== null) {
+      query.set("inFrame", String(selection.inFrame));
+      query.set("outFrame", String(selection.outFrame));
+    }
+  }
+  return `/stage?${query}`;
+}
+
+function StudioLink({
+  plate,
+  selection,
+}: {
+  plate: Plate;
+  selection?: StudioSelectionContext;
+}) {
+  const href = studioHref(plate, selection);
+  if (!href) return null;
+
+  return (
+    <Link
+      href={href}
+      className="secondary-button"
+      style={{ width: "100%", marginTop: 12 }}
+    >
+      Open in Studio →
+    </Link>
+  );
+}
 
 export default async function ScenePage({
   params,
@@ -98,7 +158,7 @@ export default async function ScenePage({
       supabase
         .from("scene_clips")
         .select(
-          "id, status, version, stock_clip_id, stock_clips(source_metadata)",
+          "id, status, version, in_frame, out_frame, stock_clip_id, stock_clips(source_metadata)",
         )
         .eq("scene_id", sceneId)
         .order("sort_order")
@@ -148,6 +208,8 @@ export default async function ScenePage({
         id: row.id,
         status: row.status,
         version: row.version,
+        inFrame: row.in_frame,
+        outFrame: row.out_frame,
         stockClipId: row.stock_clip_id,
         plate: plateSchema.parse(relation.source_metadata),
       },
@@ -327,31 +389,31 @@ export default async function ScenePage({
             </div>
           </div>
           <div className="plate-grid">
-            {selected.map((item) => (
-              <div key={item.id}>
-                <PlateCard plate={item.plate} />
-                <form action={updateSceneClipStatus} className="scene-clip-form">
-                  <input type="hidden" name="projectId" value={projectId} />
-                  <input type="hidden" name="sceneId" value={sceneId} />
-                  <input type="hidden" name="sceneClipId" value={item.id} />
-                  <input
-                    type="hidden"
-                    name="expectedVersion"
-                    value={item.version}
+            {selected.map((item) => {
+              const selectedDuration = formatSceneClipSelectionDuration(
+                item.inFrame,
+                item.outFrame,
+                item.plate.media.fps,
+              );
+              return (
+                <div key={item.id}>
+                  <PlateCard plate={item.plate} />
+                  <StudioLink plate={item.plate} selection={item} />
+                  {selectedDuration && (
+                    <p className="mono dimmer" style={{ margin: "10px 0 0" }}>
+                      Selected duration: {selectedDuration}
+                    </p>
+                  )}
+                  <SceneClipStatusControl
+                    projectId={projectId}
+                    sceneId={sceneId}
+                    sceneClipId={item.id}
+                    status={item.status}
+                    version={item.version}
                   />
-                  <select name="status" defaultValue={item.status}>
-                    <option value="considering">Considering</option>
-                    <option value="shortlisted">Shortlisted</option>
-                    <option value="selected">Selected</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="submitted">Submitted</option>
-                  </select>
-                  <button type="submit" className="filter-chip">
-                    Save status
-                  </button>
-                </form>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -394,6 +456,7 @@ export default async function ScenePage({
                   </strong>
                 </div>
                 <PlateCard plate={result.plate} />
+                <StudioLink plate={result.plate} />
                 <form action={addClipToScene} className="scene-clip-form">
                   <input type="hidden" name="projectId" value={projectId} />
                   <input type="hidden" name="sceneId" value={sceneId} />

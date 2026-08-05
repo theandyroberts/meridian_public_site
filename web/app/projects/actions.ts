@@ -606,4 +606,5 @@ export async function updateSceneClipStatus(formData: FormData) {
     );
   }
   revalidatePath(scenePath(projectId, sceneId));
+  revalidatePath(`/projects/${projectId}`);
 }
