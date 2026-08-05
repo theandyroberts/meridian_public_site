@@ -70,8 +70,8 @@ is blocked. The root `.env` is loaded automatically.
    removed. Production ingest fails closed if `OPENAI_API_KEY` is unavailable
 7. **renditions** — watermarked full-sphere previews, Studio preview, nine
    camera tiles, and poster; an unstitched camera grid is never published
-8. **upload** — local (`web/public/media/`) or S3 (private vault bucket for
-   originals, public bucket for renditions)
+8. **upload** — local (`web/public/media/`), S3 (private vault bucket for
+   originals, public bucket for renditions), or Hippius S3-compatible storage
 9. **publish** — schema-validated atomic upsert into `web/data/catalog.json`
 
 Mercy01 drops may use the bundled `mercy01-v1` calibration. Any other rig must
@@ -85,6 +85,22 @@ Every stage appends to `sample-data/audit.jsonl` (chain of custody).
 Originals never reach a web-served path; previews are burned with SKU +
 `NOT FOR PRODUCTION`. Screening-room access to masters uses HMAC-signed
 expiring links (`pipeline/src/sign.ts`, verified by `/api/screener`).
+
+### Hippius upload
+
+The pipeline reads root `.env.local` before uploading. To send MMM output to
+Hippius, set:
+
+```bash
+HIPPIUS_BUCKET=your-bucket
+HIPPIUS_ACCESS_KEY=...
+HIPPIUS_SECRET=...
+```
+
+With `HIPPIUS_BUCKET` present, upload defaults to `hippius` mode. Optional
+overrides: `HIPPIUS_ENDPOINT_URL` (defaults to `https://s3.hippius.com`) and
+`HIPPIUS_REGION` (defaults to `decentralized`). The upload stage still shells
+out to the AWS CLI.
 
 ## Pricing
 
