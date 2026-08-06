@@ -27,6 +27,11 @@ export default async function StageViewerPage({
     version?: string;
     inFrame?: string;
     outFrame?: string;
+    projectId?: string;
+    projectName?: string;
+    sceneId?: string;
+    sceneName?: string;
+    sku?: string;
   }>;
 }) {
   const query = await searchParams;
@@ -40,6 +45,11 @@ export default async function StageViewerPage({
     "version",
     "inFrame",
     "outFrame",
+    "projectId",
+    "projectName",
+    "sceneId",
+    "sceneName",
+    "sku",
   ] as const;
   for (const name of forwardedParameters) {
     if (query[name]) viewerQuery.set(name, query[name]);

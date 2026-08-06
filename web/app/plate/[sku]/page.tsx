@@ -12,6 +12,7 @@ import { GpsPanel } from "@/components/GpsPanel";
 import { PriceBlock } from "@/components/PriceBlock";
 import { PlateCard } from "@/components/PlateCard";
 import { publicMediaUrl } from "@/lib/publicMediaUrl";
+import { buildStudioHref } from "@/lib/studioHref";
 
 export const dynamic = "force-dynamic";
 
@@ -55,14 +56,13 @@ export default async function PlatePage({
     "green-screen": "Green Screen",
     projection: "Projection",
   };
-  const stageQuery = plate.renditions.stagePreview
-    ? new URLSearchParams({
+  const stageHref = plate.renditions.stagePreview
+    ? buildStudioHref({
         video: publicMediaUrl(plate.renditions.stagePreview),
         label: `${plate.sku} · ${plate.title}`,
-        fps: String(plate.media.fps),
-        ...(plate.media.timecode
-          ? { sourceTimecode: plate.media.timecode }
-          : {}),
+        fps: plate.media.fps,
+        sourceTimecode: plate.media.timecode,
+        sku: plate.sku,
       })
     : null;
 
@@ -88,8 +88,8 @@ export default async function PlatePage({
       <SyncedPlayer
         plate={plate}
         stageHref={
-          plate.stageCompat.includes("led-volume") && stageQuery
-            ? `/stage?${stageQuery}`
+          plate.stageCompat.includes("led-volume") && stageHref
+            ? stageHref
             : undefined
         }
       />

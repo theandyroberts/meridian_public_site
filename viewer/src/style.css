@@ -86,6 +86,59 @@ button {
   pointer-events: none;
 }
 
+.viewport__meta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  max-width: min(420px, 44vw);
+}
+
+.studio-origin {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(232, 238, 230, 0.18);
+  border-radius: 6px;
+  background: rgba(7, 9, 10, 0.78);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+  text-align: right;
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+}
+
+.studio-origin__mode,
+.studio-origin__clip {
+  margin: 0;
+  color: var(--cyan);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.studio-origin strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.studio-origin span {
+  max-width: 38ch;
+}
+
+.studio-origin a {
+  margin-top: 5px;
+  color: var(--green);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.studio-origin a:hover {
+  text-decoration: underline;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--cyan);
@@ -476,6 +529,7 @@ input[type="checkbox"] {
 
 .transport__play,
 .transport__marker,
+.transport__clear,
 .transport__save {
   min-height: 34px;
   border: 1px solid rgba(232, 238, 230, 0.18);
@@ -499,6 +553,7 @@ input[type="checkbox"] {
 
 .transport__play:hover:not(:disabled),
 .transport__marker:hover:not(:disabled),
+.transport__clear:hover:not(:disabled),
 .transport__save:hover:not(:disabled) {
   border-color: rgba(130, 215, 208, 0.68);
   background: rgba(130, 215, 208, 0.12);
@@ -523,8 +578,56 @@ input[type="checkbox"] {
   width: 100%;
 }
 
+.transport__scrubber input {
+  height: 6px;
+  border-radius: 999px;
+  appearance: none;
+  background: rgba(170, 181, 173, 0.34);
+}
+
+.transport__scrubber input.has-selection {
+  background: linear-gradient(
+    to right,
+    rgba(170, 181, 173, 0.22) 0 var(--selection-start),
+    var(--amber) var(--selection-start) var(--selection-end),
+    rgba(170, 181, 173, 0.22) var(--selection-end) 100%
+  );
+}
+
+.transport__scrubber input::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.transport__scrubber input::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border: 2px solid #07100e;
+  border-radius: 50%;
+  appearance: none;
+  background: var(--green);
+  box-shadow: 0 0 0 1px rgba(232, 238, 230, 0.56);
+}
+
+.transport__scrubber input::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.transport__scrubber input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #07100e;
+  border-radius: 50%;
+  background: var(--green);
+}
+
 .transport__selection {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto minmax(520px, 1fr) auto auto;
   align-items: center;
   gap: 8px;
   margin-top: 9px;
@@ -533,6 +636,7 @@ input[type="checkbox"] {
 }
 
 .transport__marker,
+.transport__clear,
 .transport__save {
   padding: 6px 12px;
   white-space: nowrap;
@@ -542,15 +646,25 @@ input[type="checkbox"] {
   color: var(--cyan);
 }
 
+.transport__marker.is-set {
+  border-color: rgba(226, 189, 99, 0.88);
+  background: rgba(226, 189, 99, 0.16);
+  color: #ffe29a;
+}
+
+.transport__clear {
+  color: #ffb0b6;
+}
+
 .transport__save {
   color: var(--green);
 }
 
 .transport__readout {
   display: grid;
-  grid-template-columns: repeat(5, minmax(92px, auto));
+  grid-template-columns: 90px 88px minmax(126px, 1fr) minmax(126px, 1fr) 92px;
   gap: 10px;
-  margin: 0 auto 0 4px;
+  margin: 0 4px;
 }
 
 .transport__readout div {
@@ -570,9 +684,18 @@ input[type="checkbox"] {
   color: var(--text);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.transport__readout dd.is-set {
+  color: #fff1bf;
+  font-size: 16px;
+  font-weight: 900;
+  text-shadow: 0 0 18px rgba(226, 189, 99, 0.42);
 }
 
 .transport__feedback {
+  grid-column: 1 / -1;
   max-width: 200px;
   color: var(--muted);
   font-size: 10px;
@@ -671,6 +794,7 @@ input[type="checkbox"] {
   }
 
   .transport__selection {
+    display: flex;
     flex-wrap: wrap;
   }
 
@@ -682,6 +806,7 @@ input[type="checkbox"] {
   }
 
   .transport__feedback {
+    grid-column: auto;
     max-width: none;
     flex: 1 1 180px;
   }

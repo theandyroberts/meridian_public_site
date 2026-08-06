@@ -8,10 +8,16 @@ import {
   formatFrameTimecode,
   formatRelativeTimecode,
   formatSourceTimecode,
+  frameToSeconds,
+  hasBackwardsSelection,
   normalizeFps,
   parseOptionalFrame,
   secondsToFrame,
   selectionDurationFrames,
+  selectionTimelineRange,
+  setInMarker,
+  setOutMarker,
+  shouldLoopSelection,
 } from './playback-selection.js'
 import {
   FEET_TO_SCENE_UNITS,
@@ -163,6 +169,13 @@ const state = {
     version: null,
     saveState: 'local',
   },
+  context: {
+    projectId: null,
+    projectName: '',
+    sceneId: null,
+    sceneName: '',
+    sku: '',
+  },
   footageYaw: 0,
   footageVertical: 0,
   footagePreset: 'canyon',
@@ -192,7 +205,16 @@ app.innerHTML = `
           <p class="eyebrow">Virtual production stock preview</p>
           <h1>LED Wall Footage Viewer</h1>
         </div>
-        <div class="status" id="playbackStatus">No footage loaded</div>
+        <div class="viewport__meta">
+          <div class="studio-origin" id="studioOrigin">
+            <p class="studio-origin__mode mono" id="studioOriginMode">Ad hoc Studio preview</p>
+            <strong id="studioOriginProject">No project linked</strong>
+            <span id="studioOriginScene">Opened directly from a plate or footage URL.</span>
+            <span class="studio-origin__clip mono" id="studioOriginClip"></span>
+            <a id="backToProject" target="_top" hidden>← Back to project</a>
+          </div>
+          <div class="status" id="playbackStatus">No footage loaded</div>
+        </div>
       </div>
       <canvas id="stageCanvas"></canvas>
       <section class="transport" aria-label="Footage playback and selection">
@@ -217,6 +239,7 @@ app.innerHTML = `
             <div><dt>Out</dt><dd class="mono" id="outTimecode">--:--:--:--</dd></div>
             <div><dt>Selected</dt><dd class="mono" id="selectionDuration">--:--:--:--</dd></div>
           </dl>
+          <button class="transport__clear" id="clearSelection" type="button" hidden>Clear markers</button>
           <button class="transport__save" id="saveSelection" type="button" disabled>Save selection</button>
           <span class="transport__feedback" id="selectionFeedback" role="status" aria-live="polite">Open from a saved scene clip to persist a selection.</span>
         </div>
@@ -761,6 +784,7 @@ function buildControls() {
   document.querySelector('#timeline').addEventListener('input', seekFromTimeline)
   document.querySelector('#setIn').addEventListener('click', setInPoint)
   document.querySelector('#setOut').addEventListener('click', setOutPoint)
+  document.querySelector('#clearSelection').addEventListener('click', clearSelection)
   document.querySelector('#saveSelection').addEventListener('click', saveSelection)
   document.querySelector('#resetView').addEventListener('click', () => setView(state.selectedView, false))
 
@@ -768,6 +792,7 @@ function buildControls() {
   video.addEventListener('durationchange', initializeTransport)
   video.addEventListener('timeupdate', updateTransport)
   video.addEventListener('seeked', updateTransport)
+  video.addEventListener('ended', restartSelectedRange)
   video.addEventListener('play', () => {
     setPlaybackStatus('Playing')
     updatePlaybackButtons()
@@ -1567,11 +1592,12 @@ function loadVideoUrl() {
 
 function loadInitialFootage() {
   const params = new URLSearchParams(window.location.search)
+  configurePlaybackContext(params)
+  configureStudioContext(params)
   const footageUrl = params.get('video')?.trim()
   if (!footageUrl) return
 
   const label = params.get('label')?.trim() || 'Plate preview'
-  configurePlaybackContext(params)
   document.querySelector('#videoUrl').value = footageUrl
   document.querySelector('#fileName').textContent = label
   loadVideoSource(footageUrl, label)
@@ -1606,7 +1632,51 @@ function clearPlaybackContext() {
   state.playback.inFrame = null
   state.playback.outFrame = null
   state.playback.saveState = 'local'
+  state.context.projectId = null
+  state.context.projectName = ''
+  state.context.sceneId = null
+  state.context.sceneName = ''
+  state.context.sku = ''
   renderSelection()
+  renderStudioContext()
+}
+
+function configureStudioContext(params) {
+  state.context.projectId = params.get('projectId')?.trim() || null
+  state.context.projectName = params.get('projectName')?.trim() || ''
+  state.context.sceneId = params.get('sceneId')?.trim() || null
+  state.context.sceneName = params.get('sceneName')?.trim() || ''
+  state.context.sku = params.get('sku')?.trim() || ''
+  renderStudioContext()
+}
+
+function renderStudioContext() {
+  const { projectId, projectName, sceneId, sceneName, sku } = state.context
+  const linked = Boolean(projectId && sceneId)
+  const mode = document.querySelector('#studioOriginMode')
+  const project = document.querySelector('#studioOriginProject')
+  const sceneLabel = document.querySelector('#studioOriginScene')
+  const clip = document.querySelector('#studioOriginClip')
+  const back = document.querySelector('#backToProject')
+
+  mode.textContent = linked ? 'Linked scene preview' : 'Ad hoc Studio preview'
+  project.textContent = linked ? projectName || 'Linked project' : 'No project linked'
+  sceneLabel.textContent = linked
+    ? sceneName || 'Linked scene'
+    : 'Opened directly from a plate or footage URL.'
+  clip.textContent = sku
+    ? `Plate ${sku}${state.playback.sceneClipId ? ' · saved scene clip' : ''}`
+    : state.playback.sceneClipId
+      ? 'Saved scene clip'
+      : ''
+
+  if (linked) {
+    back.href = `/projects/${encodeURIComponent(projectId)}`
+    back.hidden = false
+  } else {
+    back.removeAttribute('href')
+    back.hidden = true
+  }
 }
 
 async function loadVideoSource(src, label) {
@@ -1673,6 +1743,7 @@ function initializeTransport() {
   document.querySelector('#setIn').disabled = duration <= 0
   document.querySelector('#setOut').disabled = duration <= 0
   updatePlaybackButtons()
+  renderSelection()
   updateTransport()
 }
 
@@ -1685,7 +1756,18 @@ function seekFromTimeline(event) {
 function updateTransport() {
   const fps = state.playback.fps
   const duration = Number.isFinite(video.duration) ? video.duration : 0
-  const currentFrame = currentPlaybackFrame()
+  let currentFrame = currentPlaybackFrame()
+  if (
+    shouldLoopSelection(
+      currentFrame,
+      state.playback.inFrame,
+      state.playback.outFrame,
+      !video.paused,
+    )
+  ) {
+    video.currentTime = frameToSeconds(state.playback.inFrame, fps)
+    currentFrame = state.playback.inFrame
+  }
   const totalFrames = secondsToFrame(duration, fps)
   const timeline = document.querySelector('#timeline')
 
@@ -1719,11 +1801,9 @@ function updatePlaybackButtons() {
 
 function setInPoint() {
   if (!video.src) return
-  const frame = currentPlaybackFrame()
-  state.playback.inFrame = frame
-  if (state.playback.outFrame !== null && state.playback.outFrame <= frame) {
-    state.playback.outFrame = null
-  }
+  const markers = setInMarker(currentPlaybackFrame(), state.playback.outFrame)
+  state.playback.inFrame = markers.inFrame
+  state.playback.outFrame = markers.outFrame
   state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
   renderSelection()
   updateTransport()
@@ -1731,50 +1811,96 @@ function setInPoint() {
 
 function setOutPoint() {
   if (!video.src) return
-  if (state.playback.inFrame === null) {
-    setSelectionFeedback('Set an In point before setting Out.', 'error')
-    return
-  }
-  const frame = currentPlaybackFrame()
-  if (frame <= state.playback.inFrame) {
-    setSelectionFeedback('Move later than the In point before setting Out.', 'error')
-    return
-  }
-  state.playback.outFrame = frame
+  const markers = setOutMarker(currentPlaybackFrame(), state.playback.inFrame)
+  state.playback.inFrame = markers.inFrame
+  state.playback.outFrame = markers.outFrame
   state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
   renderSelection()
   updateTransport()
 }
 
+function clearSelection() {
+  state.playback.inFrame = null
+  state.playback.outFrame = null
+  state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
+  renderSelection()
+  updateTransport()
+}
+
+function restartSelectedRange() {
+  const { fps, inFrame, outFrame } = state.playback
+  if (selectionDurationFrames(inFrame, outFrame) === null) return
+  video.currentTime = frameToSeconds(inFrame, fps)
+  video.play().catch(() => setPlaybackStatus('Press play again'))
+}
+
 function renderSelection() {
   const { fps, sourceTimecode, inFrame, outFrame, sceneClipId, saveState } = state.playback
   const durationFrames = selectionDurationFrames(inFrame, outFrame)
+  const backwards = hasBackwardsSelection(inFrame, outFrame)
   const saveButton = document.querySelector('#saveSelection')
   if (!saveButton) return
 
-  document.querySelector('#inTimecode').textContent = Number.isInteger(inFrame)
+  const inTimecode = document.querySelector('#inTimecode')
+  const outTimecode = document.querySelector('#outTimecode')
+  inTimecode.textContent = Number.isInteger(inFrame)
     ? formatSourceTimecode(inFrame, fps, sourceTimecode)
     : '--:--:--:--'
-  document.querySelector('#outTimecode').textContent = Number.isInteger(outFrame)
+  outTimecode.textContent = Number.isInteger(outFrame)
     ? formatSourceTimecode(outFrame, fps, sourceTimecode)
     : '--:--:--:--'
+  inTimecode.classList.toggle('is-set', Number.isInteger(inFrame))
+  outTimecode.classList.toggle('is-set', Number.isInteger(outFrame))
+  document.querySelector('#setIn').classList.toggle('is-set', Number.isInteger(inFrame))
+  document.querySelector('#setOut').classList.toggle('is-set', Number.isInteger(outFrame))
   document.querySelector('#selectionDuration').textContent = durationFrames
     ? formatFrameTimecode(durationFrames, fps)
     : '--:--:--:--'
+
+  const clearButton = document.querySelector('#clearSelection')
+  clearButton.hidden = !Number.isInteger(inFrame) && !Number.isInteger(outFrame)
+  video.loop = durationFrames === null
+  renderTimelineSelection()
 
   saveButton.disabled = !sceneClipId || !durationFrames || saveState === 'saving' || saveState === 'saved'
   saveButton.textContent = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Selection saved' : 'Save selection'
 
   if (!sceneClipId) {
-    setSelectionFeedback('Open Studio from a saved scene clip to persist a selection.')
+    if (backwards) {
+      setSelectionFeedback('In must be earlier than Out. Reset either marker or clear both.', 'error')
+    } else {
+      setSelectionFeedback('Open Studio from a saved scene clip to persist a selection.')
+    }
+  } else if (backwards) {
+    setSelectionFeedback('In must be earlier than Out. Reset either marker or clear both.', 'error')
   } else if (!durationFrames) {
-    setSelectionFeedback('Set an In point and a later Out point.')
+    setSelectionFeedback('Set either marker. Setting Out first defaults In to the first frame.')
   } else if (saveState === 'saved') {
     setSelectionFeedback('In and Out points are saved to this scene clip.', 'success')
   } else if (saveState === 'saving') {
     setSelectionFeedback('Saving selection…')
   } else {
     setSelectionFeedback('Selection has unsaved changes.')
+  }
+}
+
+function renderTimelineSelection() {
+  const timeline = document.querySelector('#timeline')
+  const totalFrames = Number.isFinite(video.duration)
+    ? secondsToFrame(video.duration, state.playback.fps)
+    : 0
+  const range = selectionTimelineRange(
+    state.playback.inFrame,
+    state.playback.outFrame,
+    totalFrames,
+  )
+  timeline.classList.toggle('has-selection', Boolean(range))
+  if (range) {
+    timeline.style.setProperty('--selection-start', `${range.startPercent}%`)
+    timeline.style.setProperty('--selection-end', `${range.endPercent}%`)
+  } else {
+    timeline.style.removeProperty('--selection-start')
+    timeline.style.removeProperty('--selection-end')
   }
 }
 

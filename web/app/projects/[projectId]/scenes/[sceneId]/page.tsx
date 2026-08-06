@@ -9,6 +9,7 @@ import { createQueryEmbedding } from "@/lib/search";
 import { matchClosenessPercent } from "@/lib/matchCloseness";
 import { publicMediaUrl } from "@/lib/publicMediaUrl";
 import { formatSceneClipSelectionDuration } from "@/lib/sceneClipSelection";
+import { buildStudioHref, type StudioSceneContext } from "@/lib/studioHref";
 import { createClient } from "@/lib/supabase/server";
 import {
   addClipToScene,
@@ -50,6 +51,7 @@ type StudioSelectionContext = Pick<
 
 function studioHref(
   plate: Plate,
+  context: StudioSceneContext,
   selection?: StudioSelectionContext,
 ): string | null {
   if (
@@ -59,33 +61,34 @@ function studioHref(
     return null;
   }
 
-  const query = new URLSearchParams({
+  return buildStudioHref({
     video: publicMediaUrl(plate.renditions.stagePreview),
     label: `${plate.sku} · ${plate.title}`,
-    fps: String(plate.media.fps),
+    fps: plate.media.fps,
+    sourceTimecode: plate.media.timecode,
+    sku: plate.sku,
+    scene: context,
+    selection: selection
+      ? {
+          sceneClipId: selection.id,
+          version: selection.version,
+          inFrame: selection.inFrame,
+          outFrame: selection.outFrame,
+        }
+      : undefined,
   });
-  if (plate.media.timecode) {
-    query.set("sourceTimecode", plate.media.timecode);
-  }
-  if (selection) {
-    query.set("sceneClipId", selection.id);
-    query.set("version", String(selection.version));
-    if (selection.inFrame !== null && selection.outFrame !== null) {
-      query.set("inFrame", String(selection.inFrame));
-      query.set("outFrame", String(selection.outFrame));
-    }
-  }
-  return `/stage?${query}`;
 }
 
 function StudioLink({
   plate,
+  context,
   selection,
 }: {
   plate: Plate;
+  context: StudioSceneContext;
   selection?: StudioSelectionContext;
 }) {
-  const href = studioHref(plate, selection);
+  const href = studioHref(plate, context, selection);
   if (!href) return null;
 
   return (
@@ -216,6 +219,12 @@ export default async function ScenePage({
     ];
   });
   const selectedIds = new Set(selected.map((item) => item.stockClipId));
+  const studioSceneContext: StudioSceneContext = {
+    projectId: project.id,
+    projectName: project.name,
+    sceneId: scene.id,
+    sceneName: scene.name,
+  };
   const browseQuery = new URLSearchParams();
   if (sceneSearchText) browseQuery.set("q", sceneSearchText);
 
@@ -398,7 +407,11 @@ export default async function ScenePage({
               return (
                 <div key={item.id}>
                   <PlateCard plate={item.plate} />
-                  <StudioLink plate={item.plate} selection={item} />
+                  <StudioLink
+                    plate={item.plate}
+                    context={studioSceneContext}
+                    selection={item}
+                  />
                   {selectedDuration && (
                     <p className="mono dimmer" style={{ margin: "10px 0 0" }}>
                       Selected duration: {selectedDuration}
@@ -456,7 +469,10 @@ export default async function ScenePage({
                   </strong>
                 </div>
                 <PlateCard plate={result.plate} />
-                <StudioLink plate={result.plate} />
+                <StudioLink
+                  plate={result.plate}
+                  context={studioSceneContext}
+                />
                 <form action={addClipToScene} className="scene-clip-form">
                   <input type="hidden" name="projectId" value={projectId} />
                   <input type="hidden" name="sceneId" value={sceneId} />

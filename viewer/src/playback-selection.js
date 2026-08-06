@@ -23,6 +23,45 @@ export function selectionDurationFrames(inFrame, outFrame) {
   return outFrame - inFrame + 1
 }
 
+export function setInMarker(frame, outFrame) {
+  return {
+    inFrame: Math.max(0, Math.trunc(Number(frame) || 0)),
+    outFrame: Number.isInteger(outFrame) ? outFrame : null,
+  }
+}
+
+export function setOutMarker(frame, inFrame) {
+  return {
+    inFrame: Number.isInteger(inFrame) ? inFrame : 0,
+    outFrame: Math.max(0, Math.trunc(Number(frame) || 0)),
+  }
+}
+
+export function hasBackwardsSelection(inFrame, outFrame) {
+  return Number.isInteger(inFrame) && Number.isInteger(outFrame) && outFrame <= inFrame
+}
+
+export function selectionTimelineRange(inFrame, outFrame, totalFrames) {
+  if (selectionDurationFrames(inFrame, outFrame) === null || !Number.isInteger(totalFrames) || totalFrames <= 1) {
+    return null
+  }
+
+  const lastFrame = totalFrames - 1
+  return {
+    startPercent: Math.max(0, Math.min(100, (inFrame / lastFrame) * 100)),
+    endPercent: Math.max(0, Math.min(100, (outFrame / lastFrame) * 100)),
+  }
+}
+
+export function shouldLoopSelection(currentFrame, inFrame, outFrame, isPlaying) {
+  return Boolean(
+    isPlaying &&
+      selectionDurationFrames(inFrame, outFrame) !== null &&
+      Number.isInteger(currentFrame) &&
+      currentFrame > outFrame,
+  )
+}
+
 export function parseTimecode(value, fps = DEFAULT_FPS) {
   const nominalFps = Math.max(1, Math.round(normalizeFps(fps)))
   const match = /^(\d{1,2}):(\d{2}):(\d{2})[:;](\d{2})$/.exec(String(value || '').trim())
