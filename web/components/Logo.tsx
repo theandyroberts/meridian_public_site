@@ -46,7 +46,7 @@ export function Logo() {
       aria-label="The Plate Lab home"
     >
       <GlobeMark size={38} />
-      <span style={{ display: "grid", lineHeight: 1 }}>
+      <span className="site-logo-wordmark" style={{ display: "grid", lineHeight: 1 }}>
         <span className="mono accent" style={{ fontSize: 9 }}>
           The
         </span>

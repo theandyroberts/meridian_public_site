@@ -198,6 +198,24 @@ body::before {
   transition: background 0.15s, color 0.15s;
 }
 .site-nav .cta:hover { background: var(--orange); color: var(--ink); }
+.site-auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.site-nav .site-login {
+  color: var(--paper);
+  border: 1px solid var(--hairline-strong);
+  padding: 8px 14px;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.site-nav .site-login:hover,
+.site-nav .site-login:focus-visible {
+  color: var(--orange);
+  border-color: var(--orange);
+  outline: none;
+}
 .site-account {
   display: flex;
   align-items: center;
@@ -1797,6 +1815,14 @@ body::before {
   .site-header .wrap { padding: 0 16px; }
   .site-nav { gap: 9px; }
   .site-nav .projects-link { font-size: 14px; }
+  .site-logo-wordmark { display: none !important; }
+  .site-auth-actions { gap: 6px; }
+  .site-nav .site-login,
+  .site-nav .cta {
+    padding: 6px 8px;
+    font-size: 9px;
+    white-space: nowrap;
+  }
   .site-account-name,
   .site-account-logout {
     min-height: 32px;

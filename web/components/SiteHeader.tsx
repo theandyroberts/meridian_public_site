@@ -66,9 +66,17 @@ export async function SiteHeader() {
               </form>
             </div>
           ) : (
-            <Link className="cta mono" href="/projects/new">
-              Start a project
-            </Link>
+            <div className="site-auth-actions" aria-label="Account access">
+              <Link
+                className="site-login mono"
+                href="/login?next=%2Fprojects"
+              >
+                Log in
+              </Link>
+              <Link className="cta mono" href="/projects/new">
+                Start a project
+              </Link>
+            </div>
           )}
         </nav>
       </div>
