@@ -55,7 +55,7 @@ test("telemetry summarization", () => {
   assert.deepEqual(summary.gps.end, { lat: 40.002, lon: -74.0 });
 });
 
-test("Legacy XL telemetry collapses repeated fixes and rejects GPS speed spikes", () => {
+test("Legacy XL telemetry removes isolated route spikes and rejects GPS speed spikes", () => {
   const gps = [
     [0, "00", 34, -118],
     [12, "00", 34, -118],
@@ -77,8 +77,9 @@ test("Legacy XL telemetry collapses repeated fixes and rejects GPS speed spikes"
     take: { start_frame: 0, end_frame: 120 },
     samples: { gps, imu: [{ tc_frames: 0 }, { tc_frames: 1 }] },
   });
-  assert.equal(normalized.samples.length, 6);
+  assert.equal(normalized.samples.length, 5);
   assert.equal(normalized.imu.collected, true);
+  assert.equal(normalized.samples.some((sample) => sample.lat === 35), false);
   assert.ok(Math.max(...normalized.samples.map((sample) => sample.speedMph)) < 120);
 });
 

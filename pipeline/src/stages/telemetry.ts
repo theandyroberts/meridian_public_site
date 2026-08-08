@@ -126,6 +126,58 @@ function median(values: number[]): number {
     : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
+type LegacyGpsFix = z.infer<typeof legacyXlTelemetrySchema>["samples"]["gps"][number];
+
+function legacySegmentSpeedMph(a: LegacyGpsFix, b: LegacyGpsFix): number {
+  const hours = (b.tc_frames - a.tc_frames) / 24 / 3_600;
+  return hours > 0 ? haversineMiles(a, b) / hours : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Normalize recorder ordering and remove only isolated "jump out and back"
+ * fixes. A point is discarded when both adjacent legs would require an
+ * impossible road speed, while bypassing that single point is plausible.
+ * This leaves sustained route changes intact and prevents map polylines from
+ * drawing long spikes caused by one corrupted Android GPS sample.
+ */
+function cleanLegacyGpsFixes(samples: LegacyGpsFix[]): LegacyGpsFix[] {
+  const byFrame = new Map<number, LegacyGpsFix[]>();
+  for (const sample of samples) {
+    const group = byFrame.get(sample.tc_frames) ?? [];
+    group.push(sample);
+    byFrame.set(sample.tc_frames, group);
+  }
+  let fixes = [...byFrame.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([tcFrames, group]) => ({
+      ...group[0],
+      tc_frames: tcFrames,
+      latitude: median(group.map((fix) => fix.latitude)),
+      longitude: median(group.map((fix) => fix.longitude)),
+    }));
+
+  let changed = true;
+  while (changed && fixes.length > 2) {
+    changed = false;
+    fixes = fixes.filter((fix, index, all) => {
+      if (index === 0 || index === all.length - 1) return true;
+      const incoming = legacySegmentSpeedMph(all[index - 1], fix);
+      const outgoing = legacySegmentSpeedMph(fix, all[index + 1]);
+      const bypass = legacySegmentSpeedMph(all[index - 1], all[index + 1]);
+      const isolatedSpike = incoming > 120 && outgoing > 120 && bypass <= 120;
+      if (isolatedSpike) changed = true;
+      return !isolatedSpike;
+    });
+  }
+
+  return fixes.filter(
+    (fix, index, all) =>
+      index === 0 ||
+      fix.latitude !== all[index - 1].latitude ||
+      fix.longitude !== all[index - 1].longitude,
+  );
+}
+
 /** Convert the MMM Legacy XL LTC export into the catalog's compact telemetry shape. */
 export function normalizeLegacyXlTelemetry(document: unknown): Telemetry {
   const legacy = legacyXlTelemetrySchema.parse(document);
@@ -133,20 +185,16 @@ export function normalizeLegacyXlTelemetry(document: unknown): Telemetry {
     throw new Error("Legacy XL telemetry reports that GPS is unavailable");
   }
 
-  // The handoff repeats the same Android GPS fix at the video frame rate.
-  // Keep one fix per wall-clock sample before deriving speed; otherwise long
-  // runs of zero movement followed by a one-frame jump create huge spikes.
-  const fixes = legacy.samples.gps.filter(
-    (fix, index, all) => index === 0 || fix.host_wall_clock !== all[index - 1].host_wall_clock,
-  );
+  // The handoff repeats the same Android GPS fix at the video frame rate and
+  // may include isolated, one-frame coordinate corruption.
+  const fixes = cleanLegacyGpsFixes(legacy.samples.gps);
   if (fixes.length < 2) throw new Error("Legacy XL GPS has fewer than two distinct fixes");
 
   const segmentSpeeds: Array<number | undefined> = [];
   for (let index = 0; index < fixes.length - 1; index++) {
     const current = fixes[index];
     const next = fixes[index + 1];
-    const hours = (next.tc_frames - current.tc_frames) / 24 / 3_600;
-    const mph = hours > 0 ? haversineMiles(current, next) / hours : Number.NaN;
+    const mph = legacySegmentSpeedMph(current, next);
     // Reject impossible GPS jumps before the median window. They are sensor
     // outliers, not a reason to classify a city drive as aircraft-fast.
     segmentSpeeds.push(Number.isFinite(mph) && mph <= 120 ? mph : undefined);
