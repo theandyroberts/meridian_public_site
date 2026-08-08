@@ -6,12 +6,14 @@ No video IO — pure synthetic arrays. Runs under pytest, or standalone:
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from stitchlab.clip import align_offsets, parse_timecode  # noqa: E402
+from stitchlab.ninestitch import _full_equirect_frame  # noqa: E402
 from stitchlab.ringstitch import seam_cost_curve, solve_gains  # noqa: E402
 
 
@@ -85,9 +87,19 @@ def test_seam_cost_curve_picks_engineered_column():
     assert np.isinf(cost2[5])
 
 
+def test_full_equirect_frame_preserves_latitude_and_2_to_1_shape():
+    nine = SimpleNamespace(eq_w=8, eq_h=4, r0_9=0, r1_9=3, band_h=3)
+    band = np.full((3, 8, 3), 127, dtype=np.uint8)
+    frame = _full_equirect_frame(nine, band)
+    assert frame.shape == (4, 8, 3)
+    assert np.array_equal(frame[:3], band)
+    assert np.count_nonzero(frame[3]) == 0
+
+
 if __name__ == "__main__":
     for fn in (test_parse_timecode, test_align_offsets, test_solve_gains,
-               test_seam_cost_curve_picks_engineered_column):
+               test_seam_cost_curve_picks_engineered_column,
+               test_full_equirect_frame_preserves_latitude_and_2_to_1_shape):
         fn()
         print(f"ok  {fn.__name__}")
     print("all smoke tests passed")

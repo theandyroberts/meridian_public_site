@@ -1772,12 +1772,33 @@ def _qc_indices(usable: int, n: int, cal_set: set[int]) -> list[int]:
     return idx
 
 
+def _full_equirect_frame(nine: NineStitcher, band: np.ndarray) -> np.ndarray:
+    """Place the covered nine-camera band at its calibrated latitude.
+
+    The rig has no nadir camera, so pixels below the ring coverage remain
+    black.  Keeping those pixels in the frame is still essential: omitting
+    them changes the equirectangular latitude mapping and produces a non-2:1
+    movie that 360 players cannot project correctly.
+    """
+    expected = (nine.band_h, nine.eq_w, 3)
+    if band.shape != expected:
+        raise ValueError(f"nine-camera band is {band.shape}; expected {expected}")
+    if not (0 <= nine.r0_9 < nine.r1_9 <= nine.eq_h):
+        raise ValueError(
+            f"nine-camera band rows [{nine.r0_9}, {nine.r1_9}) "
+            f"fall outside 0..{nine.eq_h}",
+        )
+    frame = np.zeros((nine.eq_h, nine.eq_w, 3), dtype=np.uint8)
+    frame[nine.r0_9 : nine.r1_9] = band
+    return frame
+
+
 def _encoder_argv(clip: RingClip, nine: NineStitcher, out_mov: Path) -> list[str]:
-    """ProRes encode of the 9-cam band; identical color pinning to render.py."""
+    """ProRes encode of a 2:1 equirectangular frame; color pinned as render.py."""
     return [
         "ffmpeg", "-v", "error", "-nostdin", "-y",
         "-f", "rawvideo", "-pix_fmt", "bgr24",
-        "-s", f"{nine.eq_w}x{nine.band_h}",
+        "-s", f"{nine.eq_w}x{nine.eq_h}",
         "-r", f"{clip.fps:g}",
         "-i", "pipe:0",
         "-vf",
@@ -2097,7 +2118,8 @@ def cmd_stitch9(args) -> int:
             timings["warmup_prepass_s"] = time.perf_counter() - t0
             metrics["warmup_prepass_frames"] = warmup_n
 
-        # Full ProRes render of the 9-cam band (implemented; run only when asked).
+        # Full 2:1 ProRes render.  Camera coverage occupies a calibrated band
+        # inside the equirectangular canvas; the uncovered nadir stays black.
         mov_path = out_dir / f"{Path(args.drop).resolve().name}_nineband_prores.mov"
         enc_argv = _encoder_argv(clip, nine, mov_path)
         clip.ffmpeg_calls.append(enc_argv)
@@ -2109,7 +2131,8 @@ def cmd_stitch9(args) -> int:
         primary_exc = None
         try:
             for i, frames in source.iter_frames():
-                enc.stdin.write(nine.compose_frame(frames, frame_idx=i).tobytes())
+                band = nine.compose_frame(frames, frame_idx=i)
+                enc.stdin.write(_full_equirect_frame(nine, band).tobytes())
                 n_done += 1
         except BaseException as e:
             primary_exc = e
