@@ -701,6 +701,8 @@ class NineStitcher:
         self.ring_router = None  # r2-1 lever 3: per-frame ring seam routing
         self.seam_row: np.ndarray | None = None  # per-column frozen sky-ring seam
         self.alpha: np.ndarray | None = None  # (band_h, eq_w) sky ownership
+        self.coverage_hole_mask = np.zeros((self.band_h, self.eq_w), np.uint8)
+        self.coverage_hole_boxes: list[tuple[int, int, int, int, int]] = []
         self._sky_weights: dict[str, np.ndarray] | None = None
         self._sky_weights_vig: dict[str, np.ndarray] | None = None
         self.sky_colw: dict[str, np.ndarray] = {}
@@ -1247,6 +1249,9 @@ class NineStitcher:
         alpha = np.where(sky_cov, ramp, 0.0)
         alpha[~ring_cov] = np.where(sky_cov[~ring_cov], 1.0, 0.0)
         self.alpha = alpha.astype(np.float32)
+        self.coverage_hole_mask, self.coverage_hole_boxes = _internal_coverage_holes(
+            sky_cov | ring_cov,
+        )
 
     # ---------------------------------------------------------------- compose
 
@@ -1309,13 +1314,23 @@ class NineStitcher:
         canvas[: self.sky_r1 - s0] += alpha[: self.sky_r1 - s0, :, None] * acc_sky[s0:]
         rslice = slice(self.ring.r0 - s0, self.r1_9 - s0)
         canvas[rslice] += (1.0 - alpha[rslice, :, None]) * acc_ring
-        return from_linear(canvas)
+        frame = from_linear(canvas)
+        return _fill_internal_coverage_holes(
+            frame,
+            self.coverage_hole_mask,
+            self.coverage_hole_boxes,
+        )
 
     # ----------------------------------------------------------------- report
 
     def report(self) -> dict:
         return {
             "band9": {"r0": self.r0_9, "r1": self.r1_9, "height": self.band_h},
+            "coverage_hole_fill": {
+                "policy": "small-fully-enclosed-only",
+                "components": len(self.coverage_hole_boxes),
+                "pixels": int(np.count_nonzero(self.coverage_hole_mask)),
+            },
             "composite_mode": self.composite,
             "sky_ring_boundary": (
                 {"policy": "ring-coverage-edge", "feather_half_px": self.EDGE_FEATHER,
@@ -1770,6 +1785,59 @@ def _qc_indices(usable: int, n: int, cal_set: set[int]) -> list[int]:
                 break
         idx = sorted(set(idx))
     return idx
+
+
+def _internal_coverage_holes(
+    covered: np.ndarray,
+    max_area_ratio: float = 0.002,
+) -> tuple[np.ndarray, list[tuple[int, int, int, int, int]]]:
+    """Return small, fully enclosed holes in an otherwise covered band.
+
+    The nadir and crop-edge gaps are real missing coverage and must stay
+    black.  Tiny interior islands are calibration slivers between lenses;
+    filling them from their immediate real-pixel neighborhood prevents black
+    wedges in a 360 viewer without inventing broad scene content.
+    """
+    if covered.ndim != 2:
+        raise ValueError(f"coverage mask must be 2-D, got {covered.shape}")
+    missing = (~covered.astype(bool)).astype(np.uint8)
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(missing, 8)
+    h, w = covered.shape
+    max_area = max(16, int(h * w * max_area_ratio))
+    mask = np.zeros((h, w), np.uint8)
+    boxes: list[tuple[int, int, int, int, int]] = []
+    for label in range(1, n):
+        x, y, bw, bh, area = (int(v) for v in stats[label])
+        enclosed = x > 0 and y > 0 and x + bw < w and y + bh < h
+        if not enclosed or area > max_area:
+            continue
+        component = labels == label
+        mask[component] = 255
+        boxes.append((x, y, bw, bh, area))
+    return mask, boxes
+
+
+def _fill_internal_coverage_holes(
+    frame: np.ndarray,
+    mask: np.ndarray,
+    boxes: list[tuple[int, int, int, int, int]],
+) -> np.ndarray:
+    """Inpaint only tight crops around precomputed internal coverage holes."""
+    if not boxes:
+        return frame
+    out = frame.copy()
+    h, w = frame.shape[:2]
+    for x, y, bw, bh, _ in boxes:
+        pad = 8
+        x0, y0 = max(0, x - pad), max(0, y - pad)
+        x1, y1 = min(w, x + bw + pad), min(h, y + bh + pad)
+        out[y0:y1, x0:x1] = cv2.inpaint(
+            out[y0:y1, x0:x1],
+            mask[y0:y1, x0:x1],
+            3,
+            cv2.INPAINT_TELEA,
+        )
+    return out
 
 
 def _full_equirect_frame(nine: NineStitcher, band: np.ndarray) -> np.ndarray:

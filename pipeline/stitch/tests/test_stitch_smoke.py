@@ -13,7 +13,11 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from stitchlab.clip import align_offsets, parse_timecode  # noqa: E402
-from stitchlab.ninestitch import _full_equirect_frame  # noqa: E402
+from stitchlab.ninestitch import (  # noqa: E402
+    _fill_internal_coverage_holes,
+    _full_equirect_frame,
+    _internal_coverage_holes,
+)
 from stitchlab.ringstitch import seam_cost_curve, solve_gains  # noqa: E402
 
 
@@ -96,10 +100,29 @@ def test_full_equirect_frame_preserves_latitude_and_2_to_1_shape():
     assert np.count_nonzero(frame[3]) == 0
 
 
+def test_internal_coverage_holes_excludes_nadir_and_edge_gaps():
+    covered = np.ones((20, 30), dtype=bool)
+    covered[5:8, 10:13] = False   # enclosed calibration sliver: fill
+    covered[15:, :] = False       # nadir/lower crop: preserve
+    covered[2:4, :2] = False      # edge-connected missing coverage: preserve
+    mask, boxes = _internal_coverage_holes(covered)
+    assert len(boxes) == 1
+    assert np.all(mask[5:8, 10:13] == 255)
+    assert np.count_nonzero(mask[15:]) == 0
+    assert np.count_nonzero(mask[2:4, :2]) == 0
+
+    frame = np.full((20, 30, 3), 80, dtype=np.uint8)
+    frame[5:8, 10:13] = 0
+    repaired = _fill_internal_coverage_holes(frame, mask, boxes)
+    assert np.all(repaired[5:8, 10:13] > 0)
+    assert np.array_equal(repaired[0], frame[0])
+
+
 if __name__ == "__main__":
     for fn in (test_parse_timecode, test_align_offsets, test_solve_gains,
                test_seam_cost_curve_picks_engineered_column,
-               test_full_equirect_frame_preserves_latitude_and_2_to_1_shape):
+               test_full_equirect_frame_preserves_latitude_and_2_to_1_shape,
+               test_internal_coverage_holes_excludes_nadir_and_edge_gaps):
         fn()
         print(f"ok  {fn.__name__}")
     print("all smoke tests passed")
