@@ -81,6 +81,8 @@ test("Legacy XL telemetry removes isolated route spikes and rejects GPS speed sp
   assert.equal(normalized.imu.collected, true);
   assert.equal(normalized.samples.some((sample) => sample.lat === 35), false);
   assert.ok(Math.max(...normalized.samples.map((sample) => sample.speedMph)) < 120);
+  const summary = summarizeTelemetry(normalized);
+  assert.ok(summary.gps.avgSpeedMph > 15 && summary.gps.avgSpeedMph < 30);
 });
 
 test("plate schema v2: opaque sku, status default, mmm block, optional gps", () => {

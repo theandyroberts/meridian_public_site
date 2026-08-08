@@ -76,7 +76,31 @@ function simplify(samples: Telemetry["samples"], maxPoints = 64) {
 
 export function summarizeTelemetry(t: Telemetry): TelemetrySummary {
   const speeds = t.samples.map((s) => s.speedMph);
-  const avg = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+  const reportedAvg = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+  // Legacy speeds are derived from irregular Android fixes and median-smoothed
+  // to suppress one-frame noise. Use distance over elapsed route time for the
+  // physical average so variable fix intervals do not bias it downward.
+  const elapsedHours =
+    (t.samples[t.samples.length - 1].t - t.samples[0].t) / 3_600;
+  const routeMiles = t.samples.slice(1).reduce(
+    (total, sample, index) =>
+      total +
+      haversineMiles(
+        {
+          latitude: t.samples[index].lat,
+          longitude: t.samples[index].lon,
+        },
+        { latitude: sample.lat, longitude: sample.lon },
+      ),
+    0,
+  );
+  const routeAvg = elapsedHours > 0 ? routeMiles / elapsedHours : Number.NaN;
+  const avg =
+    t.source === "Legacy XL Android LTC GPS" &&
+    Number.isFinite(routeAvg) &&
+    routeAvg <= 120
+      ? routeAvg
+      : reportedAvg;
   const max = Math.max(...speeds);
   const first = t.samples[0];
   const last = t.samples[t.samples.length - 1];
