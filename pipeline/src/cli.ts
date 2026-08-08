@@ -3,14 +3,17 @@ import path from "node:path";
 import { DROPS_DIR } from "./paths.js";
 import { ingestDrop } from "./ingest.js";
 import { audit } from "./audit.js";
+import { preflightDrop, printPreflight } from "./preflight.js";
 
 const [, , command, arg] = process.argv;
+const callerDir = process.env.INIT_CWD || process.cwd();
+const resolveArg = (value: string) => path.resolve(callerDir, value);
 
 async function main() {
   switch (command) {
     case "ingest": {
       if (!arg) throw new Error("usage: cli.ts ingest <drop-dir>");
-      const plate = await ingestDrop(path.resolve(arg));
+      const plate = await ingestDrop(resolveArg(arg));
       console.log(`✓ ${plate.sku}  ${plate.title}  $${plate.pricing.totalUsd}`);
       break;
     }
@@ -23,6 +26,29 @@ async function main() {
         const plate = await ingestDrop(path.join(DROPS_DIR, d));
         console.log(`✓ ${plate.sku}  ${plate.title}  $${plate.pricing.totalUsd}`);
       }
+      break;
+    }
+    case "preflight": {
+      if (!arg) throw new Error("usage: cli.ts preflight <drop-dir>");
+      const result = await preflightDrop(resolveArg(arg));
+      printPreflight(result);
+      if (!result.ready) process.exitCode = 1;
+      break;
+    }
+    case "preflight-all": {
+      const root = arg ? resolveArg(arg) : DROPS_DIR;
+      const drops = fs
+        .readdirSync(root)
+        .filter((d) => fs.statSync(path.join(root, d)).isDirectory())
+        .sort();
+      let blocked = 0;
+      for (const d of drops) {
+        const result = await preflightDrop(path.join(root, d));
+        printPreflight(result);
+        if (!result.ready) blocked += 1;
+      }
+      console.log(`\n${drops.length - blocked}/${drops.length} drops ready; ${blocked} blocked`);
+      if (blocked) process.exitCode = 1;
       break;
     }
     case "approve":
@@ -47,12 +73,12 @@ async function main() {
       break;
     }
     default:
-      console.error("usage: cli.ts <ingest <dir> | ingest-all | approve <sku> | reject <sku> [reason]>");
+      console.error("usage: cli.ts <preflight <dir> | preflight-all [root] | ingest <dir> | ingest-all | approve <sku> | reject <sku> [reason]>");
       process.exit(2);
   }
 }
 
 main().catch((err) => {
-  console.error(`ingest failed: ${err.message}`);
+  console.error(`pipeline failed: ${err.message}`);
   process.exit(1);
 });

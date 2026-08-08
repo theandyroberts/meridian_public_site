@@ -15,10 +15,12 @@
     "typescript": "^5.7.2"
   },
   "scripts": {
-    "generate": "tsx src/demo/generate.ts",
-    "ingest": "tsx src/cli.ts ingest",
-    "ingest:all": "tsx src/cli.ts ingest-all",
-    "daemon": "tsx src/daemon.ts",
+    "generate": "node --env-file-if-exists=../.env --import tsx src/demo/generate.ts",
+    "preflight": "node --env-file-if-exists=../.env --import tsx src/cli.ts preflight",
+    "preflight:all": "node --env-file-if-exists=../.env --import tsx src/cli.ts preflight-all",
+    "ingest": "node --env-file-if-exists=../.env --import tsx src/cli.ts ingest",
+    "ingest:all": "node --env-file-if-exists=../.env --import tsx src/cli.ts ingest-all",
+    "daemon": "node --env-file-if-exists=../.env --import tsx src/daemon.ts",
     "test": "tsx --test test/*.test.ts"
   }
 }

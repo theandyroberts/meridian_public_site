@@ -6,11 +6,12 @@ const execFileAsync = promisify(execFile);
 export async function run(
   cmd: string,
   args: string[],
-  opts: { maxBuffer?: number } = {},
+  opts: { maxBuffer?: number; cwd?: string } = {},
 ): Promise<{ stdout: string; stderr: string }> {
   try {
     return await execFileAsync(cmd, args, {
       maxBuffer: opts.maxBuffer ?? 64 * 1024 * 1024,
+      cwd: opts.cwd,
     });
   } catch (err) {
     const e = err as Error & { stderr?: string };

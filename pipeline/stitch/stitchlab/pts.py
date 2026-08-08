@@ -102,6 +102,47 @@ class PtsProject:
 
 def load_pts(path: str | Path) -> PtsProject:
     doc = json.loads(Path(path).read_text())
+    if doc.get("format") == "platelab-calibration-v1":
+        lenses = [
+            Lens(
+                index=int(entry["index"]),
+                projection=str(entry["projection"]),
+                focal_mm=float(entry["focal_mm"]),
+                sensor_diag_mm=float(entry["sensor_diag_mm"]),
+                a=float(entry["a"]),
+                b=float(entry["b"]),
+                c=float(entry["c"]),
+                shift_long=float(entry["shift_long"]),
+                shift_short=float(entry["shift_short"]),
+            )
+            for entry in doc["lenses"]
+        ]
+        cameras = []
+        for group_index, entry in enumerate(doc["cameras"]):
+            width, height = entry["size"]
+            letter = str(entry["letter"]).upper()
+            cameras.append(
+                Camera(
+                    letter=letter,
+                    group_index=group_index,
+                    yaw=float(entry["yaw"]),
+                    pitch=float(entry["pitch"]),
+                    roll=float(entry["roll"]),
+                    width=int(width),
+                    height=int(height),
+                    lens=lenses[int(entry["lens"])],
+                    filename=f"cam_{letter}.mov",
+                )
+            )
+        pano = doc.get("pano", {})
+        return PtsProject(
+            path=str(path),
+            cameras=cameras,
+            lenses=lenses,
+            control_points=[],
+            pano_projection=str(pano.get("projection", "equirectangular")),
+            pano_hfov=float(pano.get("hfov", 360.0)),
+        )
     proj = doc["project"]
 
     lenses = []

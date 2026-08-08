@@ -61,41 +61,6 @@ async function encodePreview(
   ]);
 }
 
-/**
- * No stitched master in the drop: build the preview "stitched" view as a
- * horizontal ring panorama — the six ring cameras in yaw order (E F A B C D),
- * 360° left to right. Seams are uncorrected; the licensed deliverable is the
- * pro stitch.
- */
-async function encodeRingPano(
-  drop: Drop,
-  dst: string,
-  font: string,
-  sku: string,
-): Promise<void> {
-  if (!drop.stitchedMaster && !drop.cameraFiles.A) {
-    throw new Error("ring pano needs camera files");
-  }
-  const order: CameraId[] = ["E", "F", "A", "B", "C", "D"];
-  const inputs = order.flatMap((id) => ["-i", drop.cameraFiles[id] as string]);
-  const scaled = order
-    .map((_, i) => `[${i}:v]scale=480:270,${PREVIEW_GRADE}[s${i}]`)
-    .join(";");
-  const layout = order.map((_, i) => `${i * 480}_0`).join("|");
-  const filter =
-    `${scaled};` +
-    order.map((_, i) => `[s${i}]`).join("") +
-    `xstack=inputs=${order.length}:layout=${layout}[pano];` +
-    `[pano]${watermarkFilter(font, sku, "RING PANORAMA · PRO STITCH ON DELIVERY")}[out]`;
-  await run("ffmpeg", [
-    "-v", "error", ...inputs,
-    "-filter_complex", filter,
-    "-map", "[out]",
-    "-c:v", "libx264", "-preset", "veryfast", "-crf", "30",
-    "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", "-y", dst,
-  ]);
-}
-
 export interface RenditionPaths {
   dir: string;
   stitchedPreview: string;
@@ -106,6 +71,7 @@ export interface RenditionPaths {
 
 export async function buildRenditions(
   drop: Drop,
+  fullSphereMaster: string,
   sku: string,
   outDir: string,
 ): Promise<RenditionPaths> {
@@ -114,26 +80,21 @@ export async function buildRenditions(
 
   const graded = drop.meta.colorState === "graded";
   const stitchedPreview = path.join(outDir, "stitched_preview.mp4");
-  let stagePreview: string | undefined;
-  if (drop.stitchedMaster) {
-    await encodePreview(
-      drop.stitchedMaster,
-      stitchedPreview,
-      960,
-      watermarkFilter(font, sku),
-      graded,
-    );
-    stagePreview = path.join(outDir, "stage_preview.mp4");
-    await encodePreview(
-      drop.stitchedMaster,
-      stagePreview,
-      2048,
-      watermarkFilter(font, sku, "360 STAGE PREVIS · FULL SPHERE"),
-      graded,
-    );
-  } else {
-    await encodeRingPano(drop, stitchedPreview, font, sku);
-  }
+  await encodePreview(
+    fullSphereMaster,
+    stitchedPreview,
+    960,
+    watermarkFilter(font, sku),
+    graded,
+  );
+  const stagePreview = path.join(outDir, "stage_preview.mp4");
+  await encodePreview(
+    fullSphereMaster,
+    stagePreview,
+    2048,
+    watermarkFilter(font, sku, "360 STAGE PREVIS · FULL SPHERE"),
+    graded,
+  );
 
   const cameraPreviews = {} as Record<CameraId, string>;
   for (const [id, file] of Object.entries(drop.cameraFiles) as [CameraId, string][]) {
@@ -144,8 +105,7 @@ export async function buildRenditions(
   }
 
   const poster = path.join(outDir, "poster.jpg");
-  const posterSrc = drop.stitchedMaster ?? drop.cameraFiles.A;
-  if (!posterSrc) throw new Error("buildRenditions: no stitched master or camera A for poster");
+  const posterSrc = fullSphereMaster;
   // Seek 1s in for a representative frame, but very short sources (e.g. test
   // fixtures) have no frame at/after t=1s — fall back to the first frame.
   try {

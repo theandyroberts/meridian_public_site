@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { z } from "zod";
 import { speedBandForAvg, type Gps, type Imu, type SpeedBand } from "@platelab/shared";
 
@@ -72,4 +74,122 @@ export function summarizeTelemetry(t: Telemetry): TelemetrySummary {
 export function loadTelemetry(file: string): TelemetrySummary {
   const parsed = telemetrySchema.parse(JSON.parse(fs.readFileSync(file, "utf8")));
   return summarizeTelemetry(parsed);
+}
+
+interface NominatimResult {
+  display_name?: string;
+  address?: Record<string, string | undefined>;
+}
+
+type GeocodedLocation = NonNullable<Gps["startLocation"]>;
+const geocodeMemory = new Map<string, GeocodedLocation>();
+let lastNominatimRequestAt = 0;
+
+function geocodeCachePath(): string {
+  return (
+    process.env.PLATELAB_GEOCODE_CACHE?.trim() ||
+    path.join(os.homedir(), ".cache", "platelab", "geocoding.json")
+  );
+}
+
+function cacheKey(point: { lat: number; lon: number }): string {
+  return `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`;
+}
+
+function loadGeocodeCache(): void {
+  if (geocodeMemory.size) return;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(geocodeCachePath(), "utf8")) as Record<
+      string,
+      GeocodedLocation
+    >;
+    for (const [key, value] of Object.entries(parsed)) geocodeMemory.set(key, value);
+  } catch {
+    // First run or an unreadable cache: lookups can still proceed.
+  }
+}
+
+function saveGeocodeCache(): void {
+  const file = geocodeCachePath();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(Object.fromEntries(geocodeMemory), null, 2));
+}
+
+function normalizeNominatim(result: NominatimResult): GeocodedLocation {
+  const address = result.address ?? {};
+  const city = address.city ?? address.town ?? address.village ?? address.municipality;
+  const region = address.state ?? address.region;
+  const neighbourhood =
+    address.neighbourhood ?? address.suburb ?? address.quarter ?? address.city_district;
+  const road = address.road ?? address.pedestrian ?? address.highway;
+  const parts = [road, neighbourhood, city, region].filter(
+    (value, index, values): value is string => Boolean(value) && values.indexOf(value) === index,
+  );
+  return {
+    label: parts.join(", ") || result.display_name || "Location unavailable",
+    ...(road ? { road } : {}),
+    ...(neighbourhood ? { neighbourhood } : {}),
+    ...(city ? { city } : {}),
+    ...(region ? { region } : {}),
+    ...(address.country ? { country: address.country } : {}),
+  };
+}
+
+async function reverseGeocode(point: { lat: number; lon: number }): Promise<GeocodedLocation> {
+  loadGeocodeCache();
+  const key = cacheKey(point);
+  const cached = geocodeMemory.get(key);
+  if (cached) return cached;
+
+  const waitMs = Math.max(0, 1_050 - (Date.now() - lastNominatimRequestAt));
+  if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
+  lastNominatimRequestAt = Date.now();
+  const url = new URL("https://nominatim.openstreetmap.org/reverse");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("lat", String(point.lat));
+  url.searchParams.set("lon", String(point.lon));
+  url.searchParams.set("zoom", "18");
+  url.searchParams.set("addressdetails", "1");
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent":
+        process.env.PLATELAB_GEOCODER_USER_AGENT?.trim() ||
+        "ThePlateLabIngest/1.0 (https://theplatelab.studio)",
+      Accept: "application/json",
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`Nominatim reverse lookup failed (${response.status})`);
+  const location = normalizeNominatim((await response.json()) as NominatimResult);
+  geocodeMemory.set(key, location);
+  saveGeocodeCache();
+  return location;
+}
+
+/** Add user-readable route endpoints without making telemetry parsing depend on the network. */
+export async function enrichTelemetryLocations(summary: TelemetrySummary): Promise<TelemetrySummary> {
+  if (process.env.PLATELAB_REVERSE_GEOCODE === "false") return summary;
+  try {
+    const startLocation = await reverseGeocode(summary.gps.start);
+    const endLocation = await reverseGeocode(summary.gps.end);
+    return {
+      ...summary,
+      gps: {
+        ...summary.gps,
+        startLocation,
+        endLocation,
+        geocoding: {
+          provider: "OpenStreetMap Nominatim",
+          lookedUpAt: new Date().toISOString(),
+        },
+      },
+    };
+  } catch (error) {
+    console.warn(
+      `Reverse geocoding unavailable; retaining coordinates only: ${
+        error instanceof Error ? error.message : "unknown error"
+      }`,
+    );
+    return summary;
+  }
 }

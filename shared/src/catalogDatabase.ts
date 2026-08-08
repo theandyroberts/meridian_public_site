@@ -210,9 +210,10 @@ function descriptorRecords(
   }> = [
     ...plate.tags.map((label) => ({ category: "tag", label })),
     ...plate.objects.map((object) => ({
-      category: "object",
+      category: object.category ?? "object",
       label: object.label,
       confidence: object.confidence,
+      value: object.evidence ? { evidence: object.evidence } : undefined,
     })),
     { category: "shot_type", label: plate.shotType },
     { category: "time_of_day", label: plate.timeOfDay },
@@ -243,6 +244,9 @@ function descriptorRecords(
               source: plate.gps.source,
               avgSpeedMph: plate.gps.avgSpeedMph,
               maxSpeedMph: plate.gps.maxSpeedMph,
+              startLocation: plate.gps.startLocation,
+              endLocation: plate.gps.endLocation,
+              geocoding: plate.gps.geocoding,
             },
           },
         ]

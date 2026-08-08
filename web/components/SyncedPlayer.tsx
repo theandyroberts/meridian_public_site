@@ -136,8 +136,8 @@ export function SyncedPlayer({ plate, stageHref }: { plate: Plate; stageHref?: s
         </div>
       </div>
 
-      {stageHref && (
-        <div className="plate-previs-action plate-previs-action--player">
+      <div className="plate-previs-action plate-previs-action--player">
+        {stageHref ? (
           <Link className="plate-previs-cta" href={stageHref}>
             <span>
               <span className="plate-previs-kicker mono">360 Stage Previs</span>
@@ -147,8 +147,18 @@ export function SyncedPlayer({ plate, stageHref }: { plate: Plate; stageHref?: s
               →
             </span>
           </Link>
-        </div>
-      )}
+        ) : (
+          <div className="plate-previs-cta plate-previs-cta--unavailable" aria-disabled="true">
+            <span>
+              <span className="plate-previs-kicker mono">360 Studio</span>
+              <strong>Studio preview is not ready for this plate</strong>
+              <span className="plate-previs-note">
+                The ingest is missing a validated full-sphere ring and sky rendition.
+              </span>
+            </span>
+          </div>
+        )}
+      </div>
 
       <div className="nine-grid">
         {GRID_ORDER.map((id) => (

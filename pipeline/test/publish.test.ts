@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeRandomSku } from "@platelab/shared";
+import { makeRandomSku, type Plate } from "@platelab/shared";
 
-function makePlate(sku: string) {
+function makePlate(sku: string): Plate {
   return {
     sku,
     title: "t", description: "d", shootDate: "2026-07-08", rig: "Mercy01",

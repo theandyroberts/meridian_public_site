@@ -18,6 +18,8 @@
   },
   "scripts": {
     "demo:generate": "npm run generate -w pipeline",
+    "ingest:preflight": "npm run preflight -w pipeline --",
+    "ingest:preflight:all": "npm run preflight:all -w pipeline --",
     "demo:ingest": "npm run ingest:all -w pipeline",
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",

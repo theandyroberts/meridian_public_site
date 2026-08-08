@@ -46,7 +46,13 @@ export function adaptClip(rootDir: string, clip: HandoffClip): { drop: Drop; sto
   let stitchedMaster: string | undefined;
   for (const asset of clip.assets) {
     const abs = path.join(rootDir, asset.package_relative_path);
-    if (type === "captured_live_stitch") { stitchedMaster = abs; continue; }
+    // Some handoffs include a live full-sphere reference alongside the nine
+    // source feeds. Keep it: master preparation will verify its 2:1 geometry
+    // and otherwise fall back to the calibrated cameras.
+    if (type === "captured_live_stitch" || asset.role === "captured_live_stitch") {
+      stitchedMaster = abs;
+      continue;
+    }
     if (asset.camera_number != null) {
       cameraFiles[CAMERA_NUMBER_TO_POSITION[asset.camera_number]] = abs;
     }
@@ -63,6 +69,8 @@ export function adaptClip(rootDir: string, clip: HandoffClip): { drop: Drop; sto
     season: SEASONS_BY_MONTH[month] ?? "summer",
     shotType: "urban",
     stageCompat: ["led-volume", "green-screen", "projection"],
+    colorState: "log",
+    trustedStitchedMaster: false,
     sceneHints: [
       ...clip.metadata.operator_tags,
       ...(clip.metadata.operator_notes ? [clip.metadata.operator_notes] : []),

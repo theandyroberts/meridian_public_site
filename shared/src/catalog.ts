@@ -58,6 +58,15 @@ export const CAMERA_POSITIONS: Record<CameraId, string> = {
 
 const latLon = z.object({ lat: z.number(), lon: z.number() });
 
+const geocodedLocation = z.object({
+  label: z.string().min(1),
+  road: z.string().optional(),
+  neighbourhood: z.string().optional(),
+  city: z.string().optional(),
+  region: z.string().optional(),
+  country: z.string().optional(),
+});
+
 export const gpsSchema = z.object({
   source: z.string(), // e.g. "u-blox F9R RTK"
   start: latLon,
@@ -66,6 +75,14 @@ export const gpsSchema = z.object({
   path: z.array(latLon).min(2),
   avgSpeedMph: z.number().nonnegative(),
   maxSpeedMph: z.number().nonnegative(),
+  startLocation: geocodedLocation.optional(),
+  endLocation: geocodedLocation.optional(),
+  geocoding: z
+    .object({
+      provider: z.string(),
+      lookedUpAt: z.string(),
+    })
+    .optional(),
 });
 
 export const imuSchema = z.object({
@@ -77,6 +94,18 @@ export const imuSchema = z.object({
 export const objectLabelSchema = z.object({
   label: z.string(),
   confidence: z.number().min(0).max(1),
+  category: z
+    .enum([
+      "object",
+      "landmark",
+      "infrastructure",
+      "architecture",
+      "environment",
+      "road-feature",
+      "vehicle",
+    ])
+    .optional(),
+  evidence: z.enum(["visual", "gps", "operator", "combined"]).optional(),
 });
 
 export const renditionsSchema = z.object({
