@@ -49,6 +49,33 @@ test("preflight blocks a legacy nine-camera drop without an explicit calibration
   }
 });
 
+test("preflight accepts the explicit GA DTLA Legacy XL UAT calibration", async () => {
+  const previous = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "test-key-not-used";
+  try {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tpl-preflight-"));
+    fs.writeFileSync(
+      path.join(dir, "meta.json"),
+      JSON.stringify({
+        ...META,
+        calibrationProfile: "legacy-xl-ga-dtla-2024-v1",
+      }),
+    );
+    for (const id of ["A", "B", "C", "D", "E", "F", "G", "H", "J"]) {
+      tinyVideo(path.join(dir, `cam_${id}.mp4`));
+    }
+    const result = await preflightDrop(dir);
+    assert.equal(result.ready, true);
+    assert.match(
+      result.checks.find((check) => check.check === "calibration")!.detail,
+      /legacy-xl-ga-dtla-2024-v1 \(metadata\)/,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previous;
+  }
+});
+
 test("preflight accepts a supplied 2:1 full-sphere master without a rig calibration", async () => {
   const previous = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "test-key-not-used";

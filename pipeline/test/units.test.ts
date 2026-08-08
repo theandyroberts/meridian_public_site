@@ -7,7 +7,10 @@ import {
   catalogDatabaseRecordForPlate,
 } from "@platelab/shared";
 import { signScreenerAccess, verifyScreenerAccess } from "../src/sign.js";
-import { summarizeTelemetry } from "../src/stages/telemetry.js";
+import {
+  normalizeLegacyXlTelemetry,
+  summarizeTelemetry,
+} from "../src/stages/telemetry.js";
 
 test("pricing: $8k/min, 1-minute minimum, prorated after", () => {
   assert.equal(priceForDuration(10), 8000); // under minimum
@@ -50,6 +53,33 @@ test("telemetry summarization", () => {
   assert.equal(summary.speedBand, "highway");
   assert.equal(summary.gps.path.length, 3);
   assert.deepEqual(summary.gps.end, { lat: 40.002, lon: -74.0 });
+});
+
+test("Legacy XL telemetry collapses repeated fixes and rejects GPS speed spikes", () => {
+  const gps = [
+    [0, "00", 34, -118],
+    [12, "00", 34, -118],
+    [24, "01", 34.0001, -118],
+    [48, "02", 34.0002, -118],
+    [72, "03", 35, -117], // impossible one-second jump
+    [96, "04", 34.0004, -118],
+    [120, "05", 34.0005, -118],
+  ].map(([tc_frames, second, latitude, longitude]) => ({
+    tc_frames,
+    host_wall_clock: `2024-01-04T12:00:${second}Z`,
+    latitude,
+    longitude,
+  }));
+  const normalized = normalizeLegacyXlTelemetry({
+    schema: "spheris.telemetry.gps_imu.v1",
+    source: { kind: "legacy_xl" },
+    availability: { gps_available: true, imu_available: true },
+    take: { start_frame: 0, end_frame: 120 },
+    samples: { gps, imu: [{ tc_frames: 0 }, { tc_frames: 1 }] },
+  });
+  assert.equal(normalized.samples.length, 6);
+  assert.equal(normalized.imu.collected, true);
+  assert.ok(Math.max(...normalized.samples.map((sample) => sample.speedMph)) < 120);
 });
 
 test("plate schema v2: opaque sku, status default, mmm block, optional gps", () => {

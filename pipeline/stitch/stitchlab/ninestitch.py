@@ -86,6 +86,11 @@ QC_RESP_GATE = 0.15
 #: outside it one source never touches the output, so disagreement there is
 #: not a seam artifact a viewer could see.
 QC_BLEND_W_MIN = 0.02
+#: Sky cameras converge at the zenith. Longitude-only ownership produces
+#: three vertical tonal panels there because longitude is undefined at the
+#: pole. Blend by angular distance to each camera's optical axis instead; the
+#: same policy is already used by the separately approved sky-dome renderer.
+SKY_AXIS_FEATHER_DEG = 8.0
 
 
 # --------------------------------------------------------------------- helpers
@@ -1109,20 +1114,57 @@ class NineStitcher:
             seam.sel_diag = best_diag
 
     def _build_sky_weights(self) -> None:
-        """Per-sky-cam column arcs with horizontal feather, normalized per
-        pixel over valid coverage, gains folded in (mirrors RingStitcher)."""
-        eps = 1e-4
-        w_raw = {}
+        """Per-sky-camera optical-axis ownership, normalized over coverage.
+
+        The old full-sphere compositor selected sky cameras by longitude.
+        That is reasonable near the horizon but degenerates into three hard
+        vertical panels at the zenith, where every longitude represents the
+        same point. Optical-axis distance keeps ownership continuous over the
+        pole and matches the dedicated sky-dome renderer's geometry.
+
+        ``sky_colw`` is retained as seam provenance for QC/parallax reports;
+        it no longer drives the pixels in the overhead tier.
+        """
+        eps = 1e-6
         for k, l in enumerate(self.sky_order):
             left = self.sky_seams[(k - 1) % 3].col_unwrapped % self.eq_w
             right = self.sky_seams[k].col_unwrapped % self.eq_w
             colw = _col_weight(self.eq_w, left, right, float(self.feather_h))
             self.sky_colw[l] = colw
-            w_raw[l] = (colw[None, :] + eps) * self.sky_maps[l][2].astype(np.float32)
+
+        rays = geometry.equirect_rays(self.eq_w, self.eq_h)[:, : self.sky_r1]
+        axis_dist = {}
+        for l, cam in self.sky_cams.items():
+            rot = geometry.rotation(cam.yaw, cam.pitch, cam.roll)
+            axis = rot @ np.array([0.0, 0.0, 1.0])
+            dot = np.clip(
+                axis[0] * rays[0] + axis[1] * rays[1] + axis[2] * rays[2],
+                -1.0,
+                1.0,
+            )
+            axis_dist[l] = np.degrees(np.arccos(dot))
+        del rays
+
+        stack = np.stack([axis_dist[l] for l in SKY])
+        best = stack.min(axis=0)
+        w_raw = {}
+        for k, l in enumerate(SKY):
+            weight = np.clip(
+                1.0 - (stack[k] - best) / SKY_AXIS_FEATHER_DEG,
+                0.0,
+                1.0,
+            )
+            w_raw[l] = np.where(
+                self.sky_maps[l][2],
+                weight,
+                0.0,
+            ).astype(np.float32)
+        del stack, axis_dist
+
         total = np.zeros((self.sky_r1, self.eq_w), np.float32)
         for arr in w_raw.values():
             total += arr
-        safe = np.where(total > 0, total, 1.0)
+        safe = np.where(total > eps, total, 1.0)
         self._sky_weights = {l: (arr / safe) * self.sky_gains[l] for l, arr in w_raw.items()}
         # Compose-path weights with the vignette correction folded in (the
         # QC/luma path corrects in _warp_sky_luma instead; keep them separate
@@ -1287,6 +1329,10 @@ class NineStitcher:
             "sky_gains": self.sky_gains,
             "sky_vignette_v2_v4": {l: [round(a, 4), round(b, 4)] for l, (a, b) in self.sky_vig_params.items()},
             "sky_flatfield": getattr(self, "sky_flatfield_stats", None),
+            "sky_weight_policy": {
+                "mode": "optical-axis-distance",
+                "feather_deg": SKY_AXIS_FEATHER_DEG,
+            },
             "feather_v_px": self.feather_v,
             "feather_h_px": self.feather_h,
             "polar_cap_lat_deg": POLAR_CAP_LAT_DEG,

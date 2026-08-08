@@ -9,6 +9,11 @@ const STITCH_ROOT = path.resolve(
 );
 const BUNDLED_PROFILES: Record<string, string> = {
   "mercy01-v1": path.join(STITCH_ROOT, "calibration", "mercy01-v1.json"),
+  "legacy-xl-ga-dtla-2024-v1": path.join(
+    STITCH_ROOT,
+    "calibration",
+    "legacy-xl-ga-dtla-2024-v1.json",
+  ),
 };
 
 export interface CalibrationSelection {

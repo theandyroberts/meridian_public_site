@@ -30,6 +30,30 @@ export const telemetrySchema = z.object({
 
 export type Telemetry = z.infer<typeof telemetrySchema>;
 
+const legacyXlTelemetrySchema = z.object({
+  schema: z.literal("spheris.telemetry.gps_imu.v1"),
+  source: z.object({
+    kind: z.string(),
+  }),
+  availability: z.object({
+    gps_available: z.boolean(),
+    imu_available: z.boolean(),
+  }),
+  take: z.object({
+    start_frame: z.number().int(),
+    end_frame: z.number().int(),
+  }),
+  samples: z.object({
+    gps: z.array(z.object({
+      host_wall_clock: z.string(),
+      tc_frames: z.number().int(),
+      latitude: z.number(),
+      longitude: z.number(),
+    })).min(2),
+    imu: z.array(z.object({ tc_frames: z.number().int() })),
+  }),
+});
+
 export interface TelemetrySummary {
   gps: Gps;
   imu: Imu;
@@ -72,8 +96,88 @@ export function summarizeTelemetry(t: Telemetry): TelemetrySummary {
 }
 
 export function loadTelemetry(file: string): TelemetrySummary {
-  const parsed = telemetrySchema.parse(JSON.parse(fs.readFileSync(file, "utf8")));
+  const document = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+  const standard = telemetrySchema.safeParse(document);
+  const parsed = standard.success ? standard.data : normalizeLegacyXlTelemetry(document);
   return summarizeTelemetry(parsed);
+}
+
+function haversineMiles(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+): number {
+  const radians = (degrees: number) => (degrees * Math.PI) / 180;
+  const earthRadiusMiles = 3_958.7613;
+  const lat1 = radians(a.latitude);
+  const lat2 = radians(b.latitude);
+  const dLat = lat2 - lat1;
+  const dLon = radians(b.longitude - a.longitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * earthRadiusMiles * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+/** Convert the MMM Legacy XL LTC export into the catalog's compact telemetry shape. */
+export function normalizeLegacyXlTelemetry(document: unknown): Telemetry {
+  const legacy = legacyXlTelemetrySchema.parse(document);
+  if (!legacy.availability.gps_available) {
+    throw new Error("Legacy XL telemetry reports that GPS is unavailable");
+  }
+
+  // The handoff repeats the same Android GPS fix at the video frame rate.
+  // Keep one fix per wall-clock sample before deriving speed; otherwise long
+  // runs of zero movement followed by a one-frame jump create huge spikes.
+  const fixes = legacy.samples.gps.filter(
+    (fix, index, all) => index === 0 || fix.host_wall_clock !== all[index - 1].host_wall_clock,
+  );
+  if (fixes.length < 2) throw new Error("Legacy XL GPS has fewer than two distinct fixes");
+
+  const segmentSpeeds: Array<number | undefined> = [];
+  for (let index = 0; index < fixes.length - 1; index++) {
+    const current = fixes[index];
+    const next = fixes[index + 1];
+    const hours = (next.tc_frames - current.tc_frames) / 24 / 3_600;
+    const mph = hours > 0 ? haversineMiles(current, next) / hours : Number.NaN;
+    // Reject impossible GPS jumps before the median window. They are sensor
+    // outliers, not a reason to classify a city drive as aircraft-fast.
+    segmentSpeeds.push(Number.isFinite(mph) && mph <= 120 ? mph : undefined);
+  }
+
+  const smoothed = segmentSpeeds.map((_, index) => {
+    const window = segmentSpeeds
+      .slice(Math.max(0, index - 2), Math.min(segmentSpeeds.length, index + 3))
+      .filter((value): value is number => value !== undefined);
+    return window.length ? median(window) : 0;
+  });
+  const startFrame = fixes[0].tc_frames;
+  const samples = fixes.map((fix, index) => ({
+    t: (fix.tc_frames - startFrame) / 24,
+    lat: fix.latitude,
+    lon: fix.longitude,
+    speedMph: smoothed[Math.min(index, smoothed.length - 1)] ?? 0,
+  }));
+  const durationSec = Math.max(
+    (legacy.take.end_frame - legacy.take.start_frame) / 24,
+    1 / 24,
+  );
+  return telemetrySchema.parse({
+    source: "Legacy XL Android LTC GPS",
+    imu: {
+      collected: legacy.availability.imu_available && legacy.samples.imu.length > 0,
+      source: "Legacy XL Android LTC IMU",
+      rateHz: legacy.samples.imu.length / durationSec,
+    },
+    samples,
+  });
 }
 
 interface NominatimResult {
