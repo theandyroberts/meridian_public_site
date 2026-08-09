@@ -49,7 +49,7 @@ test("preflight blocks a legacy nine-camera drop without an explicit calibration
   }
 });
 
-test("preflight accepts the explicit GA DTLA Legacy XL UAT calibration", async () => {
+test("preflight accepts the solved GA DTLA Legacy XL v2 calibration", async () => {
   const previous = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "test-key-not-used";
   try {
@@ -58,7 +58,7 @@ test("preflight accepts the explicit GA DTLA Legacy XL UAT calibration", async (
       path.join(dir, "meta.json"),
       JSON.stringify({
         ...META,
-        calibrationProfile: "legacy-xl-ga-dtla-2024-v1",
+        calibrationProfile: "legacy-xl-ga-dtla-2024-v2",
       }),
     );
     for (const id of ["A", "B", "C", "D", "E", "F", "G", "H", "J"]) {
@@ -68,7 +68,7 @@ test("preflight accepts the explicit GA DTLA Legacy XL UAT calibration", async (
     assert.equal(result.ready, true);
     assert.match(
       result.checks.find((check) => check.check === "calibration")!.detail,
-      /legacy-xl-ga-dtla-2024-v1 \(metadata\)/,
+      /legacy-xl-ga-dtla-2024-v2 \(metadata\)/,
     );
   } finally {
     if (previous === undefined) delete process.env.OPENAI_API_KEY;

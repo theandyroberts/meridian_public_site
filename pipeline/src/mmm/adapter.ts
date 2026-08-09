@@ -16,6 +16,12 @@ export class ClipAdaptError extends Error {
 const SEASONS_BY_MONTH = ["winter","winter","spring","spring","spring","summer",
   "summer","summer","fall","fall","fall","winter"] as const;
 
+const LEGACY_GA_DTLA_CALIBRATION = "legacy-xl-ga-dtla-2024-v2";
+
+function isLegacyGaDtlaClip(stockClipId: string): boolean {
+  return /^SPH-STK-LEGACY-\d{8}-GA-DTLA-/i.test(stockClipId);
+}
+
 function titleCase(slug: string): string {
   return slug.replace(/-/g, " ").toLowerCase().replace(/(^|\s)\w/g, (m) => m.toUpperCase());
 }
@@ -60,9 +66,10 @@ export function adaptClip(rootDir: string, clip: HandoffClip): { drop: Drop; sto
 
   const { shootDate, locationSlug } = parseStockClipId(clip.stock_clip_id);
   const month = Number(shootDate.slice(5, 7)) - 1;
+  const legacyGaDtla = isLegacyGaDtlaClip(clip.stock_clip_id);
   const meta: DropMeta = {
     shootDate,
-    rig: "Spheris XL 01",
+    rig: legacyGaDtla ? "Legacy XL" : "Spheris XL 01",
     location: { name: locationSlug, city: locationSlug, region: "—", country: "US" },
     timeOfDay: "day",
     weather: "clear",
@@ -70,6 +77,7 @@ export function adaptClip(rootDir: string, clip: HandoffClip): { drop: Drop; sto
     shotType: "urban",
     stageCompat: ["led-volume", "green-screen", "projection"],
     colorState: "log",
+    ...(legacyGaDtla ? { calibrationProfile: LEGACY_GA_DTLA_CALIBRATION } : {}),
     trustedStitchedMaster: false,
     sceneHints: [
       ...clip.metadata.operator_tags,

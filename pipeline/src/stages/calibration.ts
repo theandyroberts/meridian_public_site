@@ -14,6 +14,11 @@ const BUNDLED_PROFILES: Record<string, string> = {
     "calibration",
     "legacy-xl-ga-dtla-2024-v1.json",
   ),
+  "legacy-xl-ga-dtla-2024-v2": path.join(
+    STITCH_ROOT,
+    "calibration",
+    "legacy-xl-ga-dtla-2024-v2.json",
+  ),
 };
 
 export interface CalibrationSelection {
