@@ -2107,12 +2107,6 @@ body::before {
 .nine-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: var(--hairline); padding: 2px; }
 .nine-grid .cell { position: relative; background: #000; }
 .nine-grid video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
-.nine-grid .cam-tag {
-  position: absolute; left: 8px; top: 8px;
-  background: rgba(14, 14, 16, 0.8);
-  padding: 2px 7px;
-  color: var(--paper-60);
-}
 
 .detail-cols { display: grid; grid-template-columns: 1fr 380px; gap: 40px; margin-top: 48px; align-items: start; }
 @media (max-width: 1020px) { .detail-cols { grid-template-columns: 1fr; } }

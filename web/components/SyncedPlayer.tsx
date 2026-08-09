@@ -177,11 +177,9 @@ export function SyncedPlayer({ plate, stageHref }: { plate: Plate; stageHref?: s
               loop
               playsInline
               preload="auto"
+              aria-label={`Camera ${id} · ${CAMERA_POSITIONS[id]}`}
               onClick={togglePlay}
             />
-            <span className="cam-tag mono">
-              {id} · {CAMERA_POSITIONS[id]}
-            </span>
           </div>
         ))}
       </div>
