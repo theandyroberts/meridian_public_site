@@ -1,33 +1,65 @@
-import fs from "node:fs";
-import path from "node:path";
-import { catalogSchema, type Catalog, type Plate } from "@platelab/shared";
+import "server-only";
 
-const CATALOG_PATH = path.join(process.cwd(), "data", "catalog.json");
+import {
+  catalogSchema,
+  plateSchema,
+  type Catalog,
+  type Plate,
+} from "@platelab/shared";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
-let cached: Catalog | null = null;
-let cachedMtime = 0;
+export async function getCatalog(options?: {
+  includeDrafts?: boolean;
+}): Promise<Catalog> {
+  const supabase = options?.includeDrafts
+    ? createAdminClient()
+    : await createClient();
+  const { data, error } = await supabase
+    .from("stock_clips")
+    .select("source_metadata, updated_at")
+    .order("sku");
 
-export function getCatalog(): Catalog {
-  if (!fs.existsSync(CATALOG_PATH)) return { generatedAt: "", plates: [] };
-  const mtime = fs.statSync(CATALOG_PATH).mtimeMs;
-  if (!cached || mtime !== cachedMtime) {
-    cached = catalogSchema.parse(JSON.parse(fs.readFileSync(CATALOG_PATH, "utf8")));
-    cachedMtime = mtime;
+  if (error) {
+    throw new Error(`Unable to load the catalog: ${error.message}`);
   }
-  return cached;
+
+  const generatedAt = (data ?? []).reduce(
+    (latest, row) =>
+      row.updated_at && row.updated_at > latest ? row.updated_at : latest,
+    "",
+  );
+  return catalogSchema.parse({
+    generatedAt,
+    plates: (data ?? []).map((row) =>
+      plateSchema.parse(row.source_metadata),
+    ),
+  });
 }
 
-export function getLivePlates(): Plate[] {
-  return getCatalog().plates.filter((p) => p.status === "live");
+export async function getLivePlates(): Promise<Plate[]> {
+  return (await getCatalog()).plates;
 }
 
-export function getPlate(sku: string): Plate | undefined {
-  return getCatalog().plates.find((p) => p.sku === sku);
+export async function getPlate(
+  sku: string,
+  options?: { includeDrafts?: boolean },
+): Promise<Plate | undefined> {
+  const supabase = options?.includeDrafts
+    ? createAdminClient()
+    : await createClient();
+  const { data, error } = await supabase
+    .from("stock_clips")
+    .select("source_metadata")
+    .eq("sku", sku)
+    .maybeSingle();
+
+  if (error) throw new Error(`Unable to load ${sku}: ${error.message}`);
+  return data ? plateSchema.parse(data.source_metadata) : undefined;
 }
 
-export function getLivePlate(sku: string): Plate | undefined {
-  const p = getPlate(sku);
-  return p?.status === "live" ? p : undefined;
+export async function getLivePlate(sku: string): Promise<Plate | undefined> {
+  return getPlate(sku);
 }
 
 export function formatDuration(sec: number): string {

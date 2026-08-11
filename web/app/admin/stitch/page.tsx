@@ -1,12 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { requireAdmin } from "@/lib/admin/session";
+import { getCatalog } from "@/lib/catalog";
+import { siteTitle } from "@/lib/siteTitle";
 
-export const metadata = { title: "Stitch reviews — TPL Admin" };
+export const metadata = { title: siteTitle("Stitch reviews — TPL Admin") };
 export const dynamic = "force-dynamic";
 
 const REPORTS_ROOT = path.join(process.cwd(), "data", "stitch-reports");
-const CATALOG_PATH = path.join(process.cwd(), "data", "catalog.json");
 
 interface RunSummary {
   name: string;
@@ -24,18 +25,8 @@ interface RunSummary {
   lastNote?: { by: string; at: string; note: string };
 }
 
-function catalogTitles(): Record<string, string> {
-  try {
-    const c = JSON.parse(fs.readFileSync(CATALOG_PATH, "utf8"));
-    return Object.fromEntries(c.plates.map((p: any) => [p.sku, p.title]));
-  } catch {
-    return {};
-  }
-}
-
-function listRuns(): RunSummary[] {
+function listRuns(titles: Record<string, string>): RunSummary[] {
   if (!fs.existsSync(REPORTS_ROOT)) return [];
-  const titles = catalogTitles();
   return fs
     .readdirSync(REPORTS_ROOT)
     .filter((d) => fs.existsSync(path.join(REPORTS_ROOT, d, "index.html")))
@@ -104,7 +95,11 @@ function listRuns(): RunSummary[] {
 
 export default async function StitchReviewsPage() {
   await requireAdmin();
-  const runs = listRuns();
+  const catalog = await getCatalog({ includeDrafts: true });
+  const titles = Object.fromEntries(
+    catalog.plates.map((plate) => [plate.sku, plate.title]),
+  );
+  const runs = listRuns(titles);
 
   return (
     <main style={{ maxWidth: 960, margin: "0 auto", padding: "48px 24px" }}>

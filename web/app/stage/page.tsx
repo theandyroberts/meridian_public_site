@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { siteTitle } from "@/lib/siteTitle";
 
 export const metadata: Metadata = {
-  title: "LED Wall Stage Viewer — The Plate Lab",
+  title: siteTitle("LED Wall Stage Viewer — The Plate Lab"),
   description:
     "Preview 360 driving plates on a replica of the Amazon MGM Stage 15 LED volume, with a car and switchable vantage points.",
 };
@@ -14,7 +15,49 @@ export const metadata: Metadata = {
  *
  * Fixed + high z-index so the viewer covers the site header/nav chrome.
  */
-export default function StageViewerPage() {
+export default async function StageViewerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    video?: string;
+    label?: string;
+    fps?: string;
+    durationTiers?: string;
+    sourceTimecode?: string;
+    sceneClipId?: string;
+    version?: string;
+    inFrame?: string;
+    outFrame?: string;
+    projectId?: string;
+    projectName?: string;
+    sceneId?: string;
+    sceneName?: string;
+    sku?: string;
+  }>;
+}) {
+  const query = await searchParams;
+  const viewerQuery = new URLSearchParams();
+  const forwardedParameters = [
+    "video",
+    "label",
+    "fps",
+    "durationTiers",
+    "sourceTimecode",
+    "sceneClipId",
+    "version",
+    "inFrame",
+    "outFrame",
+    "projectId",
+    "projectName",
+    "sceneId",
+    "sceneName",
+    "sku",
+  ] as const;
+  for (const name of forwardedParameters) {
+    if (query[name]) viewerQuery.set(name, query[name]);
+  }
+  const viewerSrc = `/stage/index.html${viewerQuery.size ? `?${viewerQuery}` : ""}`;
+
   return (
     <div
       style={{
@@ -25,7 +68,7 @@ export default function StageViewerPage() {
       }}
     >
       <iframe
-        src="/stage/index.html"
+        src={viewerSrc}
         title="LED Wall Stage Viewer"
         allow="fullscreen"
         style={{ width: "100%", height: "100%", border: 0, display: "block" }}

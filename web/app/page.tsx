@@ -1,14 +1,26 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getLivePlates } from "@/lib/catalog";
 import { GlobeMark } from "@/components/Logo";
 import { HeroSearch } from "@/components/HeroSearch";
 import { PlateCard } from "@/components/PlateCard";
+import { ComingSoon } from "@/components/ComingSoon";
 import { PER_MINUTE_USD, formatUsd } from "@platelab/shared";
+import { hostnameFromHost, isComingSoonHostname } from "@/lib/siteHosts";
 
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  const plates = getLivePlates();
+export default async function HomePage() {
+  const requestHeaders = await headers();
+  const hostname = hostnameFromHost(
+    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host"),
+  );
+
+  if (isComingSoonHostname(hostname)) {
+    return <ComingSoon />;
+  }
+
+  const plates = await getLivePlates();
   const featured = plates.slice(0, 6);
 
   return (
@@ -30,6 +42,14 @@ export default function HomePage() {
             and fused IMU on every take. Pro-stitched, metadata-rich, ready for
             your volume.
           </p>
+          <div className="hero-actions">
+            <Link href="/projects/new" className="primary-button">
+              Start a project
+            </Link>
+            <Link href="/browse" className="secondary-button">
+              Browse plates
+            </Link>
+          </div>
           <div className="hero-meta">
             <div>
               <strong>{formatUsd(PER_MINUTE_USD)}/min</strong>
@@ -57,6 +77,26 @@ export default function HomePage() {
             <HeroSearch />
           </div>
         </div>
+      </section>
+
+      <section className="wrap project-invitation">
+        <div>
+          <p className="mono accent">Plan scene by scene</p>
+          <h2>Start with what the production needs to shoot.</h2>
+          <p>
+            Create a project, add the scenes on your shot list, and describe
+            the environment each one needs. The Plate Lab turns that context
+            into a focused clip search and a shared review path.
+          </p>
+        </div>
+        <ol className="journey-steps">
+          <li><span>01</span><strong>Start the project</strong></li>
+          <li><span>02</span><strong>Add the scenes</strong></li>
+          <li><span>03</span><strong>Choose the plates</strong></li>
+        </ol>
+        <Link href="/projects/new" className="primary-button">
+          Build your plate plan
+        </Link>
       </section>
 
       <section className="wrap">

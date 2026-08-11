@@ -1067,10 +1067,15 @@ class BoundaryGuard:
         rows_hi = min(ROWS_ANALYZE, BOUND_BAND[1] + FIT_WIN + 60)
         alpha = self._provisional_alpha(route_full, seam)
         canvas = np.zeros((rows_hi, W, 3), np.float32)
-        sky_hi = min(sky_r1, rows_hi)
+        sky_hi = min(sky_r1, rows_hi, acc_sky.shape[0], alpha.shape[0])
         canvas[:sky_hi] += alpha[:sky_hi, :, None] * acc_sky[:sky_hi]
-        canvas[r0:rows_hi] += (1.0 - alpha[r0:rows_hi, :, None]) \
-            * acc_ring[:rows_hi - r0]
+        # The structure constants were tuned at the default 3840x1920 canvas,
+        # but QC also runs at smaller 2:1 canvases. Clip the ring slice to its
+        # actual mapped band instead of assuming it extends to ROWS_ANALYZE.
+        ring_hi = min(rows_hi, r0 + acc_ring.shape[0], alpha.shape[0])
+        if ring_hi > r0:
+            canvas[r0:ring_hi] += (1.0 - alpha[r0:ring_hi, :, None]) \
+                * acc_ring[:ring_hi - r0]
         gray = cv2.cvtColor(from_linear(canvas), cv2.COLOR_BGR2GRAY)
         bnd = segment(gray)["bnd"].astype(bool)
         rows_lo = max(0, BOUND_BAND[0] - FIT_WIN - 60)

@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
   }
-  const plate = body.sku ? getPlate(body.sku) : undefined;
+  const plate = body.sku ? await getPlate(body.sku) : undefined;
   if (!plate) {
     return NextResponse.json({ error: "unknown sku" }, { status: 404 });
   }

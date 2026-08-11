@@ -3,9 +3,48 @@ import * as THREE from 'three'
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { detectDecodedFootagePreset } from './footage-layout.js'
+import { describeMediaError } from './media-status.js'
+import { buildScreenshotDetails, describeScreenshotError } from './screenshot-export.js'
+import {
+  DEFAULT_LICENSE_DURATION_TIERS_SECONDS,
+  describeLicenseTierBoundary,
+  evaluateLicenseDurationTier,
+  normalizeLicenseDurationTiers,
+} from './duration-tier.js'
+import {
+  cappedDevicePixelRatio,
+  shouldRefreshReflection,
+  shouldRenderContinuously,
+  shouldScheduleVideoFrame,
+} from './render-policy.js'
+import {
+  formatFrameTimecode,
+  formatRelativeTimecode,
+  formatSourceTimecode,
+  frameToSeconds,
+  hasBackwardsSelection,
+  normalizeFps,
+  parseOptionalFrame,
+  secondsToFrame,
+  selectionDurationFrames,
+  selectionTimelineRange,
+  setInMarker,
+  setOutMarker,
+  shouldLoopSelection,
+  stepFrame,
+} from './playback-selection.js'
+import {
+  FEET_TO_SCENE_UNITS,
+  clampPointToStageInterior,
+  feetToSceneUnits,
+  scaleModelToLength,
+} from './scene-scale.js'
+import { VEHICLE_PHYSICAL_LENGTHS_FT } from './vehicle-specs.js'
 
-const FEET_TO_UNITS = 0.18
+const FEET_TO_UNITS = FEET_TO_SCENE_UNITS
 const CAMERA_SENSOR_WIDTH_MM = 36
+const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 const presets = {
   amazon: {
@@ -61,22 +100,23 @@ const shotGroups = [
       { key: 'mediumFrontLeft', label: 'Front L', position: [2.75, 0.68, 1.35], target: [0.48, 0.58, 0.04], fov: 43 },
       { key: 'mediumFrontRight', label: 'Front R', position: [2.75, 0.68, -1.35], target: [0.48, 0.58, -0.04], fov: 43 },
       { key: 'mediumRearLeft', label: 'Rear L', position: [-2.9, 0.7, 1.4], target: [-0.5, 0.58, 0.04], fov: 44 },
+      { key: 'mediumRear', label: 'Rear', position: [-2.9, 0.7, 0], target: [-0.5, 0.58, 0], fov: 44 },
       { key: 'mediumRearRight', label: 'Rear R', position: [-2.9, 0.7, -1.4], target: [-0.5, 0.58, -0.04], fov: 44 },
     ],
   },
   {
     name: 'Interior',
     shots: [
-      { key: 'overShoulder', label: 'Over Shoulder', position: [-0.72, 1.02, 0.38], target: [1.25, 0.9, -0.22], fov: 58 },
-      { key: 'passengerToDriver', label: 'Passenger -> Driver', position: [0.15, 0.94, -0.72], target: [0.12, 0.86, 0.58], fov: 55 },
-      { key: 'driverToPassenger', label: 'Driver -> Passenger', position: [0.15, 0.94, 0.72], target: [0.12, 0.86, -0.58], fov: 55 },
-      { key: 'sideWindow', label: 'Side Window', position: [0.18, 0.98, 2.1], target: [0.08, 0.78, 0], fov: 48 },
+      { key: 'overShoulder', label: 'Over Shoulder', position: [-0.48, 0.76, 0.24], target: [0.9, 0.58, -0.14], fov: 58 },
+      { key: 'passengerToDriver', label: 'Passenger -> Driver', position: [0, 0.72, -0.32], target: [0, 0.58, 0.3], fov: 55 },
+      { key: 'driverToPassenger', label: 'Driver -> Passenger', position: [0, 0.72, 0.32], target: [0, 0.58, -0.3], fov: 55 },
+      { key: 'sideWindow', label: 'Side Window', position: [0.1, 0.7, 1.25], target: [0.05, 0.52, 0], fov: 48 },
     ],
   },
   {
     name: 'Utility',
     shots: [
-      { key: 'paintReflection', label: 'Paint', position: [2.35, 0.62, 1.0], target: [0.35, 0.52, 0], fov: 42 },
+      { key: 'paintReflection', label: 'Paint', position: [1.55, 0.46, 0.72], target: [0.25, 0.36, 0], fov: 42 },
       { key: 'ceiling', label: 'Ceiling', position: [0, 2.45, 0.1], target: [0, 0.25, 0], fov: 82 },
       { key: 'top', label: 'Plan', position: [0, 18, 0], target: [0, 0, 0], fov: 50 },
     ],
@@ -95,6 +135,7 @@ const finishPresets = {
 const footagePresets = {
   canyon: { label: 'Canyon', sourceMode: 'sphere', cropTop: 7, cropBottom: 57, ceilingTop: 7, ceilingBottom: 25, vertical: 0 },
   dtla: { label: 'DTLA', sourceMode: 'sphere', cropTop: 0, cropBottom: 62, ceilingTop: 0, ceilingBottom: 22, vertical: 0 },
+  ringStrip: { label: 'Panoramic ring strip', sourceMode: 'strip', cropTop: 0, cropBottom: 100, ceilingTop: 0, ceilingBottom: 20, vertical: 0 },
   fullSphere: { label: 'Full 360 sphere', sourceMode: 'sphere', cropTop: 0, cropBottom: 100, ceilingTop: 0, ceilingBottom: 50, vertical: 0 },
 }
 
@@ -104,7 +145,7 @@ const vehicleModels = {
     file: `${import.meta.env.BASE_URL}models/ferrari.glb`,
     credit: 'Ferrari 458 Italia by vicent091036 via the official Three.js car materials example.',
     rotationY: -Math.PI / 2,
-    targetLength: 4.65,
+    targetLengthFt: VEHICLE_PHYSICAL_LENGTHS_FT.ferrari,
     shadow: 'ferrari',
   },
   bmwM5: {
@@ -112,7 +153,7 @@ const vehicleModels = {
     file: `${import.meta.env.BASE_URL}models/bmw_m5.glb`,
     credit: 'BMW M5 sedan test model from Get3DModels/DreamCar.',
     rotationY: 0,
-    targetLength: 4.96,
+    targetLengthFt: VEHICLE_PHYSICAL_LENGTHS_FT.bmwM5,
     shadow: 'soft',
   },
   escalade: {
@@ -120,14 +161,14 @@ const vehicleModels = {
     file: `${import.meta.env.BASE_URL}models/escalade.glb`,
     credit: 'Cadillac Escalade ESV test model from Get3DModels/OUTPISTON.',
     rotationY: 0,
-    targetLength: 5.7,
+    targetLengthFt: VEHICLE_PHYSICAL_LENGTHS_FT.escalade,
     shadow: 'soft',
   },
 }
 
 const state = {
   presetKey: 'amazon',
-  selectedView: 'wideFrontLeft',
+  selectedView: 'mediumRear',
   finishKey: 'silver',
   vehicleKey: 'ferrari',
   vehicleYaw: 0,
@@ -135,6 +176,24 @@ const state = {
   panelGrid: true,
   reflections: true,
   playRate: 1,
+  playback: {
+    fps: 24,
+    sourceTimecode: '00:00:00:00',
+    durationTiers: [...DEFAULT_LICENSE_DURATION_TIERS_SECONDS],
+    inFrame: null,
+    outFrame: null,
+    sceneClipId: null,
+    version: null,
+    saveState: 'local',
+    source: null,
+  },
+  context: {
+    projectId: null,
+    projectName: '',
+    sceneId: null,
+    sceneName: '',
+    sku: '',
+  },
   footageYaw: 0,
   footageVertical: 0,
   footagePreset: 'canyon',
@@ -164,14 +223,59 @@ app.innerHTML = `
           <p class="eyebrow">Virtual production stock preview</p>
           <h1>LED Wall Footage Viewer</h1>
         </div>
-        <div class="status" id="playbackStatus">No footage loaded</div>
+        <div class="viewport__meta">
+          <div class="studio-origin" id="studioOrigin">
+            <p class="studio-origin__mode mono" id="studioOriginMode">Ad hoc Studio preview</p>
+            <strong id="studioOriginProject">No project linked</strong>
+            <span id="studioOriginScene">Opened directly from a plate or footage URL.</span>
+            <span class="studio-origin__clip mono" id="studioOriginClip"></span>
+            <a id="backToProject" target="_top" hidden>← Back to project</a>
+          </div>
+          <div class="status" id="playbackStatus" role="status" aria-live="polite">No footage loaded</div>
+        </div>
       </div>
-      <canvas id="stageCanvas"></canvas>
+      <canvas id="stageCanvas" aria-label="Interactive 360 Studio stage" aria-describedby="stageCanvasHelp"></canvas>
+      <p class="sr-only" id="stageCanvasHelp">Drag to orbit around the vehicle. Use the named camera view buttons to return to a fixed shot.</p>
+      <section class="viewer-alert" id="viewerAlert" role="alert" hidden>
+        <strong id="viewerAlertTitle">Footage could not be loaded</strong>
+        <p id="viewerAlertDetail">Check the footage source and try again.</p>
+        <button id="retryFootage" type="button">Retry footage</button>
+      </section>
+      <section class="transport" aria-label="Footage playback and selection">
+        <div class="transport__timeline">
+          <button class="transport__step" id="stepBack" type="button" aria-label="Step back one frame" disabled>−1 frame</button>
+          <button class="transport__play" id="transportPlayPause" type="button" aria-label="Play footage" disabled>
+            <span data-icon="play"></span>
+          </button>
+          <button class="transport__step" id="stepForward" type="button" aria-label="Step forward one frame" disabled>+1 frame</button>
+          <output class="transport__clock mono" id="currentTime">00:00:00:00</output>
+          <label class="transport__scrubber">
+            <span class="sr-only">Footage timeline</span>
+            <input id="timeline" type="range" min="0" max="0" step="0.0416667" value="0" disabled />
+          </label>
+          <output class="transport__clock mono" id="totalTime">00:00:00:00</output>
+        </div>
+        <div class="transport__selection">
+          <button class="transport__marker" id="setIn" type="button" disabled>Set In</button>
+          <button class="transport__marker" id="setOut" type="button" disabled>Set Out</button>
+          <dl class="transport__readout">
+            <div><dt>Source TC</dt><dd class="mono" id="sourceTimecode">00:00:00:00</dd></div>
+            <div><dt>From In</dt><dd class="mono" id="relativeTime">--:--:--:--</dd></div>
+            <div><dt>In</dt><dd class="mono" id="inTimecode">--:--:--:--</dd></div>
+            <div><dt>Out</dt><dd class="mono" id="outTimecode">--:--:--:--</dd></div>
+            <div><dt>Selected</dt><dd class="mono" id="selectionDuration">--:--:--:--</dd></div>
+            <div><dt>License</dt><dd class="mono" id="licenseTier">—</dd></div>
+          </dl>
+          <button class="transport__clear" id="clearSelection" type="button" hidden>Clear markers</button>
+          <button class="transport__save" id="saveSelection" type="button" disabled>Save selection</button>
+          <span class="transport__feedback" id="selectionFeedback" role="status" aria-live="polite">Open from a saved scene clip to persist a selection.</span>
+        </div>
+      </section>
       <div class="view-strip" id="viewStrip" aria-label="Camera views"></div>
       <button id="panelToggle" class="panel-toggle" type="button" title="Hide controls" aria-label="Hide controls">›</button>
     </section>
 
-    <aside class="control-panel" aria-label="Viewer controls">
+    <aside class="control-panel" id="viewerControls" aria-label="Viewer controls">
       <section class="control-group">
         <div class="group-title">
           <span>Footage</span>
@@ -196,6 +300,7 @@ app.innerHTML = `
           <select id="footagePreset">
             <option value="canyon" selected>Canyon</option>
             <option value="dtla">DTLA</option>
+            <option value="ringStrip">Panoramic ring strip</option>
             <option value="fullSphere">Full 360 sphere</option>
             <option value="custom">Custom</option>
           </select>
@@ -328,6 +433,15 @@ app.innerHTML = `
         </div>
         <p class="notes" id="vehicleCredit"></p>
       </section>
+
+      <section class="control-group" aria-labelledby="studioExportTitle">
+        <div class="group-title">
+          <span id="studioExportTitle">Studio Export</span>
+        </div>
+        <button id="downloadScreenshot" type="button" class="panel-button panel-button--primary">Download branded screenshot</button>
+        <p class="notes">Exports the current stage view with Plate Lab, plate, project, and scene identification.</p>
+        <span class="screenshot-feedback" id="screenshotFeedback" role="status" aria-live="polite"></span>
+      </section>
     </aside>
   </main>
 `
@@ -335,16 +449,20 @@ app.innerHTML = `
 // Collapsible control panel: a drawer pull pinned to the viewport/panel edge.
 const workbench = document.querySelector('.workbench')
 const panelToggle = document.querySelector('#panelToggle')
+panelToggle.setAttribute('aria-controls', 'viewerControls')
+panelToggle.setAttribute('aria-expanded', 'true')
 panelToggle.addEventListener('click', () => {
   const collapsed = workbench.classList.toggle('is-collapsed')
   panelToggle.textContent = collapsed ? '‹' : '›'
   panelToggle.title = collapsed ? 'Show controls' : 'Hide controls'
   panelToggle.setAttribute('aria-label', panelToggle.title)
+  panelToggle.setAttribute('aria-expanded', String(!collapsed))
+  invalidateRender()
 })
 
 const canvas = document.querySelector('#stageCanvas')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.setPixelRatio(cappedDevicePixelRatio(window.devicePixelRatio))
 renderer.setClearColor(0x07090b, 1)
 renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = state.exposure
@@ -379,6 +497,18 @@ video.muted = true
 video.playsInline = true
 video.crossOrigin = 'anonymous'
 video.preload = 'auto'
+
+let activeVideoTexture = null
+let activeObjectUrl = null
+let pendingLayoutListener = null
+let renderFrameId = null
+let renderInvalidated = true
+let reflectionInvalidated = true
+let controlsMoving = false
+let lastReflectionRefresh = Number.NEGATIVE_INFINITY
+let resizeObserver = null
+let videoFrameCallbackId = null
+const supportsVideoFrameCallback = typeof video.requestVideoFrameCallback === 'function'
 
 const ferrariShadowTexture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}models/ferrari_ao.png`)
 ferrariShadowTexture.colorSpace = THREE.SRGBColorSpace
@@ -521,6 +651,7 @@ const carMaterials = {
   amberLight: new THREE.MeshPhysicalMaterial({ color: 0xf2a340, emissive: 0x301303, roughness: 0.18, metalness: 0.2 }),
   dark: new THREE.MeshStandardMaterial({ color: 0x0e1011, roughness: 0.64, metalness: 0.18, envMapIntensity: 0.45 }),
 }
+const sharedCarMaterials = new Set(Object.values(carMaterials))
 const dynamicVehicleMaterials = new Set()
 
 const keyLight = new THREE.DirectionalLight(0xffffff, 1.8)
@@ -547,6 +678,7 @@ buildControls()
 bindCameraNavigation()
 applyPreset('amazon')
 setView(state.selectedView, false)
+loadInitialFootage()
 
 function buildControls() {
   const presetSelect = document.querySelector('#presetSelect')
@@ -587,6 +719,8 @@ function buildControls() {
       button.dataset.view = view.key
       button.textContent = view.label
       button.title = `${group.name}: ${view.label}`
+      button.setAttribute('aria-label', `${group.name} camera: ${view.label}`)
+      button.setAttribute('aria-pressed', 'false')
       button.addEventListener('click', () => setView(view.key))
       wrapper.append(button)
     })
@@ -609,6 +743,7 @@ function buildControls() {
     button.dataset.finish = key
     button.title = finish.label
     button.ariaLabel = finish.label
+    button.setAttribute('aria-pressed', 'false')
     button.style.setProperty('--swatch', finish.color)
     button.addEventListener('click', () => setFinish(key))
     swatches.append(button)
@@ -627,15 +762,18 @@ function buildControls() {
   document.querySelector('#gridToggle').addEventListener('change', (event) => {
     state.panelGrid = event.target.checked
     gridGroup.visible = state.panelGrid
+    invalidateRender()
   })
   document.querySelector('#reflectionToggle').addEventListener('change', (event) => {
     state.reflections = event.target.checked
     syncEnvironment()
+    invalidateRender({ reflection: state.reflections })
   })
   document.querySelector('#exposure').addEventListener('input', (event) => {
     state.exposure = Number(event.target.value) / 100
     renderer.toneMappingExposure = state.exposure
     document.querySelector('#exposureOut').textContent = `${event.target.value}%`
+    invalidateRender()
   })
   document.querySelector('#rate').addEventListener('input', (event) => {
     state.playRate = Number(event.target.value) / 100
@@ -647,6 +785,7 @@ function buildControls() {
     state.vehicleYaw = Number(event.target.value)
     document.querySelector('#vehicleYawOut').textContent = `${state.vehicleYaw} deg`
     applyVehicleYaw()
+    invalidateRender()
   })
   document.querySelector('#loadUrl').addEventListener('click', loadVideoUrl)
   document.querySelector('#videoUrl').addEventListener('keydown', (event) => {
@@ -701,11 +840,52 @@ function buildControls() {
     applyFootageTransform()
   })
   document.querySelector('#playPause').addEventListener('click', togglePlayback)
+  document.querySelector('#transportPlayPause').addEventListener('click', togglePlayback)
+  document.querySelector('#stepBack').addEventListener('click', () => stepPlaybackByFrame(-1))
+  document.querySelector('#stepForward').addEventListener('click', () => stepPlaybackByFrame(1))
+  document.querySelector('#retryFootage').addEventListener('click', retryFootage)
+  document.querySelector('#downloadScreenshot').addEventListener('click', downloadBrandedScreenshot)
+  document.querySelector('#timeline').addEventListener('input', seekFromTimeline)
+  document.querySelector('#setIn').addEventListener('click', setInPoint)
+  document.querySelector('#setOut').addEventListener('click', setOutPoint)
+  document.querySelector('#clearSelection').addEventListener('click', clearSelection)
+  document.querySelector('#saveSelection').addEventListener('click', saveSelection)
   document.querySelector('#resetView').addEventListener('click', () => setView(state.selectedView, false))
 
-  video.addEventListener('play', () => setPlaybackStatus('Playing'))
-  video.addEventListener('pause', () => setPlaybackStatus('Paused'))
-  video.addEventListener('error', () => setPlaybackStatus('Video could not load'))
+  video.addEventListener('loadstart', () => {
+    clearViewerFailure()
+    setPlaybackStatus('Loading footage…', 'loading')
+    invalidateRender({ reflection: true })
+  })
+  video.addEventListener('loadedmetadata', initializeTransport)
+  video.addEventListener('canplay', () => {
+    clearViewerFailure()
+    setPlaybackStatus(video.paused ? 'Ready to play' : 'Playing')
+    invalidateRender({ reflection: true })
+  })
+  video.addEventListener('durationchange', initializeTransport)
+  video.addEventListener('timeupdate', updateTransport)
+  video.addEventListener('seeked', () => {
+    updateTransport()
+    invalidateRender({ reflection: true })
+  })
+  video.addEventListener('ended', restartSelectedRange)
+  video.addEventListener('play', () => {
+    setPlaybackStatus('Playing')
+    updatePlaybackButtons()
+    invalidateRender({ reflection: true })
+    scheduleVideoFrameRender()
+  })
+  video.addEventListener('pause', () => {
+    setPlaybackStatus('Paused')
+    updatePlaybackButtons()
+    invalidateRender({ reflection: true })
+    cancelVideoFrameRender()
+  })
+  video.addEventListener('error', () => {
+    showVideoFailure()
+    invalidateRender()
+  })
 }
 
 function bindRange(id, outputId, key, suffix) {
@@ -737,7 +917,7 @@ function bindCameraRigControls() {
       state.cameraRig.custom = true
       output.textContent = format(value)
       document.querySelector('#cameraMode').textContent = 'Custom rig'
-      document.querySelectorAll('.view-strip button').forEach((button) => button.classList.remove('is-active'))
+      clearActiveCameraViews()
       applyCameraRig()
     })
   })
@@ -813,6 +993,7 @@ function rebuildStage() {
   buildPanelGrid(radius, height, arc, thetaStart)
   gridGroup.visible = state.panelGrid
   updateMetrics(radius, height, arc)
+  invalidateRender({ reflection: true })
 }
 
 function buildPanelGrid(radius, height, arc, thetaStart) {
@@ -888,8 +1069,9 @@ function updateMetrics(radius, height, arc) {
   document.querySelector('#heightMetric').textContent = `${state.dimensions.heightFt} ft`
   document.querySelector('#arcMetric').textContent = `${state.dimensions.arcDeg} deg`
 
-  const carScale = Math.max(0.82, Math.min(1.12, radius / 7.2))
-  carGroup.scale.setScalar(carScale)
+  // Vehicles and stages share one physical scale. Changing the selected
+  // volume must never make the vehicle grow or shrink.
+  carGroup.scale.setScalar(1)
   controls.maxDistance = Math.max(18, radius * 3.2)
 }
 
@@ -915,6 +1097,7 @@ function loadVehicle(key) {
 }
 
 function loadVehicleSpec(vehicle) {
+  disposeVehicleMaterials(dynamicVehicleMaterials, sharedCarMaterials)
   dynamicVehicleMaterials.clear()
   clearGroup(carGroup)
   applyVehicleYaw()
@@ -923,21 +1106,25 @@ function loadVehicleSpec(vehicle) {
     vehicle.file,
     (gltf) => {
       const carModel = gltf.scene.children[0] || gltf.scene
+      const sourceMaterials = collectObjectMaterials(carModel)
       carModel.name = vehicle.label
       carModel.rotation.y = vehicle.rotationY
       applyCarMaterials(carModel)
+      disposeVehicleMaterials(sourceMaterials, collectObjectMaterials(carModel))
       normalizeVehicleModel(carModel, vehicle)
 
       carGroup.add(makeVehicleShadow(vehicle))
       carGroup.add(carModel)
       setPlaybackStatus(video.src ? 'Playing' : `${vehicle.label} loaded`)
       document.querySelector('#vehicleCredit').textContent = vehicle.credit
+      invalidateRender()
     },
     undefined,
     () => {
       clearGroup(carGroup)
       buildFallbackCar()
       setPlaybackStatus('Using fallback car')
+      invalidateRender()
     },
   )
 }
@@ -1000,13 +1187,44 @@ function registerVehicleMaterial(material) {
   })
 }
 
+function collectObjectMaterials(object) {
+  const materials = new Set()
+  object.traverse((child) => {
+    const childMaterials = Array.isArray(child.material) ? child.material : [child.material]
+    childMaterials.forEach((material) => {
+      if (material) materials.add(material)
+    })
+  })
+  return materials
+}
+
+function disposeVehicleMaterials(materials, retainedMaterials = new Set()) {
+  const retainedTextures = new Set()
+  retainedMaterials.forEach((material) => {
+    Object.values(material).forEach((value) => {
+      if (value?.isTexture) retainedTextures.add(value)
+    })
+  })
+
+  const disposedTextures = new Set()
+  materials.forEach((material) => {
+    if (!material || retainedMaterials.has(material)) return
+    Object.values(material).forEach((value) => {
+      if (!value?.isTexture || retainedTextures.has(value) || disposedTextures.has(value)) return
+      disposedTextures.add(value)
+      value.dispose()
+    })
+    material.dispose()
+  })
+}
+
 function normalizeVehicleModel(carModel, vehicle) {
   carModel.updateMatrixWorld(true)
   const box = new THREE.Box3().setFromObject(carModel)
   const size = new THREE.Vector3()
   box.getSize(size)
   const length = Math.max(size.x, size.z)
-  const scale = vehicle.targetLength / Math.max(length, 0.001)
+  const scale = scaleModelToLength(length, vehicle.targetLengthFt)
   carModel.scale.setScalar(scale)
   carModel.updateMatrixWorld(true)
 
@@ -1019,6 +1237,7 @@ function normalizeVehicleModel(carModel, vehicle) {
 }
 
 function makeVehicleShadow(vehicle) {
+  const targetLength = feetToSceneUnits(vehicle.targetLengthFt)
   const materialOptions = {
     blending: THREE.MultiplyBlending,
     toneMapped: false,
@@ -1029,7 +1248,7 @@ function makeVehicleShadow(vehicle) {
   if (vehicle.shadow === 'ferrari') materialOptions.map = ferrariShadowTexture
 
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(vehicle.targetLength * 1.06, vehicle.targetLength * 0.5),
+    new THREE.PlaneGeometry(targetLength * 1.06, targetLength * 0.5),
     new THREE.MeshBasicMaterial(materialOptions),
   )
   shadow.rotation.x = -Math.PI / 2
@@ -1041,16 +1260,29 @@ function makeVehicleShadow(vehicle) {
 function updateVehicleCredit() {
   const credit = document.querySelector('#vehicleCredit')
   if (!credit) return
-  credit.textContent = vehicleModels[state.vehicleKey]?.credit || vehicleModels.ferrari.credit
+  const vehicle = vehicleModels[state.vehicleKey] || vehicleModels.ferrari
+  credit.textContent = `Stage scale: ${vehicle.targetLengthFt.toFixed(1)} ft long. ${vehicle.credit}`
 }
 
 function buildFallbackCar() {
-  const body = roundedBox(4.8, 0.8, 2.05, 0.22, carMaterials.paint)
-  body.position.y = 0.85
+  const body = roundedBox(
+    feetToSceneUnits(15.2),
+    feetToSceneUnits(2.6),
+    feetToSceneUnits(6.5),
+    feetToSceneUnits(0.7),
+    carMaterials.paint,
+  )
+  body.position.y = feetToSceneUnits(2.8)
   carGroup.add(body)
 
-  const cabin = roundedBox(2.25, 0.75, 1.65, 0.18, carMaterials.glass)
-  cabin.position.set(-0.18, 1.45, -0.08)
+  const cabin = roundedBox(
+    feetToSceneUnits(7.4),
+    feetToSceneUnits(2.4),
+    feetToSceneUnits(5.4),
+    feetToSceneUnits(0.6),
+    carMaterials.glass,
+  )
+  cabin.position.set(feetToSceneUnits(-0.6), feetToSceneUnits(4.6), feetToSceneUnits(-0.25))
   carGroup.add(cabin)
 }
 
@@ -1122,8 +1354,11 @@ function setFinish(key) {
   carMaterials.paint.metalness = finish.metalness
   carMaterials.paint.roughness = finish.roughness
   document.querySelectorAll('.swatch').forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.finish === key)
+    const active = button.dataset.finish === key
+    button.classList.toggle('is-active', active)
+    button.setAttribute('aria-pressed', String(active))
   })
+  invalidateRender()
 }
 
 function setView(key, animate = true) {
@@ -1131,7 +1366,9 @@ function setView(key, animate = true) {
   state.cameraRig.custom = false
   const view = views[key]
   document.querySelectorAll('.view-strip button').forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.view === key)
+    const active = button.dataset.view === key
+    button.classList.toggle('is-active', active)
+    button.setAttribute('aria-pressed', String(active))
   })
   document.querySelector('#cameraMode').textContent = 'Locked shot'
   syncCameraRigFromView(view)
@@ -1142,10 +1379,11 @@ function setView(key, animate = true) {
   camera.fov = view.fov
   camera.updateProjectionMatrix()
 
-  if (!animate) {
+  if (!animate || reducedMotionQuery.matches) {
     camera.position.copy(destination)
     controls.target.copy(target)
     controls.update()
+    invalidateRender()
     return
   }
 
@@ -1160,6 +1398,7 @@ function setView(key, animate = true) {
     camera.position.lerpVectors(startPosition, destination, eased)
     controls.target.lerpVectors(startTarget, target, eased)
     controls.update()
+    invalidateRender()
     if (t < 1) requestAnimationFrame(tween)
   }
   requestAnimationFrame(tween)
@@ -1180,6 +1419,7 @@ function applyCameraRig() {
   camera.fov = focalLengthToFov(rig.focalLength)
   camera.updateProjectionMatrix()
   controls.update()
+  invalidateRender()
 }
 
 function bindCameraNavigation() {
@@ -1283,11 +1523,18 @@ function bindCameraNavigation() {
   canvas.addEventListener('dblclick', () => setView(state.selectedView))
 
   controls.addEventListener('start', () => {
+    controlsMoving = true
     state.cameraRig.custom = true
     document.querySelector('#cameraMode').textContent = 'Free orbit'
-    document.querySelectorAll('.view-strip button').forEach((button) => button.classList.remove('is-active'))
+    clearActiveCameraViews()
+    invalidateRender()
   })
-  controls.addEventListener('end', markCameraCustomFromLiveView)
+  controls.addEventListener('change', () => invalidateRender())
+  controls.addEventListener('end', () => {
+    controlsMoving = false
+    markCameraCustomFromLiveView()
+    invalidateRender()
+  })
 }
 
 function orbitCameraFromWheel(event) {
@@ -1298,7 +1545,7 @@ function orbitCameraFromWheel(event) {
   offset.setFromSpherical(spherical)
   camera.position.copy(controls.target).add(offset)
   controls.update()
-  document.querySelectorAll('.view-strip button').forEach((button) => button.classList.remove('is-active'))
+  clearActiveCameraViews()
   markCameraCustomFromLiveView('Space orbit')
 }
 
@@ -1331,6 +1578,13 @@ function markCameraCustomFromLiveView(label = 'Custom rig') {
   state.cameraRig.custom = true
   document.querySelector('#cameraMode').textContent = label
   syncCameraRigFromLiveCamera()
+}
+
+function clearActiveCameraViews() {
+  document.querySelectorAll('.view-strip button').forEach((button) => {
+    button.classList.remove('is-active')
+    button.setAttribute('aria-pressed', 'false')
+  })
 }
 
 function syncCameraRigFromLiveCamera() {
@@ -1411,6 +1665,8 @@ function renderCustomShots() {
     button.dataset.view = shot.key
     button.textContent = shot.label
     button.title = `Saved camera: ${shot.label}`
+    button.setAttribute('aria-label', `Saved camera: ${shot.label}`)
+    button.setAttribute('aria-pressed', String(state.selectedView === shot.key && !state.cameraRig.custom))
     button.addEventListener('click', () => setView(shot.key))
     wrapper.append(button)
   })
@@ -1426,13 +1682,6 @@ function loadCustomShots() {
 
 function persistCustomShots() {
   localStorage.setItem('plateLabCustomViews', JSON.stringify(state.customShots))
-}
-
-function detectFootagePreset(label) {
-  const normalized = label.toLowerCase()
-  if (normalized.includes('a001a003') || normalized.includes('stitch_v01')) return 'dtla'
-  if (normalized.includes('fp_c15')) return 'canyon'
-  return footagePresets[state.footagePreset] ? state.footagePreset : 'canyon'
 }
 
 function applyFootagePreset(key, texture = stageVideoUniforms.map.value) {
@@ -1474,32 +1723,155 @@ function loadVideoFile(event) {
   const file = event.target.files?.[0]
   if (!file) return
   const url = URL.createObjectURL(file)
+  replaceActiveObjectUrl(url)
   document.querySelector('#fileName').textContent = file.name
+  clearPlaybackContext()
   loadVideoSource(url, file.name)
 }
 
 function loadVideoUrl() {
   const url = document.querySelector('#videoUrl').value.trim()
   if (!url) return
+  replaceActiveObjectUrl(null)
+  clearPlaybackContext()
   loadVideoSource(url, 'URL footage')
 }
 
-async function loadVideoSource(src, label) {
-  video.src = src
-  video.playbackRate = state.playRate
-  video.load()
+function loadInitialFootage() {
+  const params = new URLSearchParams(window.location.search)
+  configurePlaybackContext(params)
+  configureStudioContext(params)
+  const footageUrl = params.get('video')?.trim()
+  if (!footageUrl) return
+  replaceActiveObjectUrl(null)
 
+  const label = params.get('label')?.trim() || 'Plate preview'
+  document.querySelector('#videoUrl').value = footageUrl
+  document.querySelector('#fileName').textContent = label
+  loadVideoSource(footageUrl, label)
+}
+
+function configurePlaybackContext(params) {
+  state.playback.fps = normalizeFps(params.get('fps'))
+  state.playback.durationTiers = normalizeLicenseDurationTiers(params.get('durationTiers'))
+  state.playback.sourceTimecode = params.get('sourceTimecode')?.trim() || '00:00:00:00'
+  state.playback.sceneClipId = params.get('sceneClipId')?.trim() || null
+  const version = parseOptionalFrame(params.get('version'))
+  state.playback.version = version !== null && version > 0 ? version : null
+
+  const inFrame = parseOptionalFrame(params.get('inFrame'))
+  const outFrame = parseOptionalFrame(params.get('outFrame'))
+  if (inFrame !== null && outFrame !== null && outFrame > inFrame) {
+    state.playback.inFrame = inFrame
+    state.playback.outFrame = outFrame
+    state.playback.saveState = 'saved'
+  } else {
+    state.playback.inFrame = null
+    state.playback.outFrame = null
+    state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
+  }
+  renderSelection()
+}
+
+function clearPlaybackContext() {
+  state.playback.fps = 24
+  state.playback.durationTiers = [...DEFAULT_LICENSE_DURATION_TIERS_SECONDS]
+  state.playback.sourceTimecode = '00:00:00:00'
+  state.playback.sceneClipId = null
+  state.playback.version = null
+  state.playback.inFrame = null
+  state.playback.outFrame = null
+  state.playback.saveState = 'local'
+  state.context.projectId = null
+  state.context.projectName = ''
+  state.context.sceneId = null
+  state.context.sceneName = ''
+  state.context.sku = ''
+  renderSelection()
+  renderStudioContext()
+}
+
+function configureStudioContext(params) {
+  state.context.projectId = params.get('projectId')?.trim() || null
+  state.context.projectName = params.get('projectName')?.trim() || ''
+  state.context.sceneId = params.get('sceneId')?.trim() || null
+  state.context.sceneName = params.get('sceneName')?.trim() || ''
+  state.context.sku = params.get('sku')?.trim() || ''
+  renderStudioContext()
+}
+
+function renderStudioContext() {
+  const { projectId, projectName, sceneId, sceneName, sku } = state.context
+  const linked = Boolean(projectId && sceneId)
+  const mode = document.querySelector('#studioOriginMode')
+  const project = document.querySelector('#studioOriginProject')
+  const sceneLabel = document.querySelector('#studioOriginScene')
+  const clip = document.querySelector('#studioOriginClip')
+  const back = document.querySelector('#backToProject')
+
+  mode.textContent = linked ? 'Linked scene preview' : 'Ad hoc Studio preview'
+  project.textContent = linked ? projectName || 'Linked project' : 'No project linked'
+  sceneLabel.textContent = linked
+    ? sceneName || 'Linked scene'
+    : 'Opened directly from a plate or footage URL.'
+  clip.textContent = sku
+    ? `Plate ${sku}${state.playback.sceneClipId ? ' · saved scene clip' : ''}`
+    : state.playback.sceneClipId
+      ? 'Saved scene clip'
+      : ''
+
+  if (linked) {
+    back.href = `/projects/${encodeURIComponent(projectId)}`
+    back.hidden = false
+  } else {
+    back.removeAttribute('href')
+    back.hidden = true
+  }
+}
+
+async function loadVideoSource(src, label) {
+  state.playback.source = { src, label }
+  clearViewerFailure()
   const texture = new THREE.VideoTexture(video)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.mapping = THREE.EquirectangularReflectionMapping
   texture.minFilter = THREE.LinearFilter
   texture.magFilter = THREE.LinearFilter
   texture.generateMipmaps = false
-  stageVideoUniforms.map.value = texture
-  applyFootagePreset(detectFootagePreset(label), texture)
+
+  if (pendingLayoutListener) video.removeEventListener('loadedmetadata', pendingLayoutListener)
+
+  let layoutApplied = false
+  const applyDecodedLayout = () => {
+    if (layoutApplied || !video.videoWidth || !video.videoHeight) return
+    layoutApplied = true
+    if (pendingLayoutListener === applyDecodedLayout) pendingLayoutListener = null
+    applyFootagePreset(
+      detectDecodedFootagePreset({
+        width: video.videoWidth,
+        height: video.videoHeight,
+        label,
+        fallback: footagePresets[state.footagePreset] ? state.footagePreset : 'canyon',
+      }),
+      texture,
+    )
+  }
+
+  pendingLayoutListener = applyDecodedLayout
+  video.addEventListener('loadedmetadata', applyDecodedLayout, { once: true })
+  video.src = src
+  video.playbackRate = state.playRate
+  video.load()
+
+  const previousTexture = activeVideoTexture
+  activeVideoTexture = texture
+  stageVideoUniforms.map.value = activeVideoTexture
+  if (video.readyState >= HTMLMediaElement.HAVE_METADATA) applyDecodedLayout()
   screenMaterial.needsUpdate = true
   ceilingMaterial.needsUpdate = true
   syncEnvironment(texture)
+  if (previousTexture && previousTexture !== texture) previousTexture.dispose()
+  invalidateRender({ reflection: true })
 
   setPlaybackStatus(`Loaded ${label}`)
   try {
@@ -1507,6 +1879,37 @@ async function loadVideoSource(src, label) {
   } catch {
     setPlaybackStatus('Loaded, press play')
   }
+}
+
+function replaceActiveObjectUrl(nextUrl) {
+  if (activeObjectUrl && activeObjectUrl !== nextUrl) URL.revokeObjectURL(activeObjectUrl)
+  activeObjectUrl = nextUrl
+}
+
+function scheduleVideoFrameRender() {
+  const videoPlaying = Boolean(video.src && !video.paused && !video.ended)
+  if (
+    videoFrameCallbackId !== null
+      || !shouldScheduleVideoFrame({
+        supported: supportsVideoFrameCallback,
+        visible: !document.hidden,
+        videoPlaying,
+      })
+  ) return
+
+  videoFrameCallbackId = video.requestVideoFrameCallback(() => {
+    videoFrameCallbackId = null
+    invalidateRender()
+    scheduleVideoFrameRender()
+  })
+}
+
+function cancelVideoFrameRender() {
+  if (videoFrameCallbackId === null || !supportsVideoFrameCallback) return
+  if (typeof video.cancelVideoFrameCallback === 'function') {
+    video.cancelVideoFrameCallback(videoFrameCallbackId)
+  }
+  videoFrameCallbackId = null
 }
 
 function togglePlayback() {
@@ -1519,6 +1922,395 @@ function togglePlayback() {
   } else {
     video.pause()
   }
+}
+
+function stepPlaybackByFrame(direction) {
+  if (!video.src || !Number.isFinite(video.duration) || video.duration <= 0) return
+  video.pause()
+  const totalFrames = secondsToFrame(video.duration, state.playback.fps)
+  const nextFrame = stepFrame(currentPlaybackFrame(), direction, totalFrames)
+  video.currentTime = frameToSeconds(nextFrame, state.playback.fps)
+  updateTransport()
+  setPlaybackStatus(direction < 0 ? 'Stepped back one frame' : 'Stepped forward one frame')
+}
+
+function retryFootage() {
+  const source = state.playback.source
+  if (!source?.src) return
+  loadVideoSource(source.src, source.label)
+}
+
+function showVideoFailure() {
+  const failure = describeMediaError(video.error?.code)
+  const alert = document.querySelector('#viewerAlert')
+  document.querySelector('#viewerAlertTitle').textContent = failure.title
+  document.querySelector('#viewerAlertDetail').textContent = failure.detail
+  document.querySelector('#retryFootage').hidden = !failure.retryable
+  alert.hidden = false
+  setPlaybackStatus(failure.title, 'error')
+}
+
+function clearViewerFailure() {
+  const alert = document.querySelector('#viewerAlert')
+  if (alert) alert.hidden = true
+}
+
+async function downloadBrandedScreenshot() {
+  const button = document.querySelector('#downloadScreenshot')
+  button.disabled = true
+  button.textContent = 'Preparing screenshot…'
+  setScreenshotFeedback('Preparing branded PNG…')
+
+  try {
+    // Render immediately before copying: this avoids relying on a retained WebGL drawing buffer.
+    renderer.render(scene, camera)
+    const width = canvas.width
+    const height = canvas.height
+    if (!width || !height) throw new Error('The stage has not rendered yet.')
+
+    const exportCanvas = document.createElement('canvas')
+    exportCanvas.width = width
+    exportCanvas.height = height
+    const context = exportCanvas.getContext('2d')
+    if (!context) throw new Error('PNG export is unavailable in this browser.')
+
+    context.drawImage(canvas, 0, 0, width, height)
+    const details = buildScreenshotDetails(state.context)
+    drawScreenshotBranding(context, width, height, details)
+    const blob = await canvasToBlob(exportCanvas)
+    downloadBlob(blob, details.filename)
+    setScreenshotFeedback(`Downloaded ${details.filename}`, 'success')
+    setPlaybackStatus('Branded screenshot downloaded')
+  } catch (error) {
+    setScreenshotFeedback(describeScreenshotError(error), 'error')
+    setPlaybackStatus('Screenshot export failed', 'error')
+  } finally {
+    button.disabled = false
+    button.textContent = 'Download branded screenshot'
+  }
+}
+
+function drawScreenshotBranding(context, width, height, details) {
+  const scale = Math.max(1, Math.min(width / 1280, height / 720))
+  const padding = Math.round(24 * scale)
+  const topHeight = Math.round(82 * scale)
+  const bottomHeight = Math.round(54 * scale)
+
+  context.save()
+  context.fillStyle = 'rgba(7, 9, 10, 0.88)'
+  context.fillRect(0, 0, width, topHeight)
+  context.fillRect(0, height - bottomHeight, width, bottomHeight)
+  context.fillStyle = '#d16d3d'
+  context.fillRect(0, topHeight - Math.max(2, Math.round(3 * scale)), width, Math.max(2, Math.round(3 * scale)))
+
+  const markRadius = Math.round(20 * scale)
+  const markX = padding + markRadius
+  const markY = Math.round(topHeight / 2)
+  context.strokeStyle = '#d16d3d'
+  context.lineWidth = Math.max(2, Math.round(2 * scale))
+  context.beginPath()
+  context.arc(markX, markY, markRadius, 0, Math.PI * 2)
+  context.moveTo(markX - markRadius, markY)
+  context.lineTo(markX + markRadius, markY)
+  context.moveTo(markX, markY - markRadius)
+  context.lineTo(markX, markY + markRadius)
+  context.stroke()
+
+  const textX = markX + markRadius + Math.round(14 * scale)
+  context.fillStyle = '#f3f5ef'
+  context.font = `700 ${Math.round(23 * scale)}px Inter, Arial, sans-serif`
+  context.fillText('THE PLATE LAB', textX, markY - Math.round(2 * scale))
+  context.fillStyle = '#aab5ad'
+  context.font = `600 ${Math.round(11 * scale)}px ui-monospace, SFMono-Regular, Menlo, monospace`
+  context.fillText('360 STUDIO PREVIEW', textX, markY + Math.round(18 * scale))
+
+  context.textAlign = 'right'
+  context.fillStyle = '#b7e37d'
+  context.font = `700 ${Math.round(13 * scale)}px ui-monospace, SFMono-Regular, Menlo, monospace`
+  context.fillText(details.clipLabel, width - padding, markY + Math.round(4 * scale))
+
+  context.textAlign = 'left'
+  context.fillStyle = '#eef3ed'
+  context.font = `600 ${Math.round(14 * scale)}px Inter, Arial, sans-serif`
+  context.fillText(
+    fitCanvasText(context, details.contextLabel, width - (padding * 2)),
+    padding,
+    height - Math.round(20 * scale),
+  )
+  context.restore()
+}
+
+function fitCanvasText(context, text, maxWidth) {
+  if (context.measureText(text).width <= maxWidth) return text
+  let fitted = String(text)
+  while (fitted.length > 1 && context.measureText(`${fitted}…`).width > maxWidth) {
+    fitted = fitted.slice(0, -1)
+  }
+  return `${fitted.trimEnd()}…`
+}
+
+function canvasToBlob(sourceCanvas) {
+  return new Promise((resolve, reject) => {
+    try {
+      sourceCanvas.toBlob((blob) => {
+        if (blob) resolve(blob)
+        else reject(new Error('The browser returned an empty screenshot.'))
+      }, 'image/png')
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.hidden = true
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+function setScreenshotFeedback(message, tone = '') {
+  const feedback = document.querySelector('#screenshotFeedback')
+  feedback.textContent = message
+  feedback.dataset.tone = tone
+}
+
+function initializeTransport() {
+  const duration = Number.isFinite(video.duration) ? Math.max(0, video.duration) : 0
+  const timeline = document.querySelector('#timeline')
+  timeline.max = String(duration)
+  timeline.step = String(1 / state.playback.fps)
+  timeline.disabled = duration <= 0
+  document.querySelector('#transportPlayPause').disabled = duration <= 0
+  document.querySelector('#stepBack').disabled = duration <= 0
+  document.querySelector('#stepForward').disabled = duration <= 0
+  document.querySelector('#setIn').disabled = duration <= 0
+  document.querySelector('#setOut').disabled = duration <= 0
+  updatePlaybackButtons()
+  renderSelection()
+  updateTransport()
+}
+
+function seekFromTimeline(event) {
+  if (!video.src || !Number.isFinite(video.duration)) return
+  video.currentTime = THREE.MathUtils.clamp(Number(event.target.value), 0, video.duration)
+  updateTransport()
+}
+
+function updateTransport() {
+  const fps = state.playback.fps
+  const duration = Number.isFinite(video.duration) ? video.duration : 0
+  let currentFrame = currentPlaybackFrame()
+  if (
+    shouldLoopSelection(
+      currentFrame,
+      state.playback.inFrame,
+      state.playback.outFrame,
+      !video.paused,
+    )
+  ) {
+    video.currentTime = frameToSeconds(state.playback.inFrame, fps)
+    currentFrame = state.playback.inFrame
+  }
+  const totalFrames = secondsToFrame(duration, fps)
+  const timeline = document.querySelector('#timeline')
+
+  timeline.value = String(Math.min(video.currentTime || 0, duration))
+  document.querySelector('#currentTime').textContent = formatFrameTimecode(currentFrame, fps)
+  document.querySelector('#totalTime').textContent = formatFrameTimecode(totalFrames, fps)
+  document.querySelector('#sourceTimecode').textContent = formatSourceTimecode(
+    currentFrame,
+    fps,
+    state.playback.sourceTimecode,
+  )
+  document.querySelector('#relativeTime').textContent = formatRelativeTimecode(
+    currentFrame,
+    state.playback.inFrame,
+    fps,
+  )
+}
+
+function updatePlaybackButtons() {
+  const playing = Boolean(video.src && !video.paused)
+  ;['playPause', 'transportPlayPause'].forEach((id) => {
+    const button = document.querySelector(`#${id}`)
+    if (!button) return
+    button.classList.toggle('is-playing', playing)
+    button.setAttribute('aria-label', playing ? 'Pause footage' : 'Play footage')
+    button.title = playing ? 'Pause footage' : 'Play footage'
+    const icon = button.querySelector('[data-icon]')
+    if (icon) icon.dataset.icon = playing ? 'pause' : 'play'
+  })
+}
+
+function setInPoint() {
+  if (!video.src) return
+  const markers = setInMarker(currentPlaybackFrame(), state.playback.outFrame)
+  state.playback.inFrame = markers.inFrame
+  state.playback.outFrame = markers.outFrame
+  state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
+  renderSelection()
+  updateTransport()
+}
+
+function setOutPoint() {
+  if (!video.src) return
+  const markers = setOutMarker(currentPlaybackFrame(), state.playback.inFrame)
+  state.playback.inFrame = markers.inFrame
+  state.playback.outFrame = markers.outFrame
+  state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
+  renderSelection()
+  updateTransport()
+}
+
+function clearSelection() {
+  state.playback.inFrame = null
+  state.playback.outFrame = null
+  state.playback.saveState = state.playback.sceneClipId ? 'idle' : 'local'
+  renderSelection()
+  updateTransport()
+}
+
+function restartSelectedRange() {
+  const { fps, inFrame, outFrame } = state.playback
+  if (selectionDurationFrames(inFrame, outFrame) === null) return
+  video.currentTime = frameToSeconds(inFrame, fps)
+  video.play().catch(() => setPlaybackStatus('Press play again'))
+}
+
+function renderSelection() {
+  const { fps, sourceTimecode, durationTiers, inFrame, outFrame, sceneClipId, saveState } = state.playback
+  const durationFrames = selectionDurationFrames(inFrame, outFrame)
+  const tier = evaluateLicenseDurationTier({ inFrame, outFrame, fps, tiers: durationTiers })
+  const boundaryWarning = describeLicenseTierBoundary(tier)
+  const backwards = hasBackwardsSelection(inFrame, outFrame)
+  const saveButton = document.querySelector('#saveSelection')
+  if (!saveButton) return
+
+  const inTimecode = document.querySelector('#inTimecode')
+  const outTimecode = document.querySelector('#outTimecode')
+  inTimecode.textContent = Number.isInteger(inFrame)
+    ? formatSourceTimecode(inFrame, fps, sourceTimecode)
+    : '--:--:--:--'
+  outTimecode.textContent = Number.isInteger(outFrame)
+    ? formatSourceTimecode(outFrame, fps, sourceTimecode)
+    : '--:--:--:--'
+  inTimecode.classList.toggle('is-set', Number.isInteger(inFrame))
+  outTimecode.classList.toggle('is-set', Number.isInteger(outFrame))
+  document.querySelector('#setIn').classList.toggle('is-set', Number.isInteger(inFrame))
+  document.querySelector('#setOut').classList.toggle('is-set', Number.isInteger(outFrame))
+  document.querySelector('#selectionDuration').textContent = durationFrames
+    ? formatFrameTimecode(durationFrames, fps)
+    : '--:--:--:--'
+  const licenseTier = document.querySelector('#licenseTier')
+  licenseTier.textContent = tier?.tierSeconds ? `${tier.tierSeconds} sec` : tier ? 'Over limit' : '—'
+  licenseTier.classList.toggle('is-set', Boolean(tier?.tierSeconds))
+  licenseTier.classList.toggle('is-error', Boolean(tier && !tier.tierSeconds))
+
+  const clearButton = document.querySelector('#clearSelection')
+  clearButton.hidden = !Number.isInteger(inFrame) && !Number.isInteger(outFrame)
+  video.loop = durationFrames === null
+  renderTimelineSelection()
+
+  saveButton.disabled = !sceneClipId || !durationFrames || !tier?.tierSeconds || saveState === 'saving' || saveState === 'saved'
+  saveButton.textContent = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Selection saved' : 'Save selection'
+
+  if (!sceneClipId) {
+    if (backwards) {
+      setSelectionFeedback('In must be earlier than Out. Reset either marker or clear both.', 'error')
+    } else {
+      setSelectionFeedback('Open Studio from a saved scene clip to persist a selection.')
+    }
+  } else if (backwards) {
+    setSelectionFeedback('In must be earlier than Out. Reset either marker or clear both.', 'error')
+  } else if (!durationFrames) {
+    setSelectionFeedback('Set either marker. Setting Out first defaults In to the first frame.')
+  } else if (!tier?.tierSeconds) {
+    setSelectionFeedback(boundaryWarning, 'error')
+  } else if (boundaryWarning) {
+    const prefix = saveState === 'saved'
+      ? 'Selection saved. '
+      : saveState === 'saving'
+        ? 'Saving selection. '
+        : ''
+    setSelectionFeedback(`${prefix}${boundaryWarning}`, 'warning')
+  } else if (saveState === 'saved') {
+    setSelectionFeedback('In and Out points are saved to this scene clip.', 'success')
+  } else if (saveState === 'saving') {
+    setSelectionFeedback('Saving selection…')
+  } else {
+    setSelectionFeedback('Selection has unsaved changes.')
+  }
+}
+
+function renderTimelineSelection() {
+  const timeline = document.querySelector('#timeline')
+  const totalFrames = Number.isFinite(video.duration)
+    ? secondsToFrame(video.duration, state.playback.fps)
+    : 0
+  const range = selectionTimelineRange(
+    state.playback.inFrame,
+    state.playback.outFrame,
+    totalFrames,
+  )
+  timeline.classList.toggle('has-selection', Boolean(range))
+  if (range) {
+    timeline.style.setProperty('--selection-start', `${range.startPercent}%`)
+    timeline.style.setProperty('--selection-end', `${range.endPercent}%`)
+  } else {
+    timeline.style.removeProperty('--selection-start')
+    timeline.style.removeProperty('--selection-end')
+  }
+}
+
+function currentPlaybackFrame() {
+  const frame = secondsToFrame(video.currentTime, state.playback.fps)
+  if (!Number.isFinite(video.duration) || video.duration <= 0) return frame
+  return Math.min(frame, Math.max(0, secondsToFrame(video.duration, state.playback.fps) - 1))
+}
+
+async function saveSelection() {
+  const { sceneClipId, version, inFrame, outFrame } = state.playback
+  if (!sceneClipId || !Number.isInteger(version) || selectionDurationFrames(inFrame, outFrame) === null) return
+
+  state.playback.saveState = 'saving'
+  renderSelection()
+  try {
+    const response = await fetch(`/api/scene-clips/${encodeURIComponent(sceneClipId)}/selection`, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ inFrame, outFrame, expectedVersion: version }),
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(result.error || 'Selection could not be saved.')
+
+    state.playback.version = result.version
+    state.playback.durationTierSeconds = result.durationTierSeconds
+    state.playback.saveState = 'saved'
+    const params = new URLSearchParams(window.location.search)
+    params.set('inFrame', String(result.inFrame))
+    params.set('outFrame', String(result.outFrame))
+    params.set('version', String(result.version))
+    window.history.replaceState(null, '', `${window.location.pathname}?${params}`)
+    renderSelection()
+  } catch (error) {
+    state.playback.saveState = 'idle'
+    renderSelection()
+    setSelectionFeedback(error instanceof Error ? error.message : 'Selection could not be saved.', 'error')
+  }
+}
+
+function setSelectionFeedback(message, tone = '') {
+  const feedback = document.querySelector('#selectionFeedback')
+  if (!feedback) return
+  feedback.textContent = message
+  feedback.dataset.tone = tone
 }
 
 function syncEnvironment(texture = stageVideoUniforms.map.value) {
@@ -1569,10 +2361,13 @@ function applyFootageTransform(texture = stageVideoUniforms.map.value) {
   texture.needsUpdate = true
   screenMaterial.needsUpdate = true
   ceilingMaterial.needsUpdate = true
+  invalidateRender({ reflection: true })
 }
 
-function setPlaybackStatus(message) {
-  document.querySelector('#playbackStatus').textContent = message
+function setPlaybackStatus(message, tone = '') {
+  const status = document.querySelector('#playbackStatus')
+  status.textContent = message
+  status.dataset.tone = tone
 }
 
 function makeFallbackTexture() {
@@ -1612,31 +2407,126 @@ function makeFallbackTexture() {
 }
 
 function clearGroup(group) {
+  const disposedGeometry = new Set()
   while (group.children.length) {
-    const child = group.children.pop()
-    if (child.geometry) child.geometry.dispose()
+    const child = group.children[group.children.length - 1]
+    child.traverse((object) => {
+      if (!object.geometry || disposedGeometry.has(object.geometry)) return
+      disposedGeometry.add(object.geometry)
+      object.geometry.dispose()
+    })
+    group.remove(child)
   }
 }
 
 function resizeRenderer() {
   const { clientWidth, clientHeight } = canvas
+  if (!clientWidth || !clientHeight) return false
+  const nextPixelRatio = cappedDevicePixelRatio(window.devicePixelRatio)
+  const pixelRatioChanged = renderer.getPixelRatio() !== nextPixelRatio
+  if (pixelRatioChanged) renderer.setPixelRatio(nextPixelRatio)
+  const pixelRatio = renderer.getPixelRatio()
+  const targetWidth = Math.round(clientWidth * pixelRatio)
+  const targetHeight = Math.round(clientHeight * pixelRatio)
+  if (!pixelRatioChanged && canvas.width === targetWidth && canvas.height === targetHeight) return false
   renderer.setSize(clientWidth, clientHeight, false)
   camera.aspect = clientWidth / clientHeight
   camera.updateProjectionMatrix()
+  return true
 }
 
-function animate() {
-  resizeRenderer()
-  controls.update()
-  if (state.reflections) {
+function constrainCameraToStageInterior() {
+  const nextCamera = clampPointToStageInterior(camera.position, state.dimensions)
+  const nextTarget = clampPointToStageInterior(controls.target, state.dimensions)
+
+  const changed = !camera.position.equals(nextCamera) || !controls.target.equals(nextTarget)
+  if (changed) {
+    camera.position.set(nextCamera.x, nextCamera.y, nextCamera.z)
+    controls.target.set(nextTarget.x, nextTarget.y, nextTarget.z)
+  }
+  return changed
+}
+
+function invalidateRender({ reflection = false } = {}) {
+  renderInvalidated = true
+  if (reflection) reflectionInvalidated = true
+  scheduleRender()
+}
+
+function scheduleRender() {
+  if (document.hidden || renderFrameId !== null) return
+  renderFrameId = requestAnimationFrame(renderFrame)
+}
+
+function renderFrame(now) {
+  renderFrameId = null
+  if (document.hidden) return
+
+  const resized = resizeRenderer()
+  const controlsChanged = controls.update()
+  const constrained = constrainCameraToStageInterior()
+  const videoPlaying = Boolean(video.src && !video.paused && !video.ended)
+  const shouldRender = renderInvalidated || resized || controlsChanged || constrained || videoPlaying
+
+  if (shouldRefreshReflection({
+    enabled: state.reflections,
+    videoPlaying,
+    reflectionInvalidated,
+    elapsedMs: now - lastReflectionRefresh,
+  })) {
     carGroup.visible = false
     reflectionCamera.position.set(0, 1.05, 0)
     reflectionCamera.update(renderer, scene)
     carGroup.visible = true
+    reflectionInvalidated = false
+    lastReflectionRefresh = now
   }
-  renderer.render(scene, camera)
-  requestAnimationFrame(animate)
+
+  if (shouldRender) renderer.render(scene, camera)
+  renderInvalidated = false
+
+  if (shouldRenderContinuously({
+    visible: !document.hidden,
+    videoPlaying: videoPlaying && !supportsVideoFrameCallback,
+    controlsMoving,
+    controlsChanged,
+  })) scheduleRender()
 }
 
-window.addEventListener('resize', resizeRenderer)
-animate()
+window.addEventListener('resize', () => invalidateRender({ reflection: true }))
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (renderFrameId !== null) cancelAnimationFrame(renderFrameId)
+    renderFrameId = null
+    cancelVideoFrameRender()
+    return
+  }
+  invalidateRender({ reflection: true })
+  scheduleVideoFrameRender()
+})
+
+window.addEventListener('pagehide', (event) => {
+  if (event.persisted) return
+  if (renderFrameId !== null) cancelAnimationFrame(renderFrameId)
+  renderFrameId = null
+  resizeObserver?.disconnect()
+  cancelVideoFrameRender()
+  if (pendingLayoutListener) video.removeEventListener('loadedmetadata', pendingLayoutListener)
+  video.pause()
+  video.removeAttribute('src')
+  activeVideoTexture?.dispose()
+  activeVideoTexture = null
+  disposeVehicleMaterials(dynamicVehicleMaterials, sharedCarMaterials)
+  dynamicVehicleMaterials.clear()
+  replaceActiveObjectUrl(null)
+  reflectionTarget.dispose()
+  dracoLoader.dispose()
+  renderer.dispose()
+})
+
+if ('ResizeObserver' in window) {
+  resizeObserver = new ResizeObserver(() => invalidateRender({ reflection: true }))
+  resizeObserver.observe(canvas)
+}
+
+invalidateRender({ reflection: true })

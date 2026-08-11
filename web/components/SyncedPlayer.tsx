@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { Plate } from "@platelab/shared";
 import { GRID_ORDER, CAMERA_POSITIONS } from "@platelab/shared";
+import { publicMediaUrl } from "@/lib/publicMediaUrl";
 
 /**
  * Stitched master + 9-grid sync player.
@@ -23,7 +25,7 @@ function fmt(t: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}:${String(f).padStart(2, "0")}`;
 }
 
-export function SyncedPlayer({ plate }: { plate: Plate }) {
+export function SyncedPlayer({ plate, stageHref }: { plate: Plate; stageHref?: string }) {
   const masterRef = useRef<HTMLVideoElement>(null);
   const tileRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const [playing, setPlaying] = useState(false);
@@ -85,7 +87,7 @@ export function SyncedPlayer({ plate }: { plate: Plate }) {
       <div className="stitched">
         <video
           ref={masterRef}
-          src={plate.renditions.stitchedPreview}
+          src={publicMediaUrl(plate.renditions.stitchedPreview)}
           muted
           loop
           playsInline
@@ -134,6 +136,30 @@ export function SyncedPlayer({ plate }: { plate: Plate }) {
         </div>
       </div>
 
+      <div className="plate-previs-action plate-previs-action--player">
+        {stageHref ? (
+          <Link className="plate-previs-cta" href={stageHref}>
+            <span>
+              <span className="plate-previs-kicker mono">360 Stage Previs</span>
+              <strong>Open on the AMZ/MGM Stage 15 replica</strong>
+            </span>
+            <span className="plate-previs-arrow" aria-hidden="true">
+              →
+            </span>
+          </Link>
+        ) : (
+          <div className="plate-previs-cta plate-previs-cta--unavailable" aria-disabled="true">
+            <span>
+              <span className="plate-previs-kicker mono">360 Studio</span>
+              <strong>Studio preview is not ready for this plate</strong>
+              <span className="plate-previs-note">
+                The ingest is missing a validated full-sphere ring and sky rendition.
+              </span>
+            </span>
+          </div>
+        )}
+      </div>
+
       <div className="nine-grid">
         {GRID_ORDER.map((id) => (
           <div className="cell" key={id}>
@@ -142,16 +168,18 @@ export function SyncedPlayer({ plate }: { plate: Plate }) {
                 if (el) tileRefs.current.set(id, el);
                 else tileRefs.current.delete(id);
               }}
-              src={plate.renditions.cameraPreviews[id]}
+              src={
+                plate.renditions.cameraPreviews[id]
+                  ? publicMediaUrl(plate.renditions.cameraPreviews[id])
+                  : undefined
+              }
               muted
               loop
               playsInline
               preload="auto"
+              aria-label={`Camera ${id} · ${CAMERA_POSITIONS[id]}`}
               onClick={togglePlay}
             />
-            <span className="cam-tag mono">
-              {id} · {CAMERA_POSITIONS[id]}
-            </span>
           </div>
         ))}
       </div>
