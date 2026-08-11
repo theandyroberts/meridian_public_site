@@ -44,5 +44,6 @@ export async function GET(request: Request) {
       plateSchema.parse(row.source_metadata),
     ),
     semantic: Boolean(queryEmbedding),
+    degraded: Boolean(query && !queryEmbedding),
   });
 }

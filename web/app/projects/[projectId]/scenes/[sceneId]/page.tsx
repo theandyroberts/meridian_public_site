@@ -5,12 +5,19 @@ import { InfoTooltip } from "@/components/InfoTooltip";
 import { PlateCard } from "@/components/PlateCard";
 import { SceneClipStatusControl } from "@/components/SceneClipStatusControl";
 import { SceneDeleteForm } from "@/components/SceneDeleteForm";
+import { SceneKeywordPriorities } from "@/components/SceneKeywordPriorities";
 import { createQueryEmbedding } from "@/lib/search";
 import { matchClosenessPercent } from "@/lib/matchCloseness";
 import { publicMediaUrl } from "@/lib/publicMediaUrl";
 import { formatSceneClipSelectionDuration } from "@/lib/sceneClipSelection";
+import { rankPrioritizedSceneMatches } from "@/lib/sceneSearchRanking";
 import { buildStudioHref, type StudioSceneContext } from "@/lib/studioHref";
 import { createClient } from "@/lib/supabase/server";
+import {
+  ROUGH_SHOT_OPTIONS,
+  VEHICLE_OPTIONS,
+  roughShotLabel,
+} from "@/lib/sceneConfiguration";
 import {
   addClipToScene,
   refreshSceneKeywords,
@@ -23,6 +30,7 @@ type ScenePageProps = {
     created?: string;
     error?: string;
     keywords?: string;
+    priorities?: string;
     updated?: string;
   }>;
 };
@@ -121,40 +129,92 @@ export default async function ScenePage({
     );
   }
 
-  const [{ data: project }, { data: scene }] = await Promise.all([
+  const [{ data: project }, { data: scene }, { data: stages }] =
+    await Promise.all([
     supabase
       .from("projects")
-      .select("id, name")
+      .select(
+        "id, name, production_approach, stage_profile_id, custom_stage_name",
+      )
       .eq("id", projectId)
       .maybeSingle(),
     supabase
       .from("scenes")
       .select(
-        "id, project_id, scene_number, name, search_brief, vehicle, rough_shot, structured_filters, script_scene_number, script_pages, generated_keywords, keyword_generation_status",
+        "id, project_id, scene_number, name, search_brief, vehicle, rough_shot, structured_filters, production_approach_override, stage_profile_id_override, custom_stage_name_override, script_scene_number, script_pages, generated_keywords, nice_to_have_keywords, keyword_generation_status",
       )
       .eq("id", sceneId)
       .eq("project_id", projectId)
       .is("archived_at", null)
       .maybeSingle(),
+    supabase
+      .from("stage_profiles")
+      .select("id, name")
+      .eq("active", true)
+      .order("name"),
   ]);
 
   if (!project || !scene) notFound();
 
-  const sceneSearchText = [
+  const stageName = (stageId: string | null) =>
+    stages?.find((stage) => stage.id === stageId)?.name;
+  const projectStageLabel =
+    project.production_approach === "listed_led_stage"
+      ? stageName(project.stage_profile_id) || "Listed LED stage"
+      : project.production_approach === "custom_led_stage"
+        ? project.custom_stage_name || "Custom LED stage"
+        : project.production_approach === "vfx_no_led_wall"
+          ? "VFX / no LED wall"
+          : "Stage undecided";
+  const sceneStageLabel =
+    scene.production_approach_override === null
+      ? `${projectStageLabel} · project default`
+      : scene.production_approach_override === "listed_led_stage"
+        ? stageName(scene.stage_profile_id_override) || "Listed LED stage"
+        : scene.production_approach_override === "custom_led_stage"
+          ? scene.custom_stage_name_override || "Custom LED stage"
+          : scene.production_approach_override === "vfx_no_led_wall"
+            ? "VFX / no LED wall"
+            : "Stage undecided";
+  const sceneStageChoice =
+    scene.production_approach_override === null
+      ? "inherit"
+      : scene.production_approach_override === "listed_led_stage" &&
+          scene.stage_profile_id_override
+        ? `stage:${scene.stage_profile_id_override}`
+        : scene.production_approach_override === "custom_led_stage"
+          ? "keep_custom"
+          : scene.production_approach_override;
+  const selectedListedStageIsUnavailable =
+    scene.production_approach_override === "listed_led_stage" &&
+    Boolean(scene.stage_profile_id_override) &&
+    !stageName(scene.stage_profile_id_override);
+
+  const primarySearchText = [
     scene.search_brief,
     ...scene.generated_keywords,
   ]
     .filter(Boolean)
     .join(" ");
-  const queryEmbedding = await createQueryEmbedding(sceneSearchText);
+  const niceToHaveSearchText = scene.nice_to_have_keywords.join(" ");
+  const sceneSearchText = [primarySearchText, niceToHaveSearchText]
+    .filter(Boolean)
+    .join(" ");
+  const queryEmbedding = await createQueryEmbedding(primarySearchText);
   const [
-    { data: searchRows, error: searchError },
+    { data: primarySearchRows, error: primarySearchError },
+    { data: niceToHaveRows, error: niceToHaveError },
     { data: selectedRows },
     { data: catalogFallback, error: catalogFallbackError },
   ] = await Promise.all([
       supabase.rpc("search_stock_clips", {
-        query_text: sceneSearchText || undefined,
+        query_text: primarySearchText || undefined,
         query_embedding: queryEmbedding,
+        filters: scene.structured_filters,
+        match_count: 12,
+      }),
+      supabase.rpc("search_stock_clips", {
+        query_text: niceToHaveSearchText || undefined,
         filters: scene.structured_filters,
         match_count: 12,
       }),
@@ -174,8 +234,15 @@ export default async function ScenePage({
         .limit(6),
     ]);
 
-  if (searchError) {
-    console.warn(`Ranked catalog search unavailable: ${searchError.message}`);
+  if (primarySearchError) {
+    console.warn(
+      `Primary catalog search unavailable: ${primarySearchError.message}`,
+    );
+  }
+  if (niceToHaveError) {
+    console.warn(
+      `Nice to Have search unavailable: ${niceToHaveError.message}`,
+    );
   }
   if (catalogFallbackError) {
     console.warn(
@@ -183,7 +250,11 @@ export default async function ScenePage({
     );
   }
 
-  const rankedMatches = (searchRows ?? []).map((row) => ({
+  const prioritizedRows = rankPrioritizedSceneMatches(
+    primarySearchRows ?? [],
+    niceToHaveRows ?? [],
+  );
+  const rankedMatches = prioritizedRows.map((row) => ({
     id: row.id,
     plate: plateSchema.parse(row.source_metadata),
     keywordScore: row.keyword_score,
@@ -258,6 +329,11 @@ export default async function ScenePage({
           AI search keywords generated and saved.
         </p>
       )}
+      {query.priorities === "1" && (
+        <p className="auth-alert success">
+          Search descriptor priority updated.
+        </p>
+      )}
       {query.error && <p className="auth-alert">{query.error}</p>}
 
       <section className="scene-heading">
@@ -278,11 +354,6 @@ export default async function ScenePage({
                 Script p. {scene.script_pages}
               </span>
             )}
-            {scene.generated_keywords.slice(0, 6).map((keyword) => (
-              <span className="metadata-chip mono" key={keyword}>
-                {keyword}
-              </span>
-            ))}
             {scene.keyword_generation_status === "pending" && (
               <span className="metadata-chip pending mono">
                 AI keywords pending
@@ -293,8 +364,19 @@ export default async function ScenePage({
         <div className="scene-context">
           <span className="mono dimmer">Vehicle</span>
           <strong>{scene.vehicle.replaceAll("_", " ")}</strong>
+          <span className="mono dimmer">Stage</span>
+          <strong>{sceneStageLabel}</strong>
+          <span className="mono dimmer">Rough camera shot</span>
+          <strong>{roughShotLabel(scene.rough_shot)}</strong>
         </div>
       </section>
+
+      <SceneKeywordPriorities
+        projectId={project.id}
+        sceneId={scene.id}
+        mustHave={scene.generated_keywords}
+        niceToHave={scene.nice_to_have_keywords}
+      />
 
       <details className="scene-editor">
         <summary>Edit scene details</summary>
@@ -336,11 +418,48 @@ export default async function ScenePage({
               <label>
                 <span>Vehicle</span>
                 <select name="vehicle" defaultValue={scene.vehicle}>
-                  <option value="sedan">Sedan</option>
-                  <option value="suv">SUV</option>
-                  <option value="sports_car">Sports car</option>
-                  <option value="none">No vehicle</option>
+                  {VEHICLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Rough camera shot <em>optional</em></span>
+                <select name="roughShot" defaultValue={scene.rough_shot ?? ""}>
+                  <option value="">Not specified</option>
+                  {ROUGH_SHOT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Stage</span>
+                <select name="stageChoice" defaultValue={sceneStageChoice}>
+                  <option value="inherit">
+                    Project default · {projectStageLabel}
+                  </option>
+                  {selectedListedStageIsUnavailable && (
+                    <option value={`stage:${scene.stage_profile_id_override}`}>
+                      Previously selected LED stage
+                    </option>
+                  )}
+                  {stages?.map((stage) => (
+                    <option key={stage.id} value={`stage:${stage.id}`}>
+                      {stage.name}
+                    </option>
+                  ))}
+                  {scene.production_approach_override ===
+                    "custom_led_stage" && (
+                    <option value="keep_custom">
+                      {scene.custom_stage_name_override || "Custom LED stage"}
+                    </option>
+                  )}
                   <option value="undecided">Undecided</option>
+                  <option value="vfx_no_led_wall">VFX / no LED wall</option>
                 </select>
               </label>
             </div>

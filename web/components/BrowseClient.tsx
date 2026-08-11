@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Plate } from "@platelab/shared";
 import {
@@ -11,23 +11,24 @@ import {
   STAGE_COMPAT,
 } from "@platelab/shared";
 import { PlateCard } from "./PlateCard";
+import {
+  browseFiltersFromParams,
+  browsePageFromParams,
+  browseParams,
+  browseSortFromParams,
+  paginateBrowseResults,
+  searchParamsForFilters,
+  sortBrowseResults,
+  type BrowseFilters,
+  type BrowseSort,
+} from "@/lib/browseSearch";
+import styles from "./BrowseClient.module.css";
 
 /**
  * Faceted hybrid search. The initial database catalog renders immediately,
  * then active filters are ranked through the server-side Postgres/pgvector
  * search endpoint.
  */
-
-interface Filters {
-  q: string;
-  shotType: string | null;
-  timeOfDay: string | null;
-  weather: string | null;
-  speedBand: string | null;
-  stage: string | null;
-  imuOnly: boolean;
-  tag: string | null;
-}
 
 const STAGE_LABELS: Record<string, string> = {
   "led-volume": "LED Volume",
@@ -86,30 +87,33 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [filters, setFilters] = useState<Filters>({
-    q: params.get("q") ?? "",
-    shotType: params.get("shotType"),
-    timeOfDay: params.get("timeOfDay"),
-    weather: params.get("weather"),
-    speedBand: params.get("speedBand"),
-    stage: params.get("stage"),
-    imuOnly: params.get("imu") === "1",
-    tag: params.get("tag"),
-  });
+  const [filters, setFilters] = useState<BrowseFilters>(() =>
+    browseFiltersFromParams(params),
+  );
+  const [sort, setSort] = useState<BrowseSort>(() =>
+    browseSortFromParams(params),
+  );
+  const [page, setPage] = useState(() => browsePageFromParams(params));
   const [results, setResults] = useState(plates);
   const [searching, setSearching] = useState(false);
   const [semantic, setSemantic] = useState(false);
+  const [degraded, setDegraded] = useState<{
+    message: string;
+    retryable: boolean;
+  } | null>(null);
+  const [searchAttempt, setSearchAttempt] = useState(0);
 
-  const set = (patch: Partial<Filters>) => {
+  const set = (patch: Partial<BrowseFilters>) => {
+    setPage(1);
     setFilters((prev) => ({ ...prev, ...patch }));
   };
 
   // Mirror the active filters into the URL. Done in an effect, not inside the
   // state updater, so we never trigger a Router update during render.
   useEffect(() => {
-    const sp = searchParamsForFilters(filters);
+    const sp = browseParams({ filters, sort, page });
     router.replace(`/browse${sp.size ? `?${sp}` : ""}`, { scroll: false });
-  }, [filters, router]);
+  }, [filters, page, router, sort]);
 
   const active =
     !!filters.q ||
@@ -125,13 +129,15 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
     if (!active) {
       setResults(plates);
       setSemantic(false);
+      setDegraded(null);
       setSearching(false);
       return;
     }
 
     const abortController = new AbortController();
+    setSearching(true);
+    setDegraded(null);
     const timer = window.setTimeout(async () => {
-      setSearching(true);
       try {
         const response = await fetch(
           `/api/catalog/search?${searchParamsForFilters(filters)}`,
@@ -141,12 +147,29 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
         const body = (await response.json()) as {
           plates: Plate[];
           semantic: boolean;
+          degraded?: boolean;
         };
         setResults(body.plates);
         setSemantic(body.semantic);
+        setDegraded(
+          body.degraded
+            ? {
+                message:
+                  "Semantic matching is temporarily unavailable. Results use exact words and metadata filters.",
+                retryable: false,
+              }
+            : null,
+        );
       } catch (error) {
         if (!abortController.signal.aborted) {
           console.warn(error);
+          setSemantic(false);
+          setDegraded({
+            message:
+              "Live search is temporarily unavailable. The catalog remains visible; try again in a moment.",
+            retryable: true,
+          });
+          setResults(plates);
         }
       } finally {
         if (!abortController.signal.aborted) setSearching(false);
@@ -157,7 +180,41 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
       window.clearTimeout(timer);
       abortController.abort();
     };
-  }, [active, filters, plates]);
+  }, [active, filters, plates, searchAttempt]);
+
+  const sortedResults = useMemo(
+    () => sortBrowseResults(results, sort),
+    [results, sort],
+  );
+  const paginated = useMemo(
+    () => paginateBrowseResults(sortedResults, page),
+    [page, sortedResults],
+  );
+  const browseReturnParams = browseParams({
+    filters,
+    sort,
+    page: paginated.page,
+  });
+  const browseReturnPath = `/browse${
+    browseReturnParams.size ? `?${browseReturnParams}` : ""
+  }`;
+
+  useEffect(() => {
+    if (page !== paginated.page) setPage(paginated.page);
+  }, [page, paginated.page]);
+
+  const clearAll = () => {
+    set({
+      q: "",
+      shotType: null,
+      timeOfDay: null,
+      weather: null,
+      speedBand: null,
+      stage: null,
+      imuOnly: false,
+      tag: null,
+    });
+  };
 
   return (
     <div className="browse-layout">
@@ -230,62 +287,133 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
       </aside>
 
       <div>
-        <div className="results-head">
-          <span className="mono dim">
-            {results.length} plate{results.length === 1 ? "" : "s"}
-            {active ? " · filtered" : ""}
-            {searching ? " · searching" : ""}
-            {semantic ? " · semantic" : ""}
-          </span>
-          {active && (
-            <button
-              className="mono dim clear-filters"
-              onClick={() =>
-                set({
-                  q: "",
-                  shotType: null,
-                  timeOfDay: null,
-                  weather: null,
-                  speedBand: null,
-                  stage: null,
-                  imuOnly: false,
-                  tag: null,
-                })
-              }
-            >
-              Clear all ✕
-            </button>
-          )}
+        <div className={`results-head ${styles.resultsHead}`}>
+          <div>
+            <span className="mono dim">
+              {sortedResults.length
+                ? `${paginated.start}–${paginated.end} of `
+                : ""}
+              {sortedResults.length} plate{sortedResults.length === 1 ? "" : "s"}
+              {active ? " · filtered" : ""}
+              {semantic ? " · semantic" : ""}
+            </span>
+            <span className="sr-only" aria-live="polite">
+              {searching
+                ? "Searching plates"
+                : `${sortedResults.length} plates found`}
+            </span>
+            {searching && (
+              <span className={`${styles.status} mono`} aria-hidden="true">
+                <span className={styles.spinner} /> Searching
+              </span>
+            )}
+          </div>
+          <div className={styles.toolbar}>
+            <label className={`${styles.sortLabel} mono`}>
+              Sort
+              <select
+                className={styles.sortSelect}
+                value={sort}
+                onChange={(event) => {
+                  setSort(event.target.value as BrowseSort);
+                  setPage(1);
+                }}
+                aria-label="Sort plate results"
+              >
+                <option value="relevance">Best match</option>
+                <option value="newest">Newest shoot</option>
+                <option value="duration-shortest">Shortest duration</option>
+                <option value="duration-longest">Longest duration</option>
+              </select>
+            </label>
+            {active && (
+              <button className="mono dim clear-filters" onClick={clearAll}>
+                Clear all ✕
+              </button>
+            )}
+          </div>
         </div>
-        {results.length ? (
-          <div className="plate-grid">
-            {results.map((p) => (
-              <PlateCard key={p.sku} plate={p} />
-            ))}
+        {degraded && (
+          <div className={styles.notice} role="status">
+            <span>
+              <strong>Limited search:</strong> {degraded.message}
+            </span>
+            {degraded.retryable && (
+              <button
+                className={styles.retryButton}
+                onClick={() => setSearchAttempt((attempt) => attempt + 1)}
+              >
+                Retry search
+              </button>
+            )}
+          </div>
+        )}
+        {sortedResults.length ? (
+          <div
+            className={styles.resultRegion}
+            data-loading={searching}
+            aria-busy={searching}
+          >
+            <div className="plate-grid">
+              {paginated.items.map((p) => (
+                <PlateCard
+                  key={p.sku}
+                  plate={p}
+                  browseReturnPath={browseReturnPath}
+                />
+              ))}
+            </div>
+            {paginated.pageCount > 1 && (
+              <nav className={styles.pagination} aria-label="Plate result pages">
+                <button
+                  className={styles.pageButton}
+                  disabled={paginated.page === 1}
+                  onClick={() => setPage(paginated.page - 1)}
+                >
+                  Previous
+                </button>
+                {Array.from({ length: paginated.pageCount }, (_, index) => {
+                  const pageNumber = index + 1;
+                  return (
+                    <button
+                      key={pageNumber}
+                      className={styles.pageButton}
+                      data-current={pageNumber === paginated.page}
+                      aria-current={
+                        pageNumber === paginated.page ? "page" : undefined
+                      }
+                      aria-label={`Page ${pageNumber}`}
+                      onClick={() => setPage(pageNumber)}
+                    >
+                      {pageNumber}
+                    </button>
+                  );
+                })}
+                <button
+                  className={styles.pageButton}
+                  disabled={paginated.page === paginated.pageCount}
+                  onClick={() => setPage(paginated.page + 1)}
+                >
+                  Next
+                </button>
+              </nav>
+            )}
           </div>
         ) : (
-          <div className="empty-state">
+          <div className="empty-state" role="status">
             <p className="mono">No plates match</p>
             <p style={{ marginTop: 10 }}>
-              Loosen a filter, or ask us to capture it — routes are shot to
-              order.
+              Try fewer words or remove a filter. The Plate Lab can also plan a
+              route when the catalog does not yet cover the shot.
             </p>
+            <div className={styles.emptyActions}>
+              <button className="secondary-button" onClick={clearAll}>
+                Clear search and filters
+              </button>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
-}
-
-function searchParamsForFilters(filters: Filters): URLSearchParams {
-  const params = new URLSearchParams();
-  if (filters.q) params.set("q", filters.q);
-  if (filters.shotType) params.set("shotType", filters.shotType);
-  if (filters.timeOfDay) params.set("timeOfDay", filters.timeOfDay);
-  if (filters.weather) params.set("weather", filters.weather);
-  if (filters.speedBand) params.set("speedBand", filters.speedBand);
-  if (filters.stage) params.set("stage", filters.stage);
-  if (filters.imuOnly) params.set("imu", "1");
-  if (filters.tag) params.set("tag", filters.tag);
-  return params;
 }

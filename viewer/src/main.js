@@ -4,6 +4,14 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { detectDecodedFootagePreset } from './footage-layout.js'
+import { describeMediaError } from './media-status.js'
+import { buildScreenshotDetails, describeScreenshotError } from './screenshot-export.js'
+import {
+  cappedDevicePixelRatio,
+  shouldRefreshReflection,
+  shouldRenderContinuously,
+  shouldScheduleVideoFrame,
+} from './render-policy.js'
 import {
   formatFrameTimecode,
   formatRelativeTimecode,
@@ -18,6 +26,7 @@ import {
   setInMarker,
   setOutMarker,
   shouldLoopSelection,
+  stepFrame,
 } from './playback-selection.js'
 import {
   FEET_TO_SCENE_UNITS,
@@ -29,6 +38,7 @@ import { VEHICLE_PHYSICAL_LENGTHS_FT } from './vehicle-specs.js'
 
 const FEET_TO_UNITS = FEET_TO_SCENE_UNITS
 const CAMERA_SENSOR_WIDTH_MM = 36
+const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 const presets = {
   amazon: {
@@ -168,6 +178,7 @@ const state = {
     sceneClipId: null,
     version: null,
     saveState: 'local',
+    source: null,
   },
   context: {
     projectId: null,
@@ -213,15 +224,23 @@ app.innerHTML = `
             <span class="studio-origin__clip mono" id="studioOriginClip"></span>
             <a id="backToProject" target="_top" hidden>← Back to project</a>
           </div>
-          <div class="status" id="playbackStatus">No footage loaded</div>
+          <div class="status" id="playbackStatus" role="status" aria-live="polite">No footage loaded</div>
         </div>
       </div>
-      <canvas id="stageCanvas"></canvas>
+      <canvas id="stageCanvas" aria-label="Interactive 360 Studio stage" aria-describedby="stageCanvasHelp"></canvas>
+      <p class="sr-only" id="stageCanvasHelp">Drag to orbit around the vehicle. Use the named camera view buttons to return to a fixed shot.</p>
+      <section class="viewer-alert" id="viewerAlert" role="alert" hidden>
+        <strong id="viewerAlertTitle">Footage could not be loaded</strong>
+        <p id="viewerAlertDetail">Check the footage source and try again.</p>
+        <button id="retryFootage" type="button">Retry footage</button>
+      </section>
       <section class="transport" aria-label="Footage playback and selection">
         <div class="transport__timeline">
+          <button class="transport__step" id="stepBack" type="button" aria-label="Step back one frame" disabled>−1 frame</button>
           <button class="transport__play" id="transportPlayPause" type="button" aria-label="Play footage" disabled>
             <span data-icon="play"></span>
           </button>
+          <button class="transport__step" id="stepForward" type="button" aria-label="Step forward one frame" disabled>+1 frame</button>
           <output class="transport__clock mono" id="currentTime">00:00:00:00</output>
           <label class="transport__scrubber">
             <span class="sr-only">Footage timeline</span>
@@ -248,7 +267,7 @@ app.innerHTML = `
       <button id="panelToggle" class="panel-toggle" type="button" title="Hide controls" aria-label="Hide controls">›</button>
     </section>
 
-    <aside class="control-panel" aria-label="Viewer controls">
+    <aside class="control-panel" id="viewerControls" aria-label="Viewer controls">
       <section class="control-group">
         <div class="group-title">
           <span>Footage</span>
@@ -406,6 +425,15 @@ app.innerHTML = `
         </div>
         <p class="notes" id="vehicleCredit"></p>
       </section>
+
+      <section class="control-group" aria-labelledby="studioExportTitle">
+        <div class="group-title">
+          <span id="studioExportTitle">Studio Export</span>
+        </div>
+        <button id="downloadScreenshot" type="button" class="panel-button panel-button--primary">Download branded screenshot</button>
+        <p class="notes">Exports the current stage view with Plate Lab, plate, project, and scene identification.</p>
+        <span class="screenshot-feedback" id="screenshotFeedback" role="status" aria-live="polite"></span>
+      </section>
     </aside>
   </main>
 `
@@ -413,16 +441,20 @@ app.innerHTML = `
 // Collapsible control panel: a drawer pull pinned to the viewport/panel edge.
 const workbench = document.querySelector('.workbench')
 const panelToggle = document.querySelector('#panelToggle')
+panelToggle.setAttribute('aria-controls', 'viewerControls')
+panelToggle.setAttribute('aria-expanded', 'true')
 panelToggle.addEventListener('click', () => {
   const collapsed = workbench.classList.toggle('is-collapsed')
   panelToggle.textContent = collapsed ? '‹' : '›'
   panelToggle.title = collapsed ? 'Show controls' : 'Hide controls'
   panelToggle.setAttribute('aria-label', panelToggle.title)
+  panelToggle.setAttribute('aria-expanded', String(!collapsed))
+  invalidateRender()
 })
 
 const canvas = document.querySelector('#stageCanvas')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.setPixelRatio(cappedDevicePixelRatio(window.devicePixelRatio))
 renderer.setClearColor(0x07090b, 1)
 renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = state.exposure
@@ -457,6 +489,18 @@ video.muted = true
 video.playsInline = true
 video.crossOrigin = 'anonymous'
 video.preload = 'auto'
+
+let activeVideoTexture = null
+let activeObjectUrl = null
+let pendingLayoutListener = null
+let renderFrameId = null
+let renderInvalidated = true
+let reflectionInvalidated = true
+let controlsMoving = false
+let lastReflectionRefresh = Number.NEGATIVE_INFINITY
+let resizeObserver = null
+let videoFrameCallbackId = null
+const supportsVideoFrameCallback = typeof video.requestVideoFrameCallback === 'function'
 
 const ferrariShadowTexture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}models/ferrari_ao.png`)
 ferrariShadowTexture.colorSpace = THREE.SRGBColorSpace
@@ -599,6 +643,7 @@ const carMaterials = {
   amberLight: new THREE.MeshPhysicalMaterial({ color: 0xf2a340, emissive: 0x301303, roughness: 0.18, metalness: 0.2 }),
   dark: new THREE.MeshStandardMaterial({ color: 0x0e1011, roughness: 0.64, metalness: 0.18, envMapIntensity: 0.45 }),
 }
+const sharedCarMaterials = new Set(Object.values(carMaterials))
 const dynamicVehicleMaterials = new Set()
 
 const keyLight = new THREE.DirectionalLight(0xffffff, 1.8)
@@ -666,6 +711,8 @@ function buildControls() {
       button.dataset.view = view.key
       button.textContent = view.label
       button.title = `${group.name}: ${view.label}`
+      button.setAttribute('aria-label', `${group.name} camera: ${view.label}`)
+      button.setAttribute('aria-pressed', 'false')
       button.addEventListener('click', () => setView(view.key))
       wrapper.append(button)
     })
@@ -688,6 +735,7 @@ function buildControls() {
     button.dataset.finish = key
     button.title = finish.label
     button.ariaLabel = finish.label
+    button.setAttribute('aria-pressed', 'false')
     button.style.setProperty('--swatch', finish.color)
     button.addEventListener('click', () => setFinish(key))
     swatches.append(button)
@@ -706,15 +754,18 @@ function buildControls() {
   document.querySelector('#gridToggle').addEventListener('change', (event) => {
     state.panelGrid = event.target.checked
     gridGroup.visible = state.panelGrid
+    invalidateRender()
   })
   document.querySelector('#reflectionToggle').addEventListener('change', (event) => {
     state.reflections = event.target.checked
     syncEnvironment()
+    invalidateRender({ reflection: state.reflections })
   })
   document.querySelector('#exposure').addEventListener('input', (event) => {
     state.exposure = Number(event.target.value) / 100
     renderer.toneMappingExposure = state.exposure
     document.querySelector('#exposureOut').textContent = `${event.target.value}%`
+    invalidateRender()
   })
   document.querySelector('#rate').addEventListener('input', (event) => {
     state.playRate = Number(event.target.value) / 100
@@ -726,6 +777,7 @@ function buildControls() {
     state.vehicleYaw = Number(event.target.value)
     document.querySelector('#vehicleYawOut').textContent = `${state.vehicleYaw} deg`
     applyVehicleYaw()
+    invalidateRender()
   })
   document.querySelector('#loadUrl').addEventListener('click', loadVideoUrl)
   document.querySelector('#videoUrl').addEventListener('keydown', (event) => {
@@ -781,6 +833,10 @@ function buildControls() {
   })
   document.querySelector('#playPause').addEventListener('click', togglePlayback)
   document.querySelector('#transportPlayPause').addEventListener('click', togglePlayback)
+  document.querySelector('#stepBack').addEventListener('click', () => stepPlaybackByFrame(-1))
+  document.querySelector('#stepForward').addEventListener('click', () => stepPlaybackByFrame(1))
+  document.querySelector('#retryFootage').addEventListener('click', retryFootage)
+  document.querySelector('#downloadScreenshot').addEventListener('click', downloadBrandedScreenshot)
   document.querySelector('#timeline').addEventListener('input', seekFromTimeline)
   document.querySelector('#setIn').addEventListener('click', setInPoint)
   document.querySelector('#setOut').addEventListener('click', setOutPoint)
@@ -788,20 +844,40 @@ function buildControls() {
   document.querySelector('#saveSelection').addEventListener('click', saveSelection)
   document.querySelector('#resetView').addEventListener('click', () => setView(state.selectedView, false))
 
+  video.addEventListener('loadstart', () => {
+    clearViewerFailure()
+    setPlaybackStatus('Loading footage…', 'loading')
+    invalidateRender({ reflection: true })
+  })
   video.addEventListener('loadedmetadata', initializeTransport)
+  video.addEventListener('canplay', () => {
+    clearViewerFailure()
+    setPlaybackStatus(video.paused ? 'Ready to play' : 'Playing')
+    invalidateRender({ reflection: true })
+  })
   video.addEventListener('durationchange', initializeTransport)
   video.addEventListener('timeupdate', updateTransport)
-  video.addEventListener('seeked', updateTransport)
+  video.addEventListener('seeked', () => {
+    updateTransport()
+    invalidateRender({ reflection: true })
+  })
   video.addEventListener('ended', restartSelectedRange)
   video.addEventListener('play', () => {
     setPlaybackStatus('Playing')
     updatePlaybackButtons()
+    invalidateRender({ reflection: true })
+    scheduleVideoFrameRender()
   })
   video.addEventListener('pause', () => {
     setPlaybackStatus('Paused')
     updatePlaybackButtons()
+    invalidateRender({ reflection: true })
+    cancelVideoFrameRender()
   })
-  video.addEventListener('error', () => setPlaybackStatus('Video could not load'))
+  video.addEventListener('error', () => {
+    showVideoFailure()
+    invalidateRender()
+  })
 }
 
 function bindRange(id, outputId, key, suffix) {
@@ -833,7 +909,7 @@ function bindCameraRigControls() {
       state.cameraRig.custom = true
       output.textContent = format(value)
       document.querySelector('#cameraMode').textContent = 'Custom rig'
-      document.querySelectorAll('.view-strip button').forEach((button) => button.classList.remove('is-active'))
+      clearActiveCameraViews()
       applyCameraRig()
     })
   })
@@ -909,6 +985,7 @@ function rebuildStage() {
   buildPanelGrid(radius, height, arc, thetaStart)
   gridGroup.visible = state.panelGrid
   updateMetrics(radius, height, arc)
+  invalidateRender({ reflection: true })
 }
 
 function buildPanelGrid(radius, height, arc, thetaStart) {
@@ -1012,6 +1089,7 @@ function loadVehicle(key) {
 }
 
 function loadVehicleSpec(vehicle) {
+  disposeVehicleMaterials(dynamicVehicleMaterials, sharedCarMaterials)
   dynamicVehicleMaterials.clear()
   clearGroup(carGroup)
   applyVehicleYaw()
@@ -1020,21 +1098,25 @@ function loadVehicleSpec(vehicle) {
     vehicle.file,
     (gltf) => {
       const carModel = gltf.scene.children[0] || gltf.scene
+      const sourceMaterials = collectObjectMaterials(carModel)
       carModel.name = vehicle.label
       carModel.rotation.y = vehicle.rotationY
       applyCarMaterials(carModel)
+      disposeVehicleMaterials(sourceMaterials, collectObjectMaterials(carModel))
       normalizeVehicleModel(carModel, vehicle)
 
       carGroup.add(makeVehicleShadow(vehicle))
       carGroup.add(carModel)
       setPlaybackStatus(video.src ? 'Playing' : `${vehicle.label} loaded`)
       document.querySelector('#vehicleCredit').textContent = vehicle.credit
+      invalidateRender()
     },
     undefined,
     () => {
       clearGroup(carGroup)
       buildFallbackCar()
       setPlaybackStatus('Using fallback car')
+      invalidateRender()
     },
   )
 }
@@ -1094,6 +1176,37 @@ function registerVehicleMaterial(material) {
     if (!item) return
     dynamicVehicleMaterials.add(item)
     item.needsUpdate = true
+  })
+}
+
+function collectObjectMaterials(object) {
+  const materials = new Set()
+  object.traverse((child) => {
+    const childMaterials = Array.isArray(child.material) ? child.material : [child.material]
+    childMaterials.forEach((material) => {
+      if (material) materials.add(material)
+    })
+  })
+  return materials
+}
+
+function disposeVehicleMaterials(materials, retainedMaterials = new Set()) {
+  const retainedTextures = new Set()
+  retainedMaterials.forEach((material) => {
+    Object.values(material).forEach((value) => {
+      if (value?.isTexture) retainedTextures.add(value)
+    })
+  })
+
+  const disposedTextures = new Set()
+  materials.forEach((material) => {
+    if (!material || retainedMaterials.has(material)) return
+    Object.values(material).forEach((value) => {
+      if (!value?.isTexture || retainedTextures.has(value) || disposedTextures.has(value)) return
+      disposedTextures.add(value)
+      value.dispose()
+    })
+    material.dispose()
   })
 }
 
@@ -1233,8 +1346,11 @@ function setFinish(key) {
   carMaterials.paint.metalness = finish.metalness
   carMaterials.paint.roughness = finish.roughness
   document.querySelectorAll('.swatch').forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.finish === key)
+    const active = button.dataset.finish === key
+    button.classList.toggle('is-active', active)
+    button.setAttribute('aria-pressed', String(active))
   })
+  invalidateRender()
 }
 
 function setView(key, animate = true) {
@@ -1242,7 +1358,9 @@ function setView(key, animate = true) {
   state.cameraRig.custom = false
   const view = views[key]
   document.querySelectorAll('.view-strip button').forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.view === key)
+    const active = button.dataset.view === key
+    button.classList.toggle('is-active', active)
+    button.setAttribute('aria-pressed', String(active))
   })
   document.querySelector('#cameraMode').textContent = 'Locked shot'
   syncCameraRigFromView(view)
@@ -1253,10 +1371,11 @@ function setView(key, animate = true) {
   camera.fov = view.fov
   camera.updateProjectionMatrix()
 
-  if (!animate) {
+  if (!animate || reducedMotionQuery.matches) {
     camera.position.copy(destination)
     controls.target.copy(target)
     controls.update()
+    invalidateRender()
     return
   }
 
@@ -1271,6 +1390,7 @@ function setView(key, animate = true) {
     camera.position.lerpVectors(startPosition, destination, eased)
     controls.target.lerpVectors(startTarget, target, eased)
     controls.update()
+    invalidateRender()
     if (t < 1) requestAnimationFrame(tween)
   }
   requestAnimationFrame(tween)
@@ -1291,6 +1411,7 @@ function applyCameraRig() {
   camera.fov = focalLengthToFov(rig.focalLength)
   camera.updateProjectionMatrix()
   controls.update()
+  invalidateRender()
 }
 
 function bindCameraNavigation() {
@@ -1394,11 +1515,18 @@ function bindCameraNavigation() {
   canvas.addEventListener('dblclick', () => setView(state.selectedView))
 
   controls.addEventListener('start', () => {
+    controlsMoving = true
     state.cameraRig.custom = true
     document.querySelector('#cameraMode').textContent = 'Free orbit'
-    document.querySelectorAll('.view-strip button').forEach((button) => button.classList.remove('is-active'))
+    clearActiveCameraViews()
+    invalidateRender()
   })
-  controls.addEventListener('end', markCameraCustomFromLiveView)
+  controls.addEventListener('change', () => invalidateRender())
+  controls.addEventListener('end', () => {
+    controlsMoving = false
+    markCameraCustomFromLiveView()
+    invalidateRender()
+  })
 }
 
 function orbitCameraFromWheel(event) {
@@ -1409,7 +1537,7 @@ function orbitCameraFromWheel(event) {
   offset.setFromSpherical(spherical)
   camera.position.copy(controls.target).add(offset)
   controls.update()
-  document.querySelectorAll('.view-strip button').forEach((button) => button.classList.remove('is-active'))
+  clearActiveCameraViews()
   markCameraCustomFromLiveView('Space orbit')
 }
 
@@ -1442,6 +1570,13 @@ function markCameraCustomFromLiveView(label = 'Custom rig') {
   state.cameraRig.custom = true
   document.querySelector('#cameraMode').textContent = label
   syncCameraRigFromLiveCamera()
+}
+
+function clearActiveCameraViews() {
+  document.querySelectorAll('.view-strip button').forEach((button) => {
+    button.classList.remove('is-active')
+    button.setAttribute('aria-pressed', 'false')
+  })
 }
 
 function syncCameraRigFromLiveCamera() {
@@ -1522,6 +1657,8 @@ function renderCustomShots() {
     button.dataset.view = shot.key
     button.textContent = shot.label
     button.title = `Saved camera: ${shot.label}`
+    button.setAttribute('aria-label', `Saved camera: ${shot.label}`)
+    button.setAttribute('aria-pressed', String(state.selectedView === shot.key && !state.cameraRig.custom))
     button.addEventListener('click', () => setView(shot.key))
     wrapper.append(button)
   })
@@ -1578,6 +1715,7 @@ function loadVideoFile(event) {
   const file = event.target.files?.[0]
   if (!file) return
   const url = URL.createObjectURL(file)
+  replaceActiveObjectUrl(url)
   document.querySelector('#fileName').textContent = file.name
   clearPlaybackContext()
   loadVideoSource(url, file.name)
@@ -1586,6 +1724,7 @@ function loadVideoFile(event) {
 function loadVideoUrl() {
   const url = document.querySelector('#videoUrl').value.trim()
   if (!url) return
+  replaceActiveObjectUrl(null)
   clearPlaybackContext()
   loadVideoSource(url, 'URL footage')
 }
@@ -1596,6 +1735,7 @@ function loadInitialFootage() {
   configureStudioContext(params)
   const footageUrl = params.get('video')?.trim()
   if (!footageUrl) return
+  replaceActiveObjectUrl(null)
 
   const label = params.get('label')?.trim() || 'Plate preview'
   document.querySelector('#videoUrl').value = footageUrl
@@ -1680,6 +1820,8 @@ function renderStudioContext() {
 }
 
 async function loadVideoSource(src, label) {
+  state.playback.source = { src, label }
+  clearViewerFailure()
   const texture = new THREE.VideoTexture(video)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.mapping = THREE.EquirectangularReflectionMapping
@@ -1687,10 +1829,13 @@ async function loadVideoSource(src, label) {
   texture.magFilter = THREE.LinearFilter
   texture.generateMipmaps = false
 
+  if (pendingLayoutListener) video.removeEventListener('loadedmetadata', pendingLayoutListener)
+
   let layoutApplied = false
   const applyDecodedLayout = () => {
     if (layoutApplied || !video.videoWidth || !video.videoHeight) return
     layoutApplied = true
+    if (pendingLayoutListener === applyDecodedLayout) pendingLayoutListener = null
     applyFootagePreset(
       detectDecodedFootagePreset({
         width: video.videoWidth,
@@ -1702,16 +1847,21 @@ async function loadVideoSource(src, label) {
     )
   }
 
+  pendingLayoutListener = applyDecodedLayout
   video.addEventListener('loadedmetadata', applyDecodedLayout, { once: true })
   video.src = src
   video.playbackRate = state.playRate
   video.load()
 
-  stageVideoUniforms.map.value = texture
+  const previousTexture = activeVideoTexture
+  activeVideoTexture = texture
+  stageVideoUniforms.map.value = activeVideoTexture
   if (video.readyState >= HTMLMediaElement.HAVE_METADATA) applyDecodedLayout()
   screenMaterial.needsUpdate = true
   ceilingMaterial.needsUpdate = true
   syncEnvironment(texture)
+  if (previousTexture && previousTexture !== texture) previousTexture.dispose()
+  invalidateRender({ reflection: true })
 
   setPlaybackStatus(`Loaded ${label}`)
   try {
@@ -1719,6 +1869,37 @@ async function loadVideoSource(src, label) {
   } catch {
     setPlaybackStatus('Loaded, press play')
   }
+}
+
+function replaceActiveObjectUrl(nextUrl) {
+  if (activeObjectUrl && activeObjectUrl !== nextUrl) URL.revokeObjectURL(activeObjectUrl)
+  activeObjectUrl = nextUrl
+}
+
+function scheduleVideoFrameRender() {
+  const videoPlaying = Boolean(video.src && !video.paused && !video.ended)
+  if (
+    videoFrameCallbackId !== null
+      || !shouldScheduleVideoFrame({
+        supported: supportsVideoFrameCallback,
+        visible: !document.hidden,
+        videoPlaying,
+      })
+  ) return
+
+  videoFrameCallbackId = video.requestVideoFrameCallback(() => {
+    videoFrameCallbackId = null
+    invalidateRender()
+    scheduleVideoFrameRender()
+  })
+}
+
+function cancelVideoFrameRender() {
+  if (videoFrameCallbackId === null || !supportsVideoFrameCallback) return
+  if (typeof video.cancelVideoFrameCallback === 'function') {
+    video.cancelVideoFrameCallback(videoFrameCallbackId)
+  }
+  videoFrameCallbackId = null
 }
 
 function togglePlayback() {
@@ -1733,6 +1914,162 @@ function togglePlayback() {
   }
 }
 
+function stepPlaybackByFrame(direction) {
+  if (!video.src || !Number.isFinite(video.duration) || video.duration <= 0) return
+  video.pause()
+  const totalFrames = secondsToFrame(video.duration, state.playback.fps)
+  const nextFrame = stepFrame(currentPlaybackFrame(), direction, totalFrames)
+  video.currentTime = frameToSeconds(nextFrame, state.playback.fps)
+  updateTransport()
+  setPlaybackStatus(direction < 0 ? 'Stepped back one frame' : 'Stepped forward one frame')
+}
+
+function retryFootage() {
+  const source = state.playback.source
+  if (!source?.src) return
+  loadVideoSource(source.src, source.label)
+}
+
+function showVideoFailure() {
+  const failure = describeMediaError(video.error?.code)
+  const alert = document.querySelector('#viewerAlert')
+  document.querySelector('#viewerAlertTitle').textContent = failure.title
+  document.querySelector('#viewerAlertDetail').textContent = failure.detail
+  document.querySelector('#retryFootage').hidden = !failure.retryable
+  alert.hidden = false
+  setPlaybackStatus(failure.title, 'error')
+}
+
+function clearViewerFailure() {
+  const alert = document.querySelector('#viewerAlert')
+  if (alert) alert.hidden = true
+}
+
+async function downloadBrandedScreenshot() {
+  const button = document.querySelector('#downloadScreenshot')
+  button.disabled = true
+  button.textContent = 'Preparing screenshot…'
+  setScreenshotFeedback('Preparing branded PNG…')
+
+  try {
+    // Render immediately before copying: this avoids relying on a retained WebGL drawing buffer.
+    renderer.render(scene, camera)
+    const width = canvas.width
+    const height = canvas.height
+    if (!width || !height) throw new Error('The stage has not rendered yet.')
+
+    const exportCanvas = document.createElement('canvas')
+    exportCanvas.width = width
+    exportCanvas.height = height
+    const context = exportCanvas.getContext('2d')
+    if (!context) throw new Error('PNG export is unavailable in this browser.')
+
+    context.drawImage(canvas, 0, 0, width, height)
+    const details = buildScreenshotDetails(state.context)
+    drawScreenshotBranding(context, width, height, details)
+    const blob = await canvasToBlob(exportCanvas)
+    downloadBlob(blob, details.filename)
+    setScreenshotFeedback(`Downloaded ${details.filename}`, 'success')
+    setPlaybackStatus('Branded screenshot downloaded')
+  } catch (error) {
+    setScreenshotFeedback(describeScreenshotError(error), 'error')
+    setPlaybackStatus('Screenshot export failed', 'error')
+  } finally {
+    button.disabled = false
+    button.textContent = 'Download branded screenshot'
+  }
+}
+
+function drawScreenshotBranding(context, width, height, details) {
+  const scale = Math.max(1, Math.min(width / 1280, height / 720))
+  const padding = Math.round(24 * scale)
+  const topHeight = Math.round(82 * scale)
+  const bottomHeight = Math.round(54 * scale)
+
+  context.save()
+  context.fillStyle = 'rgba(7, 9, 10, 0.88)'
+  context.fillRect(0, 0, width, topHeight)
+  context.fillRect(0, height - bottomHeight, width, bottomHeight)
+  context.fillStyle = '#d16d3d'
+  context.fillRect(0, topHeight - Math.max(2, Math.round(3 * scale)), width, Math.max(2, Math.round(3 * scale)))
+
+  const markRadius = Math.round(20 * scale)
+  const markX = padding + markRadius
+  const markY = Math.round(topHeight / 2)
+  context.strokeStyle = '#d16d3d'
+  context.lineWidth = Math.max(2, Math.round(2 * scale))
+  context.beginPath()
+  context.arc(markX, markY, markRadius, 0, Math.PI * 2)
+  context.moveTo(markX - markRadius, markY)
+  context.lineTo(markX + markRadius, markY)
+  context.moveTo(markX, markY - markRadius)
+  context.lineTo(markX, markY + markRadius)
+  context.stroke()
+
+  const textX = markX + markRadius + Math.round(14 * scale)
+  context.fillStyle = '#f3f5ef'
+  context.font = `700 ${Math.round(23 * scale)}px Inter, Arial, sans-serif`
+  context.fillText('THE PLATE LAB', textX, markY - Math.round(2 * scale))
+  context.fillStyle = '#aab5ad'
+  context.font = `600 ${Math.round(11 * scale)}px ui-monospace, SFMono-Regular, Menlo, monospace`
+  context.fillText('360 STUDIO PREVIEW', textX, markY + Math.round(18 * scale))
+
+  context.textAlign = 'right'
+  context.fillStyle = '#b7e37d'
+  context.font = `700 ${Math.round(13 * scale)}px ui-monospace, SFMono-Regular, Menlo, monospace`
+  context.fillText(details.clipLabel, width - padding, markY + Math.round(4 * scale))
+
+  context.textAlign = 'left'
+  context.fillStyle = '#eef3ed'
+  context.font = `600 ${Math.round(14 * scale)}px Inter, Arial, sans-serif`
+  context.fillText(
+    fitCanvasText(context, details.contextLabel, width - (padding * 2)),
+    padding,
+    height - Math.round(20 * scale),
+  )
+  context.restore()
+}
+
+function fitCanvasText(context, text, maxWidth) {
+  if (context.measureText(text).width <= maxWidth) return text
+  let fitted = String(text)
+  while (fitted.length > 1 && context.measureText(`${fitted}…`).width > maxWidth) {
+    fitted = fitted.slice(0, -1)
+  }
+  return `${fitted.trimEnd()}…`
+}
+
+function canvasToBlob(sourceCanvas) {
+  return new Promise((resolve, reject) => {
+    try {
+      sourceCanvas.toBlob((blob) => {
+        if (blob) resolve(blob)
+        else reject(new Error('The browser returned an empty screenshot.'))
+      }, 'image/png')
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.hidden = true
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+function setScreenshotFeedback(message, tone = '') {
+  const feedback = document.querySelector('#screenshotFeedback')
+  feedback.textContent = message
+  feedback.dataset.tone = tone
+}
+
 function initializeTransport() {
   const duration = Number.isFinite(video.duration) ? Math.max(0, video.duration) : 0
   const timeline = document.querySelector('#timeline')
@@ -1740,6 +2077,8 @@ function initializeTransport() {
   timeline.step = String(1 / state.playback.fps)
   timeline.disabled = duration <= 0
   document.querySelector('#transportPlayPause').disabled = duration <= 0
+  document.querySelector('#stepBack').disabled = duration <= 0
+  document.querySelector('#stepForward').disabled = duration <= 0
   document.querySelector('#setIn').disabled = duration <= 0
   document.querySelector('#setOut').disabled = duration <= 0
   updatePlaybackButtons()
@@ -1996,10 +2335,13 @@ function applyFootageTransform(texture = stageVideoUniforms.map.value) {
   texture.needsUpdate = true
   screenMaterial.needsUpdate = true
   ceilingMaterial.needsUpdate = true
+  invalidateRender({ reflection: true })
 }
 
-function setPlaybackStatus(message) {
-  document.querySelector('#playbackStatus').textContent = message
+function setPlaybackStatus(message, tone = '') {
+  const status = document.querySelector('#playbackStatus')
+  status.textContent = message
+  status.dataset.tone = tone
 }
 
 function makeFallbackTexture() {
@@ -2039,40 +2381,126 @@ function makeFallbackTexture() {
 }
 
 function clearGroup(group) {
+  const disposedGeometry = new Set()
   while (group.children.length) {
-    const child = group.children.pop()
-    if (child.geometry) child.geometry.dispose()
+    const child = group.children[group.children.length - 1]
+    child.traverse((object) => {
+      if (!object.geometry || disposedGeometry.has(object.geometry)) return
+      disposedGeometry.add(object.geometry)
+      object.geometry.dispose()
+    })
+    group.remove(child)
   }
 }
 
 function resizeRenderer() {
   const { clientWidth, clientHeight } = canvas
+  if (!clientWidth || !clientHeight) return false
+  const nextPixelRatio = cappedDevicePixelRatio(window.devicePixelRatio)
+  const pixelRatioChanged = renderer.getPixelRatio() !== nextPixelRatio
+  if (pixelRatioChanged) renderer.setPixelRatio(nextPixelRatio)
+  const pixelRatio = renderer.getPixelRatio()
+  const targetWidth = Math.round(clientWidth * pixelRatio)
+  const targetHeight = Math.round(clientHeight * pixelRatio)
+  if (!pixelRatioChanged && canvas.width === targetWidth && canvas.height === targetHeight) return false
   renderer.setSize(clientWidth, clientHeight, false)
   camera.aspect = clientWidth / clientHeight
   camera.updateProjectionMatrix()
+  return true
 }
 
 function constrainCameraToStageInterior() {
   const nextCamera = clampPointToStageInterior(camera.position, state.dimensions)
   const nextTarget = clampPointToStageInterior(controls.target, state.dimensions)
 
-  camera.position.set(nextCamera.x, nextCamera.y, nextCamera.z)
-  controls.target.set(nextTarget.x, nextTarget.y, nextTarget.z)
+  const changed = !camera.position.equals(nextCamera) || !controls.target.equals(nextTarget)
+  if (changed) {
+    camera.position.set(nextCamera.x, nextCamera.y, nextCamera.z)
+    controls.target.set(nextTarget.x, nextTarget.y, nextTarget.z)
+  }
+  return changed
 }
 
-function animate() {
-  resizeRenderer()
-  controls.update()
-  constrainCameraToStageInterior()
-  if (state.reflections) {
+function invalidateRender({ reflection = false } = {}) {
+  renderInvalidated = true
+  if (reflection) reflectionInvalidated = true
+  scheduleRender()
+}
+
+function scheduleRender() {
+  if (document.hidden || renderFrameId !== null) return
+  renderFrameId = requestAnimationFrame(renderFrame)
+}
+
+function renderFrame(now) {
+  renderFrameId = null
+  if (document.hidden) return
+
+  const resized = resizeRenderer()
+  const controlsChanged = controls.update()
+  const constrained = constrainCameraToStageInterior()
+  const videoPlaying = Boolean(video.src && !video.paused && !video.ended)
+  const shouldRender = renderInvalidated || resized || controlsChanged || constrained || videoPlaying
+
+  if (shouldRefreshReflection({
+    enabled: state.reflections,
+    videoPlaying,
+    reflectionInvalidated,
+    elapsedMs: now - lastReflectionRefresh,
+  })) {
     carGroup.visible = false
     reflectionCamera.position.set(0, 1.05, 0)
     reflectionCamera.update(renderer, scene)
     carGroup.visible = true
+    reflectionInvalidated = false
+    lastReflectionRefresh = now
   }
-  renderer.render(scene, camera)
-  requestAnimationFrame(animate)
+
+  if (shouldRender) renderer.render(scene, camera)
+  renderInvalidated = false
+
+  if (shouldRenderContinuously({
+    visible: !document.hidden,
+    videoPlaying: videoPlaying && !supportsVideoFrameCallback,
+    controlsMoving,
+    controlsChanged,
+  })) scheduleRender()
 }
 
-window.addEventListener('resize', resizeRenderer)
-animate()
+window.addEventListener('resize', () => invalidateRender({ reflection: true }))
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (renderFrameId !== null) cancelAnimationFrame(renderFrameId)
+    renderFrameId = null
+    cancelVideoFrameRender()
+    return
+  }
+  invalidateRender({ reflection: true })
+  scheduleVideoFrameRender()
+})
+
+window.addEventListener('pagehide', (event) => {
+  if (event.persisted) return
+  if (renderFrameId !== null) cancelAnimationFrame(renderFrameId)
+  renderFrameId = null
+  resizeObserver?.disconnect()
+  cancelVideoFrameRender()
+  if (pendingLayoutListener) video.removeEventListener('loadedmetadata', pendingLayoutListener)
+  video.pause()
+  video.removeAttribute('src')
+  activeVideoTexture?.dispose()
+  activeVideoTexture = null
+  disposeVehicleMaterials(dynamicVehicleMaterials, sharedCarMaterials)
+  dynamicVehicleMaterials.clear()
+  replaceActiveObjectUrl(null)
+  reflectionTarget.dispose()
+  dracoLoader.dispose()
+  renderer.dispose()
+})
+
+if ('ResizeObserver' in window) {
+  resizeObserver = new ResizeObserver(() => invalidateRender({ reflection: true }))
+  resizeObserver.observe(canvas)
+}
+
+invalidateRender({ reflection: true })

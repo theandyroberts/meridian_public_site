@@ -1,0 +1,79 @@
+.card {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--hairline-strong);
+  background: color-mix(in srgb, var(--ink-2) 86%, transparent);
+}
+
+.heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heading h2,
+.group p {
+  margin: 0;
+}
+
+.heading h2 {
+  font-size: 16px;
+}
+
+.heading span,
+.group small {
+  color: var(--paper-60);
+  font-size: 12px;
+}
+
+.group {
+  display: grid;
+  gap: 7px;
+}
+
+.group p {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chipForm {
+  margin: 0;
+}
+
+.chip {
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid var(--hairline-strong);
+  color: var(--paper);
+  background: var(--ink-2);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.chip:hover,
+.chip:focus-visible {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.empty {
+  color: var(--paper-60);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

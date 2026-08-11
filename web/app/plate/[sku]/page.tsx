@@ -13,6 +13,7 @@ import { PriceBlock } from "@/components/PriceBlock";
 import { PlateCard } from "@/components/PlateCard";
 import { publicMediaUrl } from "@/lib/publicMediaUrl";
 import { buildStudioHref } from "@/lib/studioHref";
+import { safeBrowseReturnPath } from "@/lib/browseSearch";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +32,15 @@ export default async function PlatePage({
   searchParams,
 }: {
   params: Promise<{ sku: string }>;
-  searchParams: Promise<{ exp?: string; sig?: string }>;
+  searchParams: Promise<{
+    exp?: string;
+    sig?: string;
+    from?: string | string[];
+  }>;
 }) {
   const { sku } = await params;
-  const { exp, sig } = await searchParams;
+  const { exp, sig, from } = await searchParams;
+  const browseReturnPath = safeBrowseReturnPath(from);
   const livePlate = await getLivePlate(sku);
   const plate =
     livePlate ??
@@ -71,7 +77,7 @@ export default async function PlatePage({
       <div className="detail-head">
         <div>
           <div className="crumbs mono dimmer">
-            <Link href="/browse">Plates</Link>
+            <Link href={browseReturnPath}>Plates</Link>
             <span>/</span>
             <span className="accent">{plate.sku}</span>
           </div>
@@ -206,13 +212,17 @@ export default async function PlatePage({
         <section className="related">
           <div className="section-head">
             <h2>Similar plates</h2>
-            <Link href="/browse" className="mono dim">
+            <Link href={browseReturnPath} className="mono dim">
               Browse all →
             </Link>
           </div>
           <div className="plate-grid">
             {related.map((p) => (
-              <PlateCard key={p.sku} plate={p} />
+              <PlateCard
+                key={p.sku}
+                plate={p}
+                browseReturnPath={browseReturnPath}
+              />
             ))}
           </div>
         </section>

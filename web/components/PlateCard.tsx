@@ -14,7 +14,13 @@ function formatDuration(sec: number): string {
 }
 
 /** Catalog card: poster at rest, watermarked preview plays on hover. */
-export function PlateCard({ plate }: { plate: Plate }) {
+export function PlateCard({
+  plate,
+  browseReturnPath,
+}: {
+  plate: Plate;
+  browseReturnPath?: string;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const studioHref = plate.renditions.stagePreview
     ? buildStudioHref({
@@ -25,6 +31,9 @@ export function PlateCard({ plate }: { plate: Plate }) {
         sku: plate.sku,
       })
     : undefined;
+  const detailHref = browseReturnPath
+    ? `/plate/${plate.sku}?from=${encodeURIComponent(browseReturnPath)}`
+    : `/plate/${plate.sku}`;
 
   const start = () => {
     const v = videoRef.current;
@@ -47,7 +56,7 @@ export function PlateCard({ plate }: { plate: Plate }) {
       onFocus={start}
       onBlur={stop}
     >
-      <Link href={`/plate/${plate.sku}`} className="plate-card-main">
+      <Link href={detailHref} className="plate-card-main">
         <div className="frame">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

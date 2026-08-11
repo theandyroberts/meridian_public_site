@@ -644,6 +644,7 @@ export type Database = {
           keyword_generation_status: string
           keywords_generated_at: string | null
           name: string
+          nice_to_have_keywords: string[]
           production_approach_override:
             | Database["public"]["Enums"]["production_approach"]
             | null
@@ -671,6 +672,7 @@ export type Database = {
           keyword_generation_status?: string
           keywords_generated_at?: string | null
           name: string
+          nice_to_have_keywords?: string[]
           production_approach_override?:
             | Database["public"]["Enums"]["production_approach"]
             | null
@@ -698,6 +700,7 @@ export type Database = {
           keyword_generation_status?: string
           keywords_generated_at?: string | null
           name?: string
+          nice_to_have_keywords?: string[]
           production_approach_override?:
             | Database["public"]["Enums"]["production_approach"]
             | null

@@ -172,6 +172,28 @@ if (action === "apply") {
           ) as applied;
       `,
     },
+    {
+      path: "supabase/migrations/20260811160000_scene_keyword_priorities.sql",
+      appliedSql: `
+        select exists (
+          select 1
+          from information_schema.columns
+          where table_schema = 'public'
+            and table_name = 'scenes'
+            and column_name = 'nice_to_have_keywords'
+        ) as applied;
+      `,
+    },
+    {
+      path: "supabase/migrations/20260811170000_scene_keyword_priority_integrity.sql",
+      appliedSql: `
+        select exists (
+          select 1
+          from pg_constraint
+          where conname = 'scenes_keyword_priorities_do_not_overlap'
+        ) as applied;
+      `,
+    },
   ];
 
   for (const migration of migrations) {
@@ -199,6 +221,7 @@ if (action === "apply") {
     "supabase/tests/0006_scene_json_import_checks.sql",
     "supabase/tests/0007_private_project_titles_checks.sql",
     "supabase/tests/0008_default_stage_vehicle_checks.sql",
+    "supabase/tests/0009_scene_configuration_checks.sql",
   ];
 
   for (const relativePath of tests) {

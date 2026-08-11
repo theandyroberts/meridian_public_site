@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ProjectDetailsAutosave } from "@/components/ProjectDetailsAutosave";
 import { SceneImportPanel } from "@/components/SceneImportPanel";
 import { SceneInputWorkspace } from "@/components/SceneInputWorkspace";
 import { sceneClipCounts } from "@/lib/sceneClipCounts";
 import { createClient } from "@/lib/supabase/server";
-import {
-  createScene,
-  importScenes,
-  updateProject,
-} from "../actions";
+import { createScene, importScenes } from "../actions";
 
 type ProjectPageProps = {
   params: Promise<{ projectId: string }>;
@@ -109,87 +106,19 @@ export default async function ProjectPage({
                 <p className="mono accent">Project details</p>
                 <h2>Edit project</h2>
               </div>
-              <form
-                action={updateProject}
-                className="workspace-form compact-form"
-              >
-                <input type="hidden" name="projectId" value={project.id} />
-                <div className="form-grid">
-                  <label>
-                    <span>Working title or code name</span>
-                    <input
-                      name="workingTitle"
-                      type="text"
-                      defaultValue={project.name}
-                      maxLength={200}
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span>
-                      Actual production title <em>optional · private</em>
-                    </span>
-                    <input
-                      name="actualTitle"
-                      type="text"
-                      defaultValue={project.actual_title ?? ""}
-                      placeholder="Leave blank unless it is useful"
-                      maxLength={200}
-                      autoComplete="off"
-                    />
-                  </label>
-                  <label>
-                    <span>Client <em>optional</em></span>
-                    <input
-                      name="clientName"
-                      type="text"
-                      defaultValue={project.client_name ?? ""}
-                      maxLength={200}
-                    />
-                  </label>
-                  <label>
-                    <span>Needed by <em>optional</em></span>
-                    <input
-                      name="dueDate"
-                      type="date"
-                      defaultValue={project.due_date ?? ""}
-                    />
-                  </label>
-                  <label>
-                    <span>Stage</span>
-                    <select name="stageChoice" defaultValue={stageChoice}>
-                      {stages?.map((stage) => (
-                        <option key={stage.id} value={`stage:${stage.id}`}>
-                          {stage.name}
-                        </option>
-                      ))}
-                      {project.production_approach === "custom_led_stage" && (
-                        <option value="keep_custom">
-                          {project.custom_stage_name || "Custom LED stage"}
-                        </option>
-                      )}
-                      <option value="undecided">Undecided</option>
-                      <option value="vfx_no_led_wall">
-                        VFX / no LED wall
-                      </option>
-                    </select>
-                  </label>
-                </div>
-                <label>
-                  <span>Internal project notes <em>optional</em></span>
-                  <textarea
-                    name="projectDescription"
-                    defaultValue={project.description ?? ""}
-                    rows={3}
-                    placeholder="Production context, stage constraints, delivery notes…"
-                  />
-                </label>
-                <div className="form-actions">
-                  <button type="submit" className="primary-button">
-                    Save project details
-                  </button>
-                </div>
-              </form>
+              <ProjectDetailsAutosave
+                project={{
+                  id: project.id,
+                  name: project.name,
+                  actualTitle: project.actual_title ?? "",
+                  clientName: project.client_name ?? "",
+                  dueDate: project.due_date ?? "",
+                  description: project.description ?? "",
+                }}
+                stages={stages ?? []}
+                stageChoice={stageChoice}
+                customStageName={project.custom_stage_name ?? undefined}
+              />
             </div>
           </details>
         </div>

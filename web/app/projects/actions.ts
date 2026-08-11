@@ -8,6 +8,12 @@ import {
   parseSceneImportJson,
 } from "@/lib/sceneImport";
 import { extractSceneKeywords } from "@/lib/sceneKeywords";
+import {
+  parseRoughShot,
+  parseSceneStageChoice,
+  parseSceneVehicle,
+  preserveNiceToHavePriority,
+} from "@/lib/sceneConfiguration";
 import { createClient } from "@/lib/supabase/server";
 
 function formString(formData: FormData, field: string): string {
@@ -15,29 +21,8 @@ function formString(formData: FormData, field: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-const vehicleTypes = new Set([
-  "sports_car",
-  "sedan",
-  "suv",
-  "none",
-  "undecided",
-]);
-
-function formVehicle(formData: FormData):
-  | "sports_car"
-  | "sedan"
-  | "suv"
-  | "none"
-  | "undecided" {
-  const vehicle = formString(formData, "vehicle");
-  return vehicleTypes.has(vehicle)
-    ? (vehicle as
-        | "sports_car"
-        | "sedan"
-        | "suv"
-        | "none"
-        | "undecided")
-    : "sedan";
+function formVehicle(formData: FormData) {
+  return parseSceneVehicle(formString(formData, "vehicle"));
 }
 
 function projectStageUpdate(formData: FormData):
@@ -243,7 +228,13 @@ export async function createProject(formData: FormData) {
   redirect(`/projects/${result.project_id}?created=1#add-scene`);
 }
 
-export async function updateProject(formData: FormData) {
+export type ProjectSaveResult =
+  | { ok: true; savedAt: string }
+  | { ok: false; error: string; authenticationRequired?: boolean };
+
+async function persistProjectDetails(
+  formData: FormData,
+): Promise<ProjectSaveResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -252,12 +243,19 @@ export async function updateProject(formData: FormData) {
   const path = `/projects/${projectId}`;
 
   if (!user) {
-    redirect(`/login?next=${encodeURIComponent(path)}`);
+    return {
+      ok: false,
+      error: "Your session expired. Sign in again before retrying this save.",
+      authenticationRequired: true,
+    };
   }
 
   const workingTitle = formString(formData, "workingTitle");
   if (!projectId || !workingTitle) {
-    formError(path, "Give the project a working title or code name.");
+    return {
+      ok: false,
+      error: "Give the project a working title or code name.",
+    };
   }
 
   const dueDate = formString(formData, "dueDate");
@@ -271,10 +269,10 @@ export async function updateProject(formData: FormData) {
     project_due_date: dueDate || undefined,
   });
   if (error) {
-    formError(
-      path,
-      "The project details could not be updated. Please try again.",
-    );
+    return {
+      ok: false,
+      error: "The project details could not be saved. Please try again.",
+    };
   }
 
   const stageUpdate = projectStageUpdate(formData);
@@ -284,15 +282,36 @@ export async function updateProject(formData: FormData) {
       .update(stageUpdate)
       .eq("id", projectId);
     if (stageError) {
-      formError(
-        path,
-        "The project was saved, but its stage could not be updated.",
-      );
+      return {
+        ok: false,
+        error: "The project details were saved, but its stage was not.",
+      };
     }
   }
 
   revalidatePath("/projects");
   revalidatePath(path);
+  return { ok: true, savedAt: new Date().toISOString() };
+}
+
+export async function saveProjectDetails(
+  formData: FormData,
+): Promise<ProjectSaveResult> {
+  return persistProjectDetails(formData);
+}
+
+export async function updateProject(formData: FormData) {
+  const projectId = formString(formData, "projectId");
+  const path = `/projects/${projectId}`;
+  const result = await persistProjectDetails(formData);
+
+  if (!result.ok) {
+    if (result.authenticationRequired) {
+      redirect(`/login?next=${encodeURIComponent(path)}`);
+    }
+    formError(path, result.error);
+  }
+
   redirect(`${path}?updated=1`);
 }
 
@@ -410,7 +429,22 @@ export async function updateScene(formData: FormData) {
     formError(path, "Give the scene a title.");
   }
 
+  const { data: currentPriorities, error: prioritiesError } = await supabase
+    .from("scenes")
+    .select("nice_to_have_keywords")
+    .eq("id", sceneId)
+    .eq("project_id", projectId)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (prioritiesError || !currentPriorities) {
+    formError(path, "The scene search priorities could not be loaded.");
+  }
+
   const keywordAnalysis = await analyzeSceneKeywords(searchBrief);
+  const prioritizedKeywords = preserveNiceToHavePriority(
+    keywordAnalysis.keywords,
+    currentPriorities.nice_to_have_keywords,
+  );
   const { error } = await supabase.rpc("update_project_scene", {
     target_scene_id: sceneId,
     scene_name: sceneName,
@@ -418,18 +452,32 @@ export async function updateScene(formData: FormData) {
     script_scene_number:
       formString(formData, "scriptSceneNumber") || undefined,
     script_pages: formString(formData, "scriptPages") || undefined,
-    generated_keywords: keywordAnalysis.keywords,
+    generated_keywords: prioritizedKeywords.mustHave,
   });
   if (error) {
     formError(path, "The scene could not be updated. Please try again.");
   }
-  const { error: vehicleError } = await supabase
+  const sceneStageUpdate = parseSceneStageChoice(
+    formString(formData, "stageChoice"),
+  );
+  const { error: configurationError } = await supabase
     .from("scenes")
-    .update({ vehicle: formVehicle(formData) })
+    .update({
+      vehicle: formVehicle(formData),
+      rough_shot: parseRoughShot(formString(formData, "roughShot")),
+      nice_to_have_keywords: prioritizedKeywords.niceToHave,
+      keyword_generation_status: keywordAnalysis.status,
+      keywords_generated_at:
+        keywordAnalysis.status === "ready" ? new Date().toISOString() : null,
+      ...(sceneStageUpdate ?? {}),
+    })
     .eq("id", sceneId)
     .eq("project_id", projectId);
-  if (vehicleError) {
-    formError(path, "The scene details were saved, but its vehicle was not.");
+  if (configurationError) {
+    formError(
+      path,
+      "The scene details were saved, but its production configuration was not.",
+    );
   }
 
   revalidatePath(`/projects/${projectId}`);
@@ -453,7 +501,7 @@ export async function refreshSceneKeywords(formData: FormData) {
   const { data: scene, error: loadError } = await supabase
     .from("scenes")
     .select(
-      "name, search_brief, script_scene_number, script_pages",
+      "name, search_brief, script_scene_number, script_pages, nice_to_have_keywords",
     )
     .eq("id", sceneId)
     .eq("project_id", projectId)
@@ -473,20 +521,103 @@ export async function refreshSceneKeywords(formData: FormData) {
     );
   }
 
+  const prioritizedKeywords = preserveNiceToHavePriority(
+    keywords,
+    scene.nice_to_have_keywords,
+  );
+
   const { error } = await supabase.rpc("update_project_scene", {
     target_scene_id: sceneId,
     scene_name: scene.name,
     search_brief: scene.search_brief,
     script_scene_number: scene.script_scene_number || undefined,
     script_pages: scene.script_pages || undefined,
-    generated_keywords: keywords,
+    generated_keywords: prioritizedKeywords.mustHave,
   });
   if (error) {
     formError(path, "The generated keywords could not be saved.");
   }
 
+  const { error: priorityError } = await supabase
+    .from("scenes")
+    .update({
+      nice_to_have_keywords: prioritizedKeywords.niceToHave,
+      keyword_generation_status: "ready",
+      keywords_generated_at: new Date().toISOString(),
+    })
+    .eq("id", sceneId)
+    .eq("project_id", projectId);
+  if (priorityError) {
+    formError(path, "The generated keyword priorities could not be saved.");
+  }
+
   revalidatePath(path);
   redirect(`${path}?keywords=1`);
+}
+
+export async function moveSceneKeywordPriority(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const projectId = formString(formData, "projectId");
+  const sceneId = formString(formData, "sceneId");
+  const path = scenePath(projectId, sceneId);
+
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(path)}`);
+  }
+
+  const keyword = formString(formData, "keyword").toLocaleLowerCase();
+  const targetPriority = formString(formData, "targetPriority");
+  if (
+    !projectId ||
+    !sceneId ||
+    !keyword ||
+    !new Set(["must", "nice"]).has(targetPriority)
+  ) {
+    formError(path, "Choose a valid descriptor and priority.");
+  }
+
+  const { data: scene, error: loadError } = await supabase
+    .from("scenes")
+    .select("generated_keywords, nice_to_have_keywords")
+    .eq("id", sceneId)
+    .eq("project_id", projectId)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (loadError || !scene) {
+    formError(path, "The scene descriptors could not be loaded.");
+  }
+
+  const mustHave = new Set(
+    scene.generated_keywords.map((value) => value.toLocaleLowerCase()),
+  );
+  const niceToHave = new Set(
+    scene.nice_to_have_keywords.map((value) => value.toLocaleLowerCase()),
+  );
+  if (!mustHave.has(keyword) && !niceToHave.has(keyword)) {
+    formError(path, "That descriptor is no longer part of this scene.");
+  }
+  mustHave.delete(keyword);
+  niceToHave.delete(keyword);
+  if (targetPriority === "must") mustHave.add(keyword);
+  if (targetPriority === "nice") niceToHave.add(keyword);
+
+  const { error } = await supabase
+    .from("scenes")
+    .update({
+      generated_keywords: [...mustHave],
+      nice_to_have_keywords: [...niceToHave],
+    })
+    .eq("id", sceneId)
+    .eq("project_id", projectId);
+  if (error) {
+    formError(path, "The descriptor priority could not be changed.");
+  }
+
+  revalidatePath(path);
+  redirect(`${path}?priorities=1`);
 }
 
 export async function archiveScene(formData: FormData) {

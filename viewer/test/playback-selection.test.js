@@ -14,6 +14,7 @@ import {
   setInMarker,
   setOutMarker,
   shouldLoopSelection,
+  stepFrame,
 } from '../src/playback-selection.js'
 
 test('converts between decoded seconds and source frames', () => {
@@ -74,4 +75,11 @@ test('accepts only non-negative integer URL frame values', () => {
   assert.equal(parseOptionalFrame(''), null)
   assert.equal(parseOptionalFrame('-1'), null)
   assert.equal(parseOptionalFrame('1.5'), null)
+})
+
+test('steps exactly one frame and clamps to footage bounds', () => {
+  assert.equal(stepFrame(24, -1, 100), 23)
+  assert.equal(stepFrame(24, 1, 100), 25)
+  assert.equal(stepFrame(0, -1, 100), 0)
+  assert.equal(stepFrame(99, 1, 100), 99)
 })

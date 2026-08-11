@@ -17,6 +17,18 @@ export function frameToSeconds(frame, fps = DEFAULT_FPS) {
   return safeFrame / safeFps
 }
 
+export function stepFrame(currentFrame, direction, totalFrames = null) {
+  const safeCurrentFrame = Number.isFinite(Number(currentFrame))
+    ? Math.max(0, Math.trunc(Number(currentFrame)))
+    : 0
+  const delta = Math.sign(Number(direction) || 0)
+  const lastFrame = Number.isInteger(totalFrames) && totalFrames > 0
+    ? totalFrames - 1
+    : Number.POSITIVE_INFINITY
+
+  return Math.min(lastFrame, Math.max(0, safeCurrentFrame + delta))
+}
+
 export function selectionDurationFrames(inFrame, outFrame) {
   if (!Number.isInteger(inFrame) || !Number.isInteger(outFrame) || outFrame <= inFrame) return null
   // In and Out identify displayed frames, so both boundary frames are included.
