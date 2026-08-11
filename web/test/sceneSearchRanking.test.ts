@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  CONTINUITY_RANK_WEIGHT,
   NICE_TO_HAVE_RANK_WEIGHT,
   rankPrioritizedSceneMatches,
 } from "../lib/sceneSearchRanking";
@@ -21,6 +22,26 @@ test("Must Have evidence receives full weight and Nice to Have a bounded boost",
   assert.deepEqual(
     ranked.map((row) => row.id),
     ["both", "must-only", "nice-only"],
+  );
+});
+
+test("continuity provides a soft boost without filtering primary candidates", () => {
+  const ranked = rankPrioritizedSceneMatches(
+    [
+      { id: "primary", hybrid_score: 0.4 },
+      { id: "continuous-primary", hybrid_score: 0.36 },
+    ],
+    [],
+    [
+      { id: "continuous-primary", hybrid_score: 0.4 },
+      { id: "continuity-only", hybrid_score: 0.5 },
+    ],
+  );
+
+  assert.equal(CONTINUITY_RANK_WEIGHT, 0.12);
+  assert.deepEqual(
+    ranked.map((row) => row.id),
+    ["continuous-primary", "primary", "continuity-only"],
   );
 });
 

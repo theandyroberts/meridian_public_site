@@ -7,6 +7,12 @@ import { detectDecodedFootagePreset } from './footage-layout.js'
 import { describeMediaError } from './media-status.js'
 import { buildScreenshotDetails, describeScreenshotError } from './screenshot-export.js'
 import {
+  DEFAULT_LICENSE_DURATION_TIERS_SECONDS,
+  describeLicenseTierBoundary,
+  evaluateLicenseDurationTier,
+  normalizeLicenseDurationTiers,
+} from './duration-tier.js'
+import {
   cappedDevicePixelRatio,
   shouldRefreshReflection,
   shouldRenderContinuously,
@@ -173,6 +179,7 @@ const state = {
   playback: {
     fps: 24,
     sourceTimecode: '00:00:00:00',
+    durationTiers: [...DEFAULT_LICENSE_DURATION_TIERS_SECONDS],
     inFrame: null,
     outFrame: null,
     sceneClipId: null,
@@ -257,6 +264,7 @@ app.innerHTML = `
             <div><dt>In</dt><dd class="mono" id="inTimecode">--:--:--:--</dd></div>
             <div><dt>Out</dt><dd class="mono" id="outTimecode">--:--:--:--</dd></div>
             <div><dt>Selected</dt><dd class="mono" id="selectionDuration">--:--:--:--</dd></div>
+            <div><dt>License</dt><dd class="mono" id="licenseTier">—</dd></div>
           </dl>
           <button class="transport__clear" id="clearSelection" type="button" hidden>Clear markers</button>
           <button class="transport__save" id="saveSelection" type="button" disabled>Save selection</button>
@@ -1745,6 +1753,7 @@ function loadInitialFootage() {
 
 function configurePlaybackContext(params) {
   state.playback.fps = normalizeFps(params.get('fps'))
+  state.playback.durationTiers = normalizeLicenseDurationTiers(params.get('durationTiers'))
   state.playback.sourceTimecode = params.get('sourceTimecode')?.trim() || '00:00:00:00'
   state.playback.sceneClipId = params.get('sceneClipId')?.trim() || null
   const version = parseOptionalFrame(params.get('version'))
@@ -1766,6 +1775,7 @@ function configurePlaybackContext(params) {
 
 function clearPlaybackContext() {
   state.playback.fps = 24
+  state.playback.durationTiers = [...DEFAULT_LICENSE_DURATION_TIERS_SECONDS]
   state.playback.sourceTimecode = '00:00:00:00'
   state.playback.sceneClipId = null
   state.playback.version = null
@@ -2174,8 +2184,10 @@ function restartSelectedRange() {
 }
 
 function renderSelection() {
-  const { fps, sourceTimecode, inFrame, outFrame, sceneClipId, saveState } = state.playback
+  const { fps, sourceTimecode, durationTiers, inFrame, outFrame, sceneClipId, saveState } = state.playback
   const durationFrames = selectionDurationFrames(inFrame, outFrame)
+  const tier = evaluateLicenseDurationTier({ inFrame, outFrame, fps, tiers: durationTiers })
+  const boundaryWarning = describeLicenseTierBoundary(tier)
   const backwards = hasBackwardsSelection(inFrame, outFrame)
   const saveButton = document.querySelector('#saveSelection')
   if (!saveButton) return
@@ -2195,13 +2207,17 @@ function renderSelection() {
   document.querySelector('#selectionDuration').textContent = durationFrames
     ? formatFrameTimecode(durationFrames, fps)
     : '--:--:--:--'
+  const licenseTier = document.querySelector('#licenseTier')
+  licenseTier.textContent = tier?.tierSeconds ? `${tier.tierSeconds} sec` : tier ? 'Over limit' : '—'
+  licenseTier.classList.toggle('is-set', Boolean(tier?.tierSeconds))
+  licenseTier.classList.toggle('is-error', Boolean(tier && !tier.tierSeconds))
 
   const clearButton = document.querySelector('#clearSelection')
   clearButton.hidden = !Number.isInteger(inFrame) && !Number.isInteger(outFrame)
   video.loop = durationFrames === null
   renderTimelineSelection()
 
-  saveButton.disabled = !sceneClipId || !durationFrames || saveState === 'saving' || saveState === 'saved'
+  saveButton.disabled = !sceneClipId || !durationFrames || !tier?.tierSeconds || saveState === 'saving' || saveState === 'saved'
   saveButton.textContent = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Selection saved' : 'Save selection'
 
   if (!sceneClipId) {
@@ -2214,6 +2230,15 @@ function renderSelection() {
     setSelectionFeedback('In must be earlier than Out. Reset either marker or clear both.', 'error')
   } else if (!durationFrames) {
     setSelectionFeedback('Set either marker. Setting Out first defaults In to the first frame.')
+  } else if (!tier?.tierSeconds) {
+    setSelectionFeedback(boundaryWarning, 'error')
+  } else if (boundaryWarning) {
+    const prefix = saveState === 'saved'
+      ? 'Selection saved. '
+      : saveState === 'saving'
+        ? 'Saving selection. '
+        : ''
+    setSelectionFeedback(`${prefix}${boundaryWarning}`, 'warning')
   } else if (saveState === 'saved') {
     setSelectionFeedback('In and Out points are saved to this scene clip.', 'success')
   } else if (saveState === 'saving') {
@@ -2266,6 +2291,7 @@ async function saveSelection() {
     if (!response.ok) throw new Error(result.error || 'Selection could not be saved.')
 
     state.playback.version = result.version
+    state.playback.durationTierSeconds = result.durationTierSeconds
     state.playback.saveState = 'saved'
     const params = new URLSearchParams(window.location.search)
     params.set('inFrame', String(result.inFrame))

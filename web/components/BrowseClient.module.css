@@ -50,6 +50,38 @@
   margin-left: 10px;
 }
 
+.activeFilters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: -8px 0 20px;
+}
+
+.activeFilterChip {
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--hairline-strong);
+  background: var(--ink-2);
+  color: var(--paper);
+  font-size: 10px;
+}
+
+.activeFilterChip span { color: var(--paper-60); }
+.activeFilterChip:hover { border-color: var(--orange); color: var(--orange); }
+
+.stageNote {
+  margin: -8px 0 20px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--orange);
+  background: color-mix(in srgb, var(--ink-2) 86%, transparent);
+  color: var(--paper-60);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.stageNote strong { color: var(--paper); }
+
 .spinner {
   width: 11px;
   height: 11px;

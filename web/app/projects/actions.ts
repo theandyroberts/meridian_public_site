@@ -7,13 +7,20 @@ import {
   type SceneImportDocument,
   parseSceneImportJson,
 } from "@/lib/sceneImport";
-import { extractSceneKeywords } from "@/lib/sceneKeywords";
+import {
+  analyzeSceneSearchBrief,
+} from "@/lib/sceneKeywords";
 import {
   parseRoughShot,
   parseSceneStageChoice,
   parseSceneVehicle,
   preserveNiceToHavePriority,
 } from "@/lib/sceneConfiguration";
+import {
+  EMPTY_SCENE_PRODUCTION_METADATA,
+  parseStageUseType,
+  sceneProductionMetadataFromForm,
+} from "@/lib/sceneProduction";
 import { createClient } from "@/lib/supabase/server";
 
 function formString(formData: FormData, field: string): string {
@@ -95,17 +102,25 @@ function sceneImportFromForm(
   }
 }
 
-async function analyzeSceneKeywords(description: string): Promise<{
+async function analyzeScene(description: string): Promise<{
   keywords: string[];
+  searchIntentSummary: string;
+  productionMetadata: typeof EMPTY_SCENE_PRODUCTION_METADATA;
   status: "not_needed" | "pending" | "ready";
 }> {
   if (!description.trim()) {
-    return { keywords: [], status: "not_needed" };
+    return {
+      keywords: [],
+      searchIntentSummary: "",
+      productionMetadata: EMPTY_SCENE_PRODUCTION_METADATA,
+      status: "not_needed",
+    };
   }
 
   try {
+    const analysis = await analyzeSceneSearchBrief(description);
     return {
-      keywords: await extractSceneKeywords(description),
+      ...analysis,
       status: "ready",
     };
   } catch (error) {
@@ -114,7 +129,12 @@ async function analyzeSceneKeywords(description: string): Promise<{
         error instanceof Error ? error.message : "unknown error"
       }`,
     );
-    return { keywords: [], status: "pending" };
+    return {
+      keywords: [],
+      searchIntentSummary: "",
+      productionMetadata: EMPTY_SCENE_PRODUCTION_METADATA,
+      status: "pending",
+    };
   }
 }
 
@@ -153,12 +173,14 @@ export async function createProject(formData: FormData) {
     );
   }
 
-  const keywordAnalysis = importedFirstScene
+  const sceneAnalysis = importedFirstScene
     ? {
         keywords: importedFirstScene.search_keywords,
+        searchIntentSummary: importedFirstScene.search_intent_summary,
+        productionMetadata: importedFirstScene.production_metadata,
         status: "ready" as const,
       }
-    : await analyzeSceneKeywords(searchBrief);
+    : await analyzeScene(searchBrief);
   const { data, error } = await supabase.rpc("start_project", {
     organization_name: organizationName,
     project_name: projectName,
@@ -183,9 +205,13 @@ export async function createProject(formData: FormData) {
       vehicle: formVehicle(formData),
       script_scene_number: scriptSceneNumber || null,
       script_pages: scriptPages || null,
-      generated_keywords: keywordAnalysis.keywords,
-      keyword_generation_status: keywordAnalysis.status,
-      keywords_generated_at: keywordAnalysis.keywords.length
+      generated_keywords: sceneAnalysis.keywords,
+      search_intent_summary: sceneAnalysis.searchIntentSummary || null,
+      continuity_group: importedFirstScene?.continuity_group || null,
+      stage_use_type: importedFirstScene?.stage_use_type ?? "vehicle_process",
+      production_metadata: sceneAnalysis.productionMetadata,
+      keyword_generation_status: sceneAnalysis.status,
+      keywords_generated_at: sceneAnalysis.keywords.length
         ? new Date().toISOString()
         : null,
     })
@@ -372,7 +398,7 @@ export async function createScene(formData: FormData) {
   }
 
   const searchBrief = formString(formData, "searchBrief");
-  const keywordAnalysis = await analyzeSceneKeywords(searchBrief);
+  const sceneAnalysis = await analyzeScene(searchBrief);
   const { data: sceneId, error } = await supabase.rpc(
     "add_project_scene",
     {
@@ -382,7 +408,7 @@ export async function createScene(formData: FormData) {
       script_scene_number:
         formString(formData, "scriptSceneNumber") || undefined,
       script_pages: formString(formData, "scriptPages") || undefined,
-      generated_keywords: keywordAnalysis.keywords,
+      generated_keywords: sceneAnalysis.keywords,
     },
   );
 
@@ -394,7 +420,15 @@ export async function createScene(formData: FormData) {
   }
   const { error: vehicleError } = await supabase
     .from("scenes")
-    .update({ vehicle: formVehicle(formData) })
+    .update({
+      vehicle: formVehicle(formData),
+      search_intent_summary: sceneAnalysis.searchIntentSummary || null,
+      production_metadata: sceneAnalysis.productionMetadata,
+      keyword_generation_status: sceneAnalysis.status,
+      keywords_generated_at: sceneAnalysis.keywords.length
+        ? new Date().toISOString()
+        : null,
+    })
     .eq("id", sceneId)
     .eq("project_id", projectId);
   if (vehicleError) {
@@ -425,8 +459,18 @@ export async function updateScene(formData: FormData) {
 
   const sceneName = formString(formData, "sceneName");
   const searchBrief = formString(formData, "searchBrief");
+  const searchIntentSummary = formString(formData, "searchIntentSummary");
   if (!projectId || !sceneId || !sceneName) {
     formError(path, "Give the scene a title.");
+  }
+  if (!searchIntentSummary) {
+    formError(
+      path,
+      "Add a one-sentence search summary so collaborators can understand what the scene needs.",
+    );
+  }
+  if (searchIntentSummary.length > 320) {
+    formError(path, "Keep the search summary to 320 characters or fewer.");
   }
 
   const { data: currentPriorities, error: prioritiesError } = await supabase
@@ -440,7 +484,7 @@ export async function updateScene(formData: FormData) {
     formError(path, "The scene search priorities could not be loaded.");
   }
 
-  const keywordAnalysis = await analyzeSceneKeywords(searchBrief);
+  const keywordAnalysis = await analyzeScene(searchBrief);
   const prioritizedKeywords = preserveNiceToHavePriority(
     keywordAnalysis.keywords,
     currentPriorities.nice_to_have_keywords,
@@ -465,6 +509,13 @@ export async function updateScene(formData: FormData) {
     .update({
       vehicle: formVehicle(formData),
       rough_shot: parseRoughShot(formString(formData, "roughShot")),
+      search_intent_summary: searchIntentSummary,
+      continuity_group:
+        formString(formData, "continuityGroup").toLocaleLowerCase() || null,
+      stage_use_type: parseStageUseType(
+        formString(formData, "stageUseType"),
+      ),
+      production_metadata: sceneProductionMetadataFromForm(formData),
       nice_to_have_keywords: prioritizedKeywords.niceToHave,
       keyword_generation_status: keywordAnalysis.status,
       keywords_generated_at:
@@ -501,7 +552,7 @@ export async function refreshSceneKeywords(formData: FormData) {
   const { data: scene, error: loadError } = await supabase
     .from("scenes")
     .select(
-      "name, search_brief, script_scene_number, script_pages, nice_to_have_keywords",
+      "name, search_brief, search_intent_summary, script_scene_number, script_pages, nice_to_have_keywords",
     )
     .eq("id", sceneId)
     .eq("project_id", projectId)
@@ -511,9 +562,9 @@ export async function refreshSceneKeywords(formData: FormData) {
     formError(path, "Add a scene description before generating keywords.");
   }
 
-  let keywords: string[];
+  let analysis: Awaited<ReturnType<typeof analyzeSceneSearchBrief>>;
   try {
-    keywords = await extractSceneKeywords(scene.search_brief);
+    analysis = await analyzeSceneSearchBrief(scene.search_brief);
   } catch {
     formError(
       path,
@@ -522,7 +573,7 @@ export async function refreshSceneKeywords(formData: FormData) {
   }
 
   const prioritizedKeywords = preserveNiceToHavePriority(
-    keywords,
+    analysis.keywords,
     scene.nice_to_have_keywords,
   );
 
@@ -542,6 +593,12 @@ export async function refreshSceneKeywords(formData: FormData) {
     .from("scenes")
     .update({
       nice_to_have_keywords: prioritizedKeywords.niceToHave,
+      ...(scene.search_intent_summary
+        ? {}
+        : {
+            search_intent_summary: analysis.searchIntentSummary,
+            production_metadata: analysis.productionMetadata,
+          }),
       keyword_generation_status: "ready",
       keywords_generated_at: new Date().toISOString(),
     })

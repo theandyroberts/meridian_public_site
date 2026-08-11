@@ -33,6 +33,7 @@ test("carries project, scene, plate, and saved-selection context into Studio", (
   assert.equal(query.get("version"), "4");
   assert.equal(query.get("inFrame"), "24");
   assert.equal(query.get("outFrame"), "71");
+  assert.equal(query.get("durationTiers"), "60,120");
 });
 
 test("keeps an ad hoc Studio URL free of project context", () => {
@@ -48,4 +49,16 @@ test("keeps an ad hoc Studio URL free of project context", () => {
   assert.equal(query.has("projectId"), false);
   assert.equal(query.has("sceneId"), false);
   assert.equal(query.has("sceneClipId"), false);
+  assert.equal(query.get("durationTiers"), "60,120");
+});
+
+test("passes server-configured licensing tiers to Studio", () => {
+  const href = buildStudioHref({
+    video: "https://media.example/preview.mp4",
+    label: "Plate preview",
+    fps: 24,
+    licensingDurationTiersSeconds: [30, 90],
+  });
+  const query = new URLSearchParams(href.split("?")[1]);
+  assert.equal(query.get("durationTiers"), "30,90");
 });

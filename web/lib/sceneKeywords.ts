@@ -1,9 +1,33 @@
+import {
+  EMPTY_SCENE_PRODUCTION_METADATA,
+  normalizeSceneProductionMetadata,
+  type SceneProductionMetadata,
+} from "@/lib/sceneProduction";
+
 const MAX_KEYWORDS = 16;
+
+export type SceneSearchAnalysis = {
+  keywords: string[];
+  searchIntentSummary: string;
+  productionMetadata: SceneProductionMetadata;
+};
 
 export async function extractSceneKeywords(
   description: string,
 ): Promise<string[]> {
-  if (!description.trim()) return [];
+  return (await analyzeSceneSearchBrief(description)).keywords;
+}
+
+export async function analyzeSceneSearchBrief(
+  description: string,
+): Promise<SceneSearchAnalysis> {
+  if (!description.trim()) {
+    return {
+      keywords: [],
+      searchIntentSummary: "",
+      productionMetadata: EMPTY_SCENE_PRODUCTION_METADATA,
+    };
+  }
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
@@ -26,7 +50,7 @@ export async function extractSceneKeywords(
           {
             role: "system",
             content:
-              "Extract concise visual-production search terms from a scene brief. Focus on geography, environment, road type, time of day, weather, traffic, motion, camera direction, mood, vehicle context, and distinctive landmarks. Omit character names and plot details. Use lower-case phrases, remove duplicates, and return 8 to 16 terms.",
+              "Analyze a production scene brief for a 360-degree LED volume. Return concise visual-production search terms, a single plain-language sentence summarizing the plate or environment being sought, and structured production metadata. Use only details supported by the brief; write 'unspecified' for an unknown scalar field and use an empty array for unknown list fields. Omit character names, dialogue, spoilers, and plot details. Search terms must be lower-case, distinct phrases. The summary must be one sentence and no more than 320 characters.",
           },
           {
             role: "user",
@@ -47,8 +71,55 @@ export async function extractSceneKeywords(
                   maxItems: MAX_KEYWORDS,
                   items: { type: "string" },
                 },
+                search_intent_summary: {
+                  type: "string",
+                  minLength: 1,
+                  maxLength: 320,
+                },
+                production_metadata: {
+                  type: "object",
+                  properties: {
+                    location_signature: { type: "string", maxLength: 300 },
+                    story_geography: { type: "string", maxLength: 300 },
+                    environment_type: { type: "string", maxLength: 300 },
+                    time_of_day: { type: "string", maxLength: 300 },
+                    weather: { type: "string", maxLength: 300 },
+                    movement: { type: "string", maxLength: 300 },
+                    traffic: { type: "string", maxLength: 300 },
+                    camera_direction: { type: "string", maxLength: 300 },
+                    window_orientation: { type: "string", maxLength: 300 },
+                    required_visual_elements: {
+                      type: "array",
+                      maxItems: 16,
+                      items: { type: "string", maxLength: 160 },
+                    },
+                    substitution_constraints: {
+                      type: "array",
+                      maxItems: 16,
+                      items: { type: "string", maxLength: 160 },
+                    },
+                  },
+                  required: [
+                    "location_signature",
+                    "story_geography",
+                    "environment_type",
+                    "time_of_day",
+                    "weather",
+                    "movement",
+                    "traffic",
+                    "camera_direction",
+                    "window_orientation",
+                    "required_visual_elements",
+                    "substitution_constraints",
+                  ],
+                  additionalProperties: false,
+                },
               },
-              required: ["keywords"],
+              required: [
+                "keywords",
+                "search_intent_summary",
+                "production_metadata",
+              ],
               additionalProperties: false,
             },
           },
@@ -75,7 +146,11 @@ export async function extractSceneKeywords(
       throw new Error("Scene keyword extraction returned no output.");
     }
 
-    const parsed = JSON.parse(outputText) as { keywords?: unknown };
+    const parsed = JSON.parse(outputText) as {
+      keywords?: unknown;
+      search_intent_summary?: unknown;
+      production_metadata?: unknown;
+    };
     if (!Array.isArray(parsed.keywords)) {
       throw new Error("Scene keyword extraction returned invalid output.");
     }
@@ -84,7 +159,19 @@ export async function extractSceneKeywords(
     if (!keywords.length) {
       throw new Error("Scene keyword extraction returned no keywords.");
     }
-    return keywords;
+    const searchIntentSummary = normalizeSearchIntentSummary(
+      parsed.search_intent_summary,
+    );
+    if (!searchIntentSummary) {
+      throw new Error("Scene analysis returned no search-intent summary.");
+    }
+    return {
+      keywords,
+      searchIntentSummary,
+      productionMetadata: normalizeSceneProductionMetadata(
+        parsed.production_metadata,
+      ),
+    };
   } catch (error) {
     throw new Error(
       `OpenAI scene keyword analysis is unavailable: ${
@@ -93,6 +180,11 @@ export async function extractSceneKeywords(
       { cause: error },
     );
   }
+}
+
+export function normalizeSearchIntentSummary(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(/\s+/g, " ").slice(0, 320);
 }
 
 export function normalizeSceneKeywords(values: unknown[]): string[] {

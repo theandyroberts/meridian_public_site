@@ -757,7 +757,7 @@ input[type="checkbox"] {
 
 .transport__readout {
   display: grid;
-  grid-template-columns: 90px 88px minmax(126px, 1fr) minmax(126px, 1fr) 92px;
+  grid-template-columns: 90px 88px minmax(116px, 1fr) minmax(116px, 1fr) 92px 70px;
   gap: 10px;
   margin: 0 4px;
 }
@@ -789,6 +789,11 @@ input[type="checkbox"] {
   text-shadow: 0 0 18px rgba(226, 189, 99, 0.42);
 }
 
+.transport__readout dd.is-error {
+  color: #ff9aa2;
+  font-weight: 900;
+}
+
 .transport__feedback {
   grid-column: 1 / -1;
   max-width: 200px;
@@ -803,6 +808,10 @@ input[type="checkbox"] {
 
 .transport__feedback[data-tone="error"] {
   color: #ff9aa2;
+}
+
+.transport__feedback[data-tone="warning"] {
+  color: #ffe29a;
 }
 
 .chip {

@@ -1,4 +1,5 @@
 export const NICE_TO_HAVE_RANK_WEIGHT = 0.25;
+export const CONTINUITY_RANK_WEIGHT = 0.12;
 
 export type PrioritizedSearchRow = {
   id: string;
@@ -10,7 +11,9 @@ export function rankPrioritizedSceneMatches<
 >(
   mustHaveRows: Row[],
   niceToHaveRows: Row[],
+  continuityRows: Row[] = [],
   niceToHaveWeight = NICE_TO_HAVE_RANK_WEIGHT,
+  continuityWeight = CONTINUITY_RANK_WEIGHT,
 ): Row[] {
   const ranked = new Map<
     string,
@@ -29,6 +32,16 @@ export function rankPrioritizedSceneMatches<
       continue;
     }
     ranked.set(row.id, { row, weightedScore: niceBoost });
+  }
+
+  for (const row of continuityRows) {
+    const continuityBoost = row.hybrid_score * continuityWeight;
+    const existing = ranked.get(row.id);
+    if (existing) {
+      existing.weightedScore += continuityBoost;
+      continue;
+    }
+    ranked.set(row.id, { row, weightedScore: continuityBoost });
   }
 
   return [...ranked.values()]

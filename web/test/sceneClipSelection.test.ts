@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  evaluateSceneClipLicenseTier,
   formatSceneClipSelectionDuration,
   parseSceneClipSelectionUpdate,
 } from "../lib/sceneClipSelection";
@@ -56,4 +57,34 @@ test("formats the inclusive persisted selection duration at source frame rate", 
     "1.00 sec · 24 frames",
   );
   assert.equal(formatSceneClipSelectionDuration(null, null, 24), null);
+});
+
+test("keeps the exact inclusive-frame boundary in the 60-second tier", () => {
+  const evaluation = evaluateSceneClipLicenseTier(0, 1439, 24);
+  assert.equal(evaluation?.durationFrames, 1440);
+  assert.equal(evaluation?.tierSeconds, 60);
+  assert.equal(evaluation?.boundary, "at");
+});
+
+test("moves one frame past 60 seconds into the 120-second tier", () => {
+  const evaluation = evaluateSceneClipLicenseTier(0, 1440, 24);
+  assert.equal(evaluation?.durationFrames, 1441);
+  assert.equal(evaluation?.tierSeconds, 120);
+  assert.equal(evaluation?.boundary, "crossed");
+  assert.equal(evaluation?.framesFromBoundary, 1);
+});
+
+test("honors fractional source frame rates and rejects ranges over 120 seconds", () => {
+  const sixtySecondFrameCount = Math.floor(60 * 23.976);
+  assert.equal(
+    evaluateSceneClipLicenseTier(
+      100,
+      100 + sixtySecondFrameCount - 1,
+      23.976,
+    )?.tierSeconds,
+    60,
+  );
+  const overMaximum = evaluateSceneClipLicenseTier(0, 2880, 24);
+  assert.equal(overMaximum?.tierSeconds, null);
+  assert.equal(overMaximum?.boundary, "exceeded");
 });

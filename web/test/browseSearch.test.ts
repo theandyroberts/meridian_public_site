@@ -9,6 +9,7 @@ import {
   paginateBrowseResults,
   safeBrowseReturnPath,
   sortBrowseResults,
+  summarizeBrowseFilters,
 } from "../lib/browseSearch";
 
 function plate(
@@ -109,4 +110,25 @@ test("plate detail accepts only local browse return paths", () => {
   assert.equal(safeBrowseReturnPath("https://example.com"), "/browse");
   assert.equal(safeBrowseReturnPath("/projects"), "/browse");
   assert.equal(safeBrowseReturnPath(["/browse", "/projects"]), "/browse");
+});
+
+test("active filters are summarized with user-facing stage and telemetry labels", () => {
+  assert.deepEqual(
+    summarizeBrowseFilters({
+      q: "coast",
+      shotType: "driving",
+      timeOfDay: null,
+      weather: null,
+      speedBand: null,
+      stage: "led-volume",
+      imuOnly: true,
+      tag: null,
+    }),
+    [
+      { key: "q", label: "Search", value: "coast" },
+      { key: "shotType", label: "Shot", value: "driving" },
+      { key: "stage", label: "Stage", value: "LED Volume" },
+      { key: "imuOnly", label: "Telemetry", value: "IMU collected" },
+    ],
+  );
 });

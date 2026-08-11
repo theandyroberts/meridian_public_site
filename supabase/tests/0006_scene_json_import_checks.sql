@@ -44,6 +44,22 @@ begin
         "script_scene_number":"41",
         "script_pages":"42",
         "description":"Private wooded road at midnight in cold mist.",
+        "search_intent_summary":"Find a private wooded road at midnight in cold mist.",
+        "continuity_group":"estate night",
+        "stage_use_type":"vehicle_process",
+        "production_metadata":{
+          "location_signature":"private wooded road",
+          "story_geography":"estate",
+          "environment_type":"woodland road",
+          "time_of_day":"midnight",
+          "weather":"cold mist",
+          "movement":"moving vehicle",
+          "traffic":"none",
+          "camera_direction":"unspecified",
+          "window_orientation":"driver side",
+          "required_visual_elements":["guard gate"],
+          "substitution_constraints":[]
+        },
         "search_keywords":[
           "private road",
           "midnight",
@@ -56,6 +72,22 @@ begin
         "script_scene_number":"53",
         "script_pages":"92–93",
         "description":"Fast downtown streets and alleys in clear daylight.",
+        "search_intent_summary":"Find clear-day downtown streets and alleys for a fast-moving vehicle.",
+        "continuity_group":"",
+        "stage_use_type":"vehicle_process",
+        "production_metadata":{
+          "location_signature":"downtown streets and alleys",
+          "story_geography":"unspecified",
+          "environment_type":"urban road",
+          "time_of_day":"day",
+          "weather":"clear",
+          "movement":"fast-moving vehicle",
+          "traffic":"unspecified",
+          "camera_direction":"unspecified",
+          "window_orientation":"unspecified",
+          "required_visual_elements":[],
+          "substitution_constraints":[]
+        },
         "search_keywords":[
           "downtown streets",
           "clear daylight",
@@ -76,6 +108,9 @@ begin
       and scene.name in ('Estate escape', 'Town pursuit')
       and scene.keyword_generation_status = 'ready'
       and scene.keywords_generated_at is not null
+      and scene.search_intent_summary is not null
+      and scene.stage_use_type = 'vehicle_process'
+      and jsonb_typeof(scene.production_metadata) = 'object'
   ) <> 2 then
     raise exception 'JSON scene import must persist approved scene metadata';
   end if;

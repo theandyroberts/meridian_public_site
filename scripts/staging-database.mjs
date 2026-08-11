@@ -194,6 +194,26 @@ if (action === "apply") {
         ) as applied;
       `,
     },
+    {
+      path: "supabase/migrations/20260811180000_scene_search_guidance.sql",
+      appliedSql: `
+        select
+          exists (
+            select 1
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = 'scenes'
+              and column_name = 'search_intent_summary'
+          )
+          and exists (
+            select 1
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = 'scenes'
+              and column_name = 'production_metadata'
+          ) as applied;
+      `,
+    },
   ];
 
   for (const migration of migrations) {
@@ -222,6 +242,7 @@ if (action === "apply") {
     "supabase/tests/0007_private_project_titles_checks.sql",
     "supabase/tests/0008_default_stage_vehicle_checks.sql",
     "supabase/tests/0009_scene_configuration_checks.sql",
+    "supabase/tests/0010_scene_search_guidance_checks.sql",
   ];
 
   for (const relativePath of tests) {

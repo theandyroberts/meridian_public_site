@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { parseSceneClipSelectionUpdate } from "@/lib/sceneClipSelection";
+import {
+  evaluateSceneClipLicenseTier,
+  parseSceneClipSelectionUpdate,
+} from "@/lib/sceneClipSelection";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_PATTERN =
@@ -55,17 +58,55 @@ export async function PATCH(
     return NextResponse.json({ error: "Sign in to save this selection." }, { status: 401 });
   }
 
+  const { data: sceneClip, error: sceneClipError } = await supabase
+    .from("scene_clips")
+    .select("stock_clip_id")
+    .eq("id", sceneClipId)
+    .maybeSingle();
+  if (sceneClipError || !sceneClip) {
+    return NextResponse.json(
+      { error: "This scene clip is unavailable or you do not have access to it." },
+      { status: 403 },
+    );
+  }
+
+  const { data: stockClip, error: stockClipError } = await supabase
+    .from("stock_clips")
+    .select("fps")
+    .eq("id", sceneClip.stock_clip_id)
+    .maybeSingle();
+  const fps = Number(stockClip?.fps);
+  if (stockClipError || !stockClip || !Number.isFinite(fps) || fps <= 0) {
+    return NextResponse.json(
+      { error: "The source frame rate is unavailable, so the licensing tier cannot be verified." },
+      { status: 422 },
+    );
+  }
+
+  const tier = evaluateSceneClipLicenseTier(
+    selection.inFrame,
+    selection.outFrame,
+    fps,
+  );
+  if (!tier?.tierSeconds) {
+    return NextResponse.json(
+      { error: "Selection exceeds the available 120-second licensing tier. Shorten the range before saving." },
+      { status: 400 },
+    );
+  }
+
   const nextVersion = selection.expectedVersion + 1;
   const { data, error } = await supabase
     .from("scene_clips")
     .update({
       in_frame: selection.inFrame,
       out_frame: selection.outFrame,
+      duration_tier_seconds: tier.tierSeconds,
       version: nextVersion,
     })
     .eq("id", sceneClipId)
     .eq("version", selection.expectedVersion)
-    .select("in_frame, out_frame, version")
+    .select("in_frame, out_frame, duration_tier_seconds, version")
     .maybeSingle();
 
   if (error) {
@@ -86,6 +127,7 @@ export async function PATCH(
     {
       inFrame: data.in_frame,
       outFrame: data.out_frame,
+      durationTierSeconds: data.duration_tier_seconds,
       version: data.version,
     },
     { headers: { "cache-control": "private, no-store" } },

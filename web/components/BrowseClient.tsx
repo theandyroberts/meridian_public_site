@@ -19,6 +19,7 @@ import {
   paginateBrowseResults,
   searchParamsForFilters,
   sortBrowseResults,
+  summarizeBrowseFilters,
   type BrowseFilters,
   type BrowseSort,
 } from "@/lib/browseSearch";
@@ -190,6 +191,10 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
     () => paginateBrowseResults(sortedResults, page),
     [page, sortedResults],
   );
+  const activeFilterSummaries = useMemo(
+    () => summarizeBrowseFilters(filters),
+    [filters],
+  );
   const browseReturnParams = browseParams({
     filters,
     sort,
@@ -214,6 +219,12 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
       imuOnly: false,
       tag: null,
     });
+  };
+
+  const clearFilter = (key: keyof BrowseFilters) => {
+    if (key === "q") return set({ q: "" });
+    if (key === "imuOnly") return set({ imuOnly: false });
+    set({ [key]: null } as Partial<BrowseFilters>);
   };
 
   return (
@@ -333,6 +344,28 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
             )}
           </div>
         </div>
+        {activeFilterSummaries.length > 0 && (
+          <div className={styles.activeFilters} aria-label="Active filters">
+            <span className="mono dimmer">Active</span>
+            {activeFilterSummaries.map((summary) => (
+              <button
+                key={summary.key}
+                className={`${styles.activeFilterChip} mono`}
+                onClick={() => clearFilter(summary.key)}
+                aria-label={`Remove ${summary.label} filter: ${summary.value}`}
+              >
+                <span>{summary.label}</span> {summary.value} ×
+              </button>
+            ))}
+          </div>
+        )}
+        {filters.stage && (
+          <p className={styles.stageNote} role="note">
+            <strong>Stage guidance:</strong> Compatibility labels narrow the
+            catalog, but they are not final technical approval. Confirm wall
+            coverage, resolution, horizon, and playback requirements in Studio.
+          </p>
+        )}
         {degraded && (
           <div className={styles.notice} role="status">
             <span>

@@ -19,6 +19,47 @@ export type BrowseSort =
 
 export const BROWSE_PAGE_SIZE = 12;
 
+export type BrowseFilterSummary = {
+  key: keyof BrowseFilters;
+  label: string;
+  value: string;
+};
+
+const BROWSE_FILTER_LABELS: Partial<
+  Record<keyof BrowseFilters, string>
+> = {
+  q: "Search",
+  shotType: "Shot",
+  timeOfDay: "Time",
+  weather: "Weather",
+  speedBand: "Speed",
+  stage: "Stage",
+  imuOnly: "Telemetry",
+  tag: "Tag",
+};
+
+const BROWSE_FILTER_VALUE_LABELS: Record<string, string> = {
+  "led-volume": "LED Volume",
+  "green-screen": "Green Screen",
+  projection: "Projection",
+};
+
+export function summarizeBrowseFilters(
+  filters: BrowseFilters,
+): BrowseFilterSummary[] {
+  return (Object.keys(BROWSE_FILTER_LABELS) as Array<keyof BrowseFilters>)
+    .flatMap((key) => {
+      const rawValue = filters[key];
+      if (!rawValue) return [];
+      const value =
+        key === "imuOnly"
+          ? "IMU collected"
+          : BROWSE_FILTER_VALUE_LABELS[String(rawValue)] ??
+            String(rawValue).replaceAll("-", " ");
+      return [{ key, label: BROWSE_FILTER_LABELS[key] ?? key, value }];
+    });
+}
+
 export function browseFiltersFromParams(
   params: Pick<URLSearchParams, "get">,
 ): BrowseFilters {

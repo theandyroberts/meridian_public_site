@@ -497,8 +497,8 @@ export type Database = {
       }
       projects: {
         Row: {
-          archived_at: string | null
           actual_title: string | null
+          archived_at: string | null
           client_name: string | null
           created_at: string
           created_by: string
@@ -517,8 +517,8 @@ export type Database = {
           version: number
         }
         Insert: {
-          archived_at?: string | null
           actual_title?: string | null
+          archived_at?: string | null
           client_name?: string | null
           created_at?: string
           created_by: string
@@ -537,8 +537,8 @@ export type Database = {
           version?: number
         }
         Update: {
-          archived_at?: string | null
           actual_title?: string | null
+          archived_at?: string | null
           client_name?: string | null
           created_at?: string
           created_by?: string
@@ -636,6 +636,7 @@ export type Database = {
       scenes: {
         Row: {
           archived_at: string | null
+          continuity_group: string | null
           created_at: string
           created_by: string
           custom_stage_name_override: string | null
@@ -648,15 +649,18 @@ export type Database = {
           production_approach_override:
             | Database["public"]["Enums"]["production_approach"]
             | null
+          production_metadata: Json
           project_id: string
           rough_shot: Database["public"]["Enums"]["rough_shot_type"] | null
           scene_notes: string | null
           scene_number: number
-          search_brief: string | null
           script_pages: string | null
           script_scene_number: string | null
+          search_brief: string | null
+          search_intent_summary: string | null
           sort_order: number
           stage_profile_id_override: string | null
+          stage_use_type: Database["public"]["Enums"]["stage_use_type"]
           structured_filters: Json
           updated_at: string
           vehicle: Database["public"]["Enums"]["vehicle_type"]
@@ -664,6 +668,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          continuity_group?: string | null
           created_at?: string
           created_by: string
           custom_stage_name_override?: string | null
@@ -676,15 +681,18 @@ export type Database = {
           production_approach_override?:
             | Database["public"]["Enums"]["production_approach"]
             | null
+          production_metadata?: Json
           project_id: string
           rough_shot?: Database["public"]["Enums"]["rough_shot_type"] | null
           scene_notes?: string | null
           scene_number: number
-          search_brief?: string | null
           script_pages?: string | null
           script_scene_number?: string | null
+          search_brief?: string | null
+          search_intent_summary?: string | null
           sort_order?: number
           stage_profile_id_override?: string | null
+          stage_use_type?: Database["public"]["Enums"]["stage_use_type"]
           structured_filters?: Json
           updated_at?: string
           vehicle?: Database["public"]["Enums"]["vehicle_type"]
@@ -692,6 +700,7 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          continuity_group?: string | null
           created_at?: string
           created_by?: string
           custom_stage_name_override?: string | null
@@ -704,15 +713,18 @@ export type Database = {
           production_approach_override?:
             | Database["public"]["Enums"]["production_approach"]
             | null
+          production_metadata?: Json
           project_id?: string
           rough_shot?: Database["public"]["Enums"]["rough_shot_type"] | null
           scene_notes?: string | null
           scene_number?: number
-          search_brief?: string | null
           script_pages?: string | null
           script_scene_number?: string | null
+          search_brief?: string | null
+          search_intent_summary?: string | null
           sort_order?: number
           stage_profile_id_override?: string | null
+          stage_use_type?: Database["public"]["Enums"]["stage_use_type"]
           structured_filters?: Json
           updated_at?: string
           vehicle?: Database["public"]["Enums"]["vehicle_type"]
@@ -949,9 +961,9 @@ export type Database = {
         Args: {
           generated_keywords?: string[]
           scene_name: string
-          search_brief?: string
           script_pages?: string
           script_scene_number?: string
+          search_brief?: string
           target_project_id: string
         }
         Returns: string
@@ -1007,17 +1019,6 @@ export type Database = {
           scene_id: string
         }[]
       }
-      update_project_scene: {
-        Args: {
-          generated_keywords?: string[]
-          scene_name: string
-          search_brief?: string
-          script_pages?: string
-          script_scene_number?: string
-          target_scene_id: string
-        }
-        Returns: undefined
-      }
       update_project_details: {
         Args: {
           actual_title?: string
@@ -1028,6 +1029,17 @@ export type Database = {
           working_title: string
         }
         Returns: number
+      }
+      update_project_scene: {
+        Args: {
+          generated_keywords?: string[]
+          scene_name: string
+          script_pages?: string
+          script_scene_number?: string
+          search_brief?: string
+          target_scene_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
@@ -1062,6 +1074,11 @@ export type Database = {
         | "rejected"
         | "submitted"
       staff_role: "producer" | "catalog_admin" | "system_admin"
+      stage_use_type:
+        | "vehicle_process"
+        | "walk_off"
+        | "stationary_environment"
+        | "other"
       vehicle_type: "sports_car" | "sedan" | "suv" | "none" | "undecided"
     }
     CompositeTypes: {
@@ -1224,6 +1241,12 @@ export const Constants = {
         "submitted",
       ],
       staff_role: ["producer", "catalog_admin", "system_admin"],
+      stage_use_type: [
+        "vehicle_process",
+        "walk_off",
+        "stationary_environment",
+        "other",
+      ],
       vehicle_type: ["sports_car", "sedan", "suv", "none", "undecided"],
     },
   },

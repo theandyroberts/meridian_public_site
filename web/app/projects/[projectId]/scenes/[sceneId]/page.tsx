@@ -6,11 +6,24 @@ import { PlateCard } from "@/components/PlateCard";
 import { SceneClipStatusControl } from "@/components/SceneClipStatusControl";
 import { SceneDeleteForm } from "@/components/SceneDeleteForm";
 import { SceneKeywordPriorities } from "@/components/SceneKeywordPriorities";
+import {
+  PlateStageCompatibilityWarning,
+  SceneSearchGuidance,
+} from "@/components/SceneSearchGuidance";
 import { createQueryEmbedding } from "@/lib/search";
 import { matchClosenessPercent } from "@/lib/matchCloseness";
 import { publicMediaUrl } from "@/lib/publicMediaUrl";
 import { formatSceneClipSelectionDuration } from "@/lib/sceneClipSelection";
 import { rankPrioritizedSceneMatches } from "@/lib/sceneSearchRanking";
+import {
+  SCENE_PRODUCTION_FIELD_LABELS,
+  SCENE_PRODUCTION_LIST_FIELDS,
+  SCENE_PRODUCTION_TEXT_FIELDS,
+  STAGE_USE_OPTIONS,
+  normalizeSceneProductionMetadata,
+  sceneProductionSearchText,
+  stageUseTypeLabel,
+} from "@/lib/sceneProduction";
 import { buildStudioHref, type StudioSceneContext } from "@/lib/studioHref";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -141,7 +154,7 @@ export default async function ScenePage({
     supabase
       .from("scenes")
       .select(
-        "id, project_id, scene_number, name, search_brief, vehicle, rough_shot, structured_filters, production_approach_override, stage_profile_id_override, custom_stage_name_override, script_scene_number, script_pages, generated_keywords, nice_to_have_keywords, keyword_generation_status",
+        "id, project_id, scene_number, name, search_brief, search_intent_summary, continuity_group, stage_use_type, production_metadata, vehicle, rough_shot, structured_filters, production_approach_override, stage_profile_id_override, custom_stage_name_override, script_scene_number, script_pages, generated_keywords, nice_to_have_keywords, keyword_generation_status",
       )
       .eq("id", sceneId)
       .eq("project_id", projectId)
@@ -189,9 +202,39 @@ export default async function ScenePage({
     scene.production_approach_override === "listed_led_stage" &&
     Boolean(scene.stage_profile_id_override) &&
     !stageName(scene.stage_profile_id_override);
+  const effectiveProductionApproach =
+    scene.production_approach_override ?? project.production_approach;
+  const productionMetadata = normalizeSceneProductionMetadata(
+    scene.production_metadata,
+  );
+
+  const { data: continuityPeers, error: continuityPeersError } =
+    scene.continuity_group
+      ? await supabase
+          .from("scenes")
+          .select("search_intent_summary, production_metadata")
+          .eq("project_id", project.id)
+          .eq("continuity_group", scene.continuity_group)
+          .neq("id", scene.id)
+          .is("archived_at", null)
+      : { data: [], error: null };
+  if (continuityPeersError) {
+    console.warn(
+      `Continuity guidance unavailable: ${continuityPeersError.message}`,
+    );
+  }
+  const continuitySearchText = (continuityPeers ?? [])
+    .flatMap((peer) => [
+      peer.search_intent_summary,
+      sceneProductionSearchText(peer.production_metadata),
+    ])
+    .filter(Boolean)
+    .join(" ");
 
   const primarySearchText = [
+    scene.search_intent_summary,
     scene.search_brief,
+    sceneProductionSearchText(scene.production_metadata),
     ...scene.generated_keywords,
   ]
     .filter(Boolean)
@@ -204,6 +247,7 @@ export default async function ScenePage({
   const [
     { data: primarySearchRows, error: primarySearchError },
     { data: niceToHaveRows, error: niceToHaveError },
+    { data: continuitySearchRows, error: continuitySearchError },
     { data: selectedRows },
     { data: catalogFallback, error: catalogFallbackError },
   ] = await Promise.all([
@@ -218,6 +262,13 @@ export default async function ScenePage({
         filters: scene.structured_filters,
         match_count: 12,
       }),
+      continuitySearchText
+        ? supabase.rpc("search_stock_clips", {
+            query_text: continuitySearchText,
+            filters: scene.structured_filters,
+            match_count: 12,
+          })
+        : Promise.resolve({ data: [], error: null }),
       supabase
         .from("scene_clips")
         .select(
@@ -244,6 +295,11 @@ export default async function ScenePage({
       `Nice to Have search unavailable: ${niceToHaveError.message}`,
     );
   }
+  if (continuitySearchError) {
+    console.warn(
+      `Continuity search unavailable: ${continuitySearchError.message}`,
+    );
+  }
   if (catalogFallbackError) {
     console.warn(
       `Catalog fallback unavailable: ${catalogFallbackError.message}`,
@@ -253,6 +309,7 @@ export default async function ScenePage({
   const prioritizedRows = rankPrioritizedSceneMatches(
     primarySearchRows ?? [],
     niceToHaveRows ?? [],
+    continuitySearchRows ?? [],
   );
   const rankedMatches = prioritizedRows.map((row) => ({
     id: row.id,
@@ -345,6 +402,11 @@ export default async function ScenePage({
           </p>
           <h1>{scene.name}</h1>
           <p>
+            <strong>Search intent:</strong>{" "}
+            {scene.search_intent_summary ||
+              "Not generated yet. Open Edit scene details to add it or use AI search guidance."}
+          </p>
+          <p>
             {scene.search_brief ||
               "No plate brief yet. Browse the catalog and refine from there."}
           </p>
@@ -368,8 +430,46 @@ export default async function ScenePage({
           <strong>{sceneStageLabel}</strong>
           <span className="mono dimmer">Rough camera shot</span>
           <strong>{roughShotLabel(scene.rough_shot)}</strong>
+          <span className="mono dimmer">Stage use</span>
+          <strong>{stageUseTypeLabel(scene.stage_use_type)}</strong>
+          {productionMetadata.location_signature && (
+            <>
+              <span className="mono dimmer">Environment</span>
+              <strong>{productionMetadata.location_signature}</strong>
+            </>
+          )}
+          {productionMetadata.time_of_day && (
+            <>
+              <span className="mono dimmer">Time of day</span>
+              <strong>{productionMetadata.time_of_day}</strong>
+            </>
+          )}
+          {productionMetadata.weather && (
+            <>
+              <span className="mono dimmer">Weather</span>
+              <strong>{productionMetadata.weather}</strong>
+            </>
+          )}
+          {productionMetadata.movement && (
+            <>
+              <span className="mono dimmer">Movement</span>
+              <strong>{productionMetadata.movement}</strong>
+            </>
+          )}
+          {scene.continuity_group && (
+            <>
+              <span className="mono dimmer">Continuity group</span>
+              <strong>{scene.continuity_group}</strong>
+            </>
+          )}
         </div>
       </section>
+
+      <SceneSearchGuidance
+        structuredFilters={scene.structured_filters}
+        productionApproach={effectiveProductionApproach}
+        stageLabel={sceneStageLabel}
+      />
 
       <SceneKeywordPriorities
         projectId={project.id}
@@ -437,6 +537,33 @@ export default async function ScenePage({
                 </select>
               </label>
               <label>
+                <span>Stage-use type</span>
+                <select
+                  name="stageUseType"
+                  defaultValue={scene.stage_use_type}
+                >
+                  {STAGE_USE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Continuity group <em>optional</em></span>
+                <input
+                  name="continuityGroup"
+                  type="text"
+                  defaultValue={scene.continuity_group ?? ""}
+                  placeholder="night drive sequence"
+                  maxLength={120}
+                />
+                <small>
+                  Matching gently favors visual continuity with scenes using
+                  the same label; it never excludes candidates.
+                </small>
+              </label>
+              <label>
                 <span>Stage</span>
                 <select name="stageChoice" defaultValue={sceneStageChoice}>
                   <option value="inherit">
@@ -464,6 +591,20 @@ export default async function ScenePage({
               </label>
             </div>
             <label>
+              <span>One-sentence search intent</span>
+              <textarea
+                name="searchIntentSummary"
+                defaultValue={scene.search_intent_summary ?? ""}
+                rows={2}
+                maxLength={320}
+                required
+              />
+              <small>
+                The at-a-glance statement collaborators use to understand
+                what environment or plate this scene needs.
+              </small>
+            </label>
+            <label>
               <span>Scene description / plate brief</span>
               <textarea
                 name="searchBrief"
@@ -475,13 +616,42 @@ export default async function ScenePage({
                 narrative.
               </small>
             </label>
+            <fieldset>
+              <legend>Structured production metadata</legend>
+              <div className="form-grid">
+                {SCENE_PRODUCTION_TEXT_FIELDS.map((field) => (
+                  <label key={field}>
+                    <span>{SCENE_PRODUCTION_FIELD_LABELS[field]}</span>
+                    <input
+                      name={field}
+                      type="text"
+                      defaultValue={productionMetadata[field]}
+                      placeholder="Unspecified"
+                      maxLength={300}
+                    />
+                  </label>
+                ))}
+              </div>
+              {SCENE_PRODUCTION_LIST_FIELDS.map((field) => (
+                <label key={field}>
+                  <span>{SCENE_PRODUCTION_FIELD_LABELS[field]}</span>
+                  <textarea
+                    name={field}
+                    defaultValue={productionMetadata[field].join("\n")}
+                    rows={2}
+                    placeholder="One item per line or comma-separated"
+                  />
+                </label>
+              ))}
+            </fieldset>
             <div className="form-actions">
               <button type="submit" className="primary-button">
                 Save scene
               </button>
             </div>
           </form>
-          {scene.keyword_generation_status === "pending" && (
+          {(scene.keyword_generation_status === "pending" ||
+            !scene.search_intent_summary) && (
             <form
               action={refreshSceneKeywords}
               className="keyword-retry-form"
@@ -489,11 +659,11 @@ export default async function ScenePage({
               <input type="hidden" name="projectId" value={project.id} />
               <input type="hidden" name="sceneId" value={scene.id} />
               <p>
-                The description is saved, but OpenAI has not generated its
-                search keywords yet.
+                The description is saved, but OpenAI has not generated all
+                search guidance yet.
               </p>
               <button type="submit" className="secondary-button">
-                Retry AI keyword analysis
+                Generate AI search guidance
               </button>
             </form>
           )}
@@ -515,6 +685,12 @@ export default async function ScenePage({
               <p className="mono accent">Scene collection</p>
               <h2>Saved clips ({selected.length})</h2>
             </div>
+            <Link
+              href={`/projects/${project.id}/scenes/${scene.id}/clips`}
+              className="secondary-button"
+            >
+              Review saved clips
+            </Link>
           </div>
           <div className="plate-grid">
             {selected.map((item) => {
@@ -588,6 +764,11 @@ export default async function ScenePage({
                   </strong>
                 </div>
                 <PlateCard plate={result.plate} />
+                <PlateStageCompatibilityWarning
+                  plateStageCompat={result.plate.stageCompat}
+                  productionApproach={effectiveProductionApproach}
+                  stageLabel={sceneStageLabel}
+                />
                 <StudioLink
                   plate={result.plate}
                   context={studioSceneContext}

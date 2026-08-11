@@ -1,3 +1,5 @@
+import { LICENSING_DURATION_TIERS_SECONDS } from "@/lib/sceneClipSelection";
+
 export type StudioSceneContext = {
   projectId: string;
   projectName: string;
@@ -20,6 +22,7 @@ type StudioHrefInput = {
   sku?: string;
   scene?: StudioSceneContext;
   selection?: StudioSelectionContext;
+  licensingDurationTiersSeconds?: readonly number[];
 };
 
 export function buildStudioHref(input: StudioHrefInput): string {
@@ -28,6 +31,9 @@ export function buildStudioHref(input: StudioHrefInput): string {
     label: input.label,
     fps: String(input.fps),
   });
+  const durationTiers = input.licensingDurationTiersSeconds ??
+    LICENSING_DURATION_TIERS_SECONDS;
+  query.set("durationTiers", durationTiers.join(","));
 
   if (input.sourceTimecode) query.set("sourceTimecode", input.sourceTimecode);
   if (input.sku) query.set("sku", input.sku);

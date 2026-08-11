@@ -22,6 +22,7 @@ export default async function StageViewerPage({
     video?: string;
     label?: string;
     fps?: string;
+    durationTiers?: string;
     sourceTimecode?: string;
     sceneClipId?: string;
     version?: string;
@@ -40,6 +41,7 @@ export default async function StageViewerPage({
     "video",
     "label",
     "fps",
+    "durationTiers",
     "sourceTimecode",
     "sceneClipId",
     "version",
