@@ -6,6 +6,7 @@ test("staging resolves local catalog paths through Supabase Storage", () => {
   for (const siteUrl of [
     "https://staging.theplatelab.site",
     "https://staging.theplatelab.studio",
+    "https://staging.platelabstudio.com",
   ]) {
     assert.equal(
       publicMediaUrl("/media/PL-4180192/poster.jpg", {

@@ -1,4 +1,5 @@
 export const STAGING_HOSTNAMES = new Set([
+  "staging.platelabstudio.com",
   "staging.theplatelab.site",
   "staging.theplatelab.studio",
 ]);
@@ -11,7 +12,8 @@ export const COMING_SOON_HOSTNAMES = new Set([
 const LEGACY_WEB_HOST_REDIRECTS = new Map([
   ["theplatelab.site", "theplatelab.studio"],
   ["www.theplatelab.site", "theplatelab.studio"],
-  ["staging.theplatelab.site", "staging.theplatelab.studio"],
+  ["staging.theplatelab.site", "staging.platelabstudio.com"],
+  ["staging.theplatelab.studio", "staging.platelabstudio.com"],
 ]);
 
 export function hostnameFromHost(host: string | null | undefined): string {

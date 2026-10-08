@@ -6,6 +6,7 @@ test("staging uses an unmistakable browser title", () => {
   for (const url of [
     "https://staging.theplatelab.site",
     "https://staging.theplatelab.studio",
+    "https://staging.platelabstudio.com",
   ]) {
     assert.equal(
       siteTitle("The Plate Lab — 360×180 Environments", url),

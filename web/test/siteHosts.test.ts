@@ -17,6 +17,7 @@ test("normalizes host headers", () => {
 test("recognizes the studio launch and staging hosts", () => {
   assert.equal(isComingSoonHostname("theplatelab.studio"), true);
   assert.equal(isStagingHostname("staging.theplatelab.studio"), true);
+  assert.equal(isStagingHostname("staging.platelabstudio.com"), true);
 });
 
 test("maps only legacy web hosts to their studio replacements", () => {
@@ -27,7 +28,9 @@ test("maps only legacy web hosts to their studio replacements", () => {
   );
   assert.equal(
     canonicalWebHostname("staging.theplatelab.site"),
-    "staging.theplatelab.studio",
+    "staging.platelabstudio.com",
   );
+  assert.equal(canonicalWebHostname("staging.theplatelab.studio"), "staging.platelabstudio.com");
+  assert.equal(canonicalWebHostname("staging.platelabstudio.com"), null);
   assert.equal(canonicalWebHostname("supabase-staging.theplatelab.site"), null);
 });
