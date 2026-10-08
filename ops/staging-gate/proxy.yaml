@@ -1,0 +1,28 @@
+http:
+  routers:
+    platelab-staging-password-only:
+      rule: Host(`staging.platelabstudio.com`)
+      entryPoints: [https]
+      priority: 250
+      tls:
+        certResolver: letsencrypt
+      service: platelab-staging-password-only
+    platelab-staging-www-canonical:
+      rule: Host(`www.staging.platelabstudio.com`)
+      entryPoints: [https]
+      priority: 250
+      tls:
+        certResolver: letsencrypt
+      middlewares: [platelab-staging-www-canonical]
+      service: noop@internal
+  middlewares:
+    platelab-staging-www-canonical:
+      redirectRegex:
+        regex: '^https://www[.]staging[.]platelabstudio[.]com(.*)'
+        replacement: 'https://staging.platelabstudio.com${1}'
+        permanent: true
+  services:
+    platelab-staging-password-only:
+      loadBalancer:
+        servers:
+          - url: http://platelab-staging-gate:8080

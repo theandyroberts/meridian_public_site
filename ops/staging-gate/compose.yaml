@@ -1,0 +1,18 @@
+services:
+  staging-gate:
+    build: .
+    image: platelab-staging-gate:20261008
+    container_name: platelab-staging-gate
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 1.0
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes:
+      - ./secrets/staging-password-hash:/run/secrets/staging-password-hash:ro
+    networks: [coolify]
+networks:
+  coolify:
+    external: true
