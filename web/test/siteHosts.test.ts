@@ -15,17 +15,24 @@ test("normalizes host headers", () => {
 
 test("recognizes the studio launch host", () => {
   assert.equal(isComingSoonHostname("theplatelab.studio"), true);
+  assert.equal(isComingSoonHostname("platelabstudio.com"), true);
+  assert.equal(isComingSoonHostname("WWW.PLATELABSTUDIO.COM"), true);
+  assert.equal(isComingSoonHostname("staging.theplatelab.studio"), false);
 });
 
 test("maps only legacy web hosts to their studio replacements", () => {
-  assert.equal(canonicalWebHostname("theplatelab.site"), "theplatelab.studio");
+  assert.equal(canonicalWebHostname("theplatelab.site"), "platelabstudio.com");
   assert.equal(
     canonicalWebHostname("www.theplatelab.site"),
-    "theplatelab.studio",
+    "platelabstudio.com",
   );
   assert.equal(
     canonicalWebHostname("staging.theplatelab.site"),
     "staging.theplatelab.studio",
   );
   assert.equal(canonicalWebHostname("supabase-staging.theplatelab.site"), null);
+  assert.equal(canonicalWebHostname("platelabstudio.com"), null);
+  for (const host of ["theplatelab.studio", "www.theplatelab.studio", "www.platelabstudio.com"]) {
+    assert.equal(canonicalWebHostname(host), "platelabstudio.com");
+  }
 });

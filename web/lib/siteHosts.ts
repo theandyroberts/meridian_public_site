@@ -1,11 +1,16 @@
 export const COMING_SOON_HOSTNAMES = new Set([
+  "platelabstudio.com",
+  "www.platelabstudio.com",
   "theplatelab.studio",
   "www.theplatelab.studio",
 ]);
 
 const LEGACY_WEB_HOST_REDIRECTS = new Map([
-  ["theplatelab.site", "theplatelab.studio"],
-  ["www.theplatelab.site", "theplatelab.studio"],
+  ["www.platelabstudio.com", "platelabstudio.com"],
+  ["theplatelab.studio", "platelabstudio.com"],
+  ["www.theplatelab.studio", "platelabstudio.com"],
+  ["theplatelab.site", "platelabstudio.com"],
+  ["www.theplatelab.site", "platelabstudio.com"],
   ["staging.theplatelab.site", "staging.theplatelab.studio"],
 ]);
 
