@@ -3,15 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Plate } from "@platelab/shared";
-import {
-  SHOT_TYPES,
-  TIMES_OF_DAY,
-  WEATHER,
-  SPEED_BANDS,
-  STAGE_COMPAT,
-} from "@platelab/shared";
 import { PlateCard } from "./PlateCard";
 import {
+  availableBrowseFacets,
   browseFiltersFromParams,
   browsePageFromParams,
   browseParams,
@@ -50,6 +44,8 @@ function FacetGroup({
   onChange: (v: string | null) => void;
   display?: Record<string, string>;
 }) {
+  if (options.length === 0) return null;
+
   return (
     <div className="filter-group">
       <span className="mono">{label}</span>
@@ -73,6 +69,7 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
   const router = useRouter();
   const params = useSearchParams();
   const searchRef = useRef<HTMLInputElement>(null);
+  const facets = useMemo(() => availableBrowseFacets(plates), [plates]);
 
   // Arriving from the home hero search (focus=1): take focus so the user's
   // keystrokes flow straight into this field, cursor parked after any text
@@ -240,47 +237,49 @@ export function BrowseClient({ plates }: { plates: Plate[] }) {
         />
         <FacetGroup
           label="Shot type"
-          options={SHOT_TYPES}
+          options={facets.shotType}
           value={filters.shotType}
           onChange={(v) => set({ shotType: v })}
         />
         <FacetGroup
           label="Time of day"
-          options={TIMES_OF_DAY}
+          options={facets.timeOfDay}
           value={filters.timeOfDay}
           onChange={(v) => set({ timeOfDay: v })}
         />
         <FacetGroup
           label="Weather"
-          options={WEATHER}
+          options={facets.weather}
           value={filters.weather}
           onChange={(v) => set({ weather: v })}
         />
         <FacetGroup
           label="Speed"
-          options={SPEED_BANDS}
+          options={facets.speedBand}
           value={filters.speedBand}
           onChange={(v) => set({ speedBand: v })}
         />
         <FacetGroup
           label="Stage compatibility"
-          options={STAGE_COMPAT}
+          options={facets.stage}
           value={filters.stage}
           onChange={(v) => set({ stage: v })}
           display={STAGE_LABELS}
         />
-        <div className="filter-group">
-          <span className="mono">Telemetry</span>
-          <div className="filter-options">
-            <button
-              className="filter-chip"
-              data-on={filters.imuOnly}
-              onClick={() => set({ imuOnly: !filters.imuOnly })}
-            >
-              IMU collected
-            </button>
+        {(facets.imuOnly || filters.imuOnly) && (
+          <div className="filter-group">
+            <span className="mono">Telemetry</span>
+            <div className="filter-options">
+              <button
+                className="filter-chip"
+                data-on={filters.imuOnly}
+                onClick={() => set({ imuOnly: !filters.imuOnly })}
+              >
+                IMU collected
+              </button>
+            </div>
           </div>
-        </div>
+        )}
         {filters.tag && (
           <div className="filter-group">
             <span className="mono">Tag</span>

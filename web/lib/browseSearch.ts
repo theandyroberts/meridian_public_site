@@ -1,4 +1,34 @@
 import type { Plate } from "@platelab/shared";
+import {
+  SHOT_TYPES,
+  TIMES_OF_DAY,
+  WEATHER,
+  SPEED_BANDS,
+  STAGE_COMPAT,
+} from "@platelab/shared";
+
+/** Use the full live catalog, not the current search results or visible page. */
+export function availableBrowseFacets(plates: readonly Plate[]) {
+  const livePlates = plates.filter((plate) => plate.status === "live");
+  return {
+    shotType: SHOT_TYPES.filter((value) =>
+      livePlates.some((plate) => plate.shotType === value),
+    ),
+    timeOfDay: TIMES_OF_DAY.filter((value) =>
+      livePlates.some((plate) => plate.timeOfDay === value),
+    ),
+    weather: WEATHER.filter((value) =>
+      livePlates.some((plate) => plate.weather === value),
+    ),
+    speedBand: SPEED_BANDS.filter((value) =>
+      livePlates.some((plate) => plate.speedBand === value),
+    ),
+    stage: STAGE_COMPAT.filter((value) =>
+      livePlates.some((plate) => plate.stageCompat.includes(value)),
+    ),
+    imuOnly: livePlates.some((plate) => plate.imu.collected),
+  };
+}
 
 export interface BrowseFilters {
   q: string;
