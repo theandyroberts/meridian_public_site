@@ -50,7 +50,8 @@ body::before {
 /* ── temporary public launch page ── */
 .coming-soon-host {
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .coming-soon {
   position: relative;
