@@ -4,6 +4,7 @@ import (
  "crypto/rand"
  "crypto/sha256"
  "encoding/base64"
+ "encoding/json"
  "html/template"
  "log"
  "net"
@@ -71,18 +72,41 @@ func (g *gate) allowAttempt(r *http.Request) bool {
  b.count++;g.global.count++;g.attempts[ip]=b;return true
 }
 
+const loginScript = `const form=document.querySelector('form[data-login]');
+if(form){form.addEventListener('submit',async(event)=>{
+ event.preventDefault();
+ const button=form.querySelector('button');const status=document.getElementById('status');
+ button.disabled=true;button.textContent='Checking…';status.textContent='Checking your password…';
+ const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch(form.action,{method:'POST',body:new URLSearchParams(new FormData(form)),credentials:'same-origin',headers:{Accept:'application/json'},signal:controller.signal});
+  const result=await response.json();
+  if(!response.ok||!result.ok){status.textContent=result.error||'Unable to sign in. Please try again.';return;}
+  status.textContent='Password accepted. Opening staging…';button.textContent='Opening staging…';
+  window.location.assign(result.next);
+ }catch(error){status.textContent=error.name==='AbortError'?'The request timed out. Please try again.':'Unable to reach staging. Please try again.';}
+ finally{clearTimeout(timer);if(button.textContent!=='Opening staging…'){button.disabled=false;button.textContent='Enter staging';}}
+});}
+`
+
 func security(w http.ResponseWriter) {
  w.Header().Set("Cache-Control","no-store")
  w.Header().Set("X-Robots-Tag","noindex, nofollow, noarchive")
  w.Header().Set("Referrer-Policy","no-referrer")
  w.Header().Set("X-Content-Type-Options","nosniff")
- w.Header().Set("Content-Security-Policy","default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
+ scriptHash:=sha256.Sum256([]byte(loginScript))
+ w.Header().Set("Content-Security-Policy","default-src 'none'; connect-src 'self'; script-src 'sha256-"+base64.StdEncoding.EncodeToString(scriptHash[:])+"'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
 }
 
-var loginPage=template.Must(template.New("gate").Parse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Plate Lab — Staging access</title><style>body{margin:0;background:#111;color:#eee;font:17px system-ui;min-height:100vh;display:grid;place-items:center}main{width:min(390px,calc(100% - 48px));padding:48px 0}small{color:#c56b3e;letter-spacing:.14em}h1{font-size:32px;margin:18px 0}p{color:#bbb;line-height:1.5}label{display:block;margin:24px 0 9px}input,button{box-sizing:border-box;width:100%;border-radius:3px;font:inherit;padding:13px}input{background:#1c1c1c;color:#fff;border:1px solid #777}button{background:#c56b3e;color:#111;border:0;font-weight:700;cursor:pointer;margin-top:16px}a{color:#ecab86}input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #eee;outline-offset:3px}.error{color:#ffc4ae}footer{font-size:13px;color:#999;margin-top:26px}</style><main><small>THE PLATE LAB · STAGING</small>{{if .Active}}<h1>Staging access is open</h1><p><a href="{{.Next}}">Continue to staging</a></p><form method="post" action="/_staging-access/logout"><button>Sign out of staging access</button></form>{{else}}<h1>Enter staging</h1><p>Use the existing staging password.</p>{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}<form method="post" action="/_staging-access"><input type="hidden" name="next" value="{{.Next}}"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="current-password" required autofocus><button>Enter staging</button></form><footer>Access lasts up to 8 hours. Your app account login is separate.</footer>{{end}}</main></html>`))
+var loginPage=template.Must(template.New("gate").Parse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Plate Lab — Staging access</title><style>body{margin:0;background:#111;color:#eee;font:17px system-ui;min-height:100vh;display:grid;place-items:center}main{width:min(390px,calc(100% - 48px));padding:48px 0}small{color:#c56b3e;letter-spacing:.14em}h1{font-size:32px;margin:18px 0}p{color:#bbb;line-height:1.5}label{display:block;margin:24px 0 9px}input,button{box-sizing:border-box;width:100%;border-radius:3px;font:inherit;padding:13px}input{background:#1c1c1c;color:#fff;border:1px solid #777}button{background:#c56b3e;color:#111;border:0;font-weight:700;cursor:pointer;margin-top:16px}a{color:#ecab86}input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #eee;outline-offset:3px}.error{color:#ffc4ae}footer{font-size:13px;color:#999;margin-top:26px}</style><main><small>THE PLATE LAB · STAGING</small>{{if .Active}}<h1>Staging access is open</h1><p><a href="{{.Next}}">Continue to staging</a></p><form method="post" action="/_staging-access/logout"><button>Sign out of staging access</button></form>{{else}}<h1>Enter staging</h1><p>Use the existing staging password.</p>{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}<form data-login method="post" action="/_staging-access"><input type="hidden" name="next" value="{{.Next}}"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="current-password" required autofocus><button>Enter staging</button><p id="status" role="status" aria-live="polite"></p></form><footer>Access lasts up to 8 hours. Your app account login is separate.</footer>{{end}}</main><script>`+loginScript+`</script></html>`))
 
 func (g *gate) page(w http.ResponseWriter,r *http.Request,status int,message,next string) {
- security(w);w.Header().Set("Content-Type","text/html; charset=utf-8");w.WriteHeader(status)
+ security(w)
+ if r.Method==http.MethodPost {log.Printf("Staging login response status=%d",status)}
+ if r.Method==http.MethodPost && strings.Contains(r.Header.Get("Accept"),"application/json") {
+  w.Header().Set("Content-Type","application/json");w.WriteHeader(status);_=json.NewEncoder(w).Encode(map[string]any{"ok":false,"error":message});return
+ }
+ w.Header().Set("Content-Type","text/html; charset=utf-8");w.WriteHeader(status)
  _=loginPage.Execute(w,struct{Active bool;Error,Next string}{g.valid(r),message,safeNext(next)})
 }
 
@@ -112,6 +136,8 @@ func (g *gate) ServeHTTP(w http.ResponseWriter,r *http.Request) {
   for _,c:=range r.CookiesNamed(cookieName){delete(g.sessions,sha256.Sum256([]byte(c.Value)))}
   g.sessions[sha256.Sum256([]byte(token))]=now.Add(sessionTTL);g.mu.Unlock()
   http.SetCookie(w,&http.Cookie{Name:cookieName,Value:token,Path:"/",Secure:true,HttpOnly:true,SameSite:http.SameSiteLaxMode})
+  log.Print("Staging login accepted")
+  if strings.Contains(r.Header.Get("Accept"),"application/json") {w.Header().Set("Content-Type","application/json");_=json.NewEncoder(w).Encode(map[string]any{"ok":true,"next":next});return}
   http.Redirect(w,r,next,http.StatusSeeOther);return
  }
  if !g.valid(r) {

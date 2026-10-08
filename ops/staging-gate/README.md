@@ -13,7 +13,7 @@ This standalone reverse proxy replaces the browser's username/password prompt at
 
 ## Deployment
 
-Code/compose: /srv/platelab-staging-gate on the existing tpl host. Image platelab-staging-gate:20261008. Private network coolify. Upstream is the existing host port 3106 via Docker's host-gateway alias, so normal Coolify app container replacement remains supported.
+Code/compose: /srv/platelab-staging-gate on the existing tpl host. Image platelab-staging-gate:20261008-feedback. Private network coolify. Upstream is the existing host port 3106 via Docker's host-gateway alias, so normal Coolify app container replacement remains supported.
 
 The root-owned secrets/staging-password-hash file must be readable only by root and container UID/GID 65532 (group-readable 0440). Keep the parent directory root-only. The secret is mounted read-only. Do not run compose config or broad docker inspect commands that could reveal other credentials.
 
@@ -28,3 +28,5 @@ Move only the new dynamic proxy YAML outside the watched dynamic directory; the 
 If the staging password is changed later, refresh the server-only hash file from the new existing Basic Auth verifier and restart the gate. This invalidates all gate sessions. The old and new access mechanisms must use the same verifier; changing the Coolify password alone does not update this standalone gate.
 
 No extra public hostname, database, mail delivery, external authentication provider or persistent access credential is introduced. Testing the real existing password requires the user to enter it directly in the HTTPS browser form, never in chat.
+
+The browser form uses same-origin fetch with explicit progress, password rejection, connection-error and timeout feedback. The script is permitted by an exact SHA-256 CSP hash. Native form submission remains supported. Diagnostic logs contain only login outcome/status, never passwords, bodies, cookies or tokens.

@@ -1,7 +1,7 @@
 services:
   staging-gate:
     build: .
-    image: platelab-staging-gate:20261008
+    image: platelab-staging-gate:20261008-feedback
     container_name: platelab-staging-gate
     restart: unless-stopped
     read_only: true

@@ -2,6 +2,8 @@ package main
 
 import (
  "io"
+ "crypto/sha256"
+ "encoding/base64"
  "net/http"
  "net/http/httptest"
  "net/url"
@@ -82,3 +84,19 @@ func TestSessionRotationAndRestartFailClosed(t *testing.T) {
  if request(fixture(t),"GET","/","",fresh).Code!=303{t.Fatal("restart must invalidate sessions")}
 }
 func TestConcurrentSessions(t *testing.T) {g:=fixture(t);c:=login(t,g,"/");var wg sync.WaitGroup;for i:=0;i<30;i++{wg.Add(1);go func(){defer wg.Done();if request(g,"GET","/","",c).Code!=200{t.Error("session failed")}}()};wg.Wait()}
+
+func TestJSONLoginFeedbackAndSession(t *testing.T) {
+ g:=fixture(t)
+ for _,tc:=range []struct{password string;status int;ok bool}{{"wrong",401,false},{testPassword,200,true}} {
+  r:=httptest.NewRequest("POST",origin+gatePath,strings.NewReader(url.Values{"password":{tc.password},"next":{"/projects?view=mine"}}.Encode()))
+  r.Header.Set("Origin",origin);r.Header.Set("Content-Type","application/x-www-form-urlencoded");r.Header.Set("Accept","application/json")
+  w:=httptest.NewRecorder();g.ServeHTTP(w,r)
+  if w.Code!=tc.status||w.Header().Get("Content-Type")!="application/json"{t.Fatal("wrong feedback format or status")}
+  if tc.ok {if !strings.Contains(w.Body.String(),`"next":"/projects?view=mine"`)||request(g,"GET","/projects","",w.Result().Cookies()[0]).Code!=200{t.Fatal("JSON login did not establish session")}} else if !strings.Contains(w.Body.String(),"didn’t match"){t.Fatal("missing error feedback")}
+ }
+}
+func TestProgressScriptAllowedByCSP(t *testing.T) {
+ w:=request(fixture(t),"GET",gatePath,"",nil)
+ digest:=sha256.Sum256([]byte(loginScript));expected:="'sha256-"+base64.StdEncoding.EncodeToString(digest[:])+"'"
+ if !strings.Contains(w.Header().Get("Content-Security-Policy"),expected)||!strings.Contains(w.Body.String(),"<script>"+loginScript+"</script>")||!strings.Contains(w.Body.String(),`role="status"`){t.Fatal("progress script or CSP mismatch")}
+}
