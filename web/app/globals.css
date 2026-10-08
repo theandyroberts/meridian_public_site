@@ -118,6 +118,27 @@ body::before {
   background: var(--orange);
   box-shadow: 0 0 18px var(--orange);
 }
+.launch-signup { position: relative; max-width: 570px; margin-top: 28px; }
+.launch-signup > label { display: block; margin-bottom: 12px; font-size: 18px; }
+.launch-signup-row { display: flex; gap: 8px; }
+.launch-signup-row input {
+  min-width: 0; flex: 1; border: 1px solid var(--hairline-strong);
+  border-radius: 2px; padding: 14px 16px; background: var(--ink-2);
+  color: var(--paper); font: inherit;
+}
+.launch-signup-row input::placeholder { color: var(--paper-60); }
+.launch-signup-row button {
+  padding: 14px 20px; border-radius: 2px; background: var(--orange);
+  color: var(--ink); font-weight: 700; white-space: nowrap;
+}
+.launch-signup-row button:hover { background: #da8357; }
+.launch-signup-row :focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
+.launch-signup > p { margin-top: 12px; max-width: 460px; color: var(--paper-60); font-size: 12px; }
+.launch-signup-trap { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@media (max-width: 480px) {
+  .launch-signup-row { flex-direction: column; }
+  .launch-signup-row button { text-align: center; }
+}
 .coming-soon-footer {
   position: absolute;
   right: 32px;

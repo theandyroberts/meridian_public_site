@@ -1,4 +1,5 @@
 import { GlobeMark, Logo } from "@/components/Logo";
+import { MailingListForm } from "@/components/MailingListForm";
 
 export function ComingSoon() {
   return (
@@ -23,6 +24,7 @@ export function ComingSoon() {
         <p className="mono coming-soon-status">
           The new Plate Lab is coming soon
         </p>
+        <MailingListForm />
       </section>
       <p className="mono coming-soon-footer">© 2026 The Plate Lab</p>
     </main>
