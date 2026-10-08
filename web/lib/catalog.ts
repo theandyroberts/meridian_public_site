@@ -15,10 +15,9 @@ export async function getCatalog(options?: {
   const supabase = options?.includeDrafts
     ? createAdminClient()
     : await createClient();
-  const { data, error } = await supabase
-    .from("stock_clips")
-    .select("source_metadata, updated_at")
-    .order("sku");
+  let query = supabase.from("stock_clips").select("source_metadata, updated_at").order("sku");
+  if (!options?.includeDrafts) query = query.eq("status", "live");
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Unable to load the catalog: ${error.message}`);
@@ -59,7 +58,8 @@ export async function getPlate(
 }
 
 export async function getLivePlate(sku: string): Promise<Plate | undefined> {
-  return getPlate(sku);
+  const plate = await getPlate(sku);
+  return plate?.status === "live" ? plate : undefined;
 }
 
 export function formatDuration(sec: number): string {

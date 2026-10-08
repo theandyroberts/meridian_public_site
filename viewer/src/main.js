@@ -215,6 +215,9 @@ const state = {
 }
 
 const app = document.querySelector('#app')
+const embedParams = new URLSearchParams(location.search)
+if (embedParams.get('embed') === '1') document.body.classList.add('composite-embed')
+if (embedParams.get('preview') === '1') document.body.classList.add('composite-preview')
 app.innerHTML = `
   <main class="workbench">
     <section class="viewport" aria-label="LED wall preview">
@@ -460,6 +463,13 @@ panelToggle.addEventListener('click', () => {
   invalidateRender()
 })
 
+if (embedParams.get('preview') === '1') {
+  workbench.classList.add('is-collapsed')
+  panelToggle.textContent = '‹'
+  panelToggle.title = 'Show controls'
+  panelToggle.setAttribute('aria-label', 'Show controls')
+  panelToggle.setAttribute('aria-expanded', 'false')
+}
 const canvas = document.querySelector('#stageCanvas')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
 renderer.setPixelRatio(cappedDevicePixelRatio(window.devicePixelRatio))
@@ -491,11 +501,24 @@ const gridGroup = new THREE.Group()
 const carGroup = new THREE.Group()
 scene.add(stageGroup, gridGroup, carGroup)
 
-const video = document.createElement('video')
+// Composite preview borrows the parent's decoder and exact media clock.
+// Standalone Studio retains its independent video element.
+let sharedVideo = null
+if (embedParams.get('sharedVideo') && window.parent !== window) {
+  try {
+    const candidate = window.parent.document.getElementById(embedParams.get('sharedVideo'))
+    if (candidate?.tagName === 'VIDEO' && new URL(candidate.src).href === new URL(embedParams.get('video'), location.href).href) sharedVideo = candidate
+  } catch { /* Cross-origin parents cannot lend media elements. */ }
+}
+const video = sharedVideo || document.createElement('video')
+let embeddedActive = !sharedVideo
+let embeddedReady = false
+let embeddedAssetsReady = false
+THREE.DefaultLoadingManager.onLoad = () => { embeddedAssetsReady = true; invalidateRender({reflection:true}) }
 video.loop = true
 video.muted = true
 video.playsInline = true
-video.crossOrigin = 'anonymous'
+if (!sharedVideo) video.crossOrigin = 'anonymous'
 video.preload = 'auto'
 
 let activeVideoTexture = null
@@ -532,6 +555,8 @@ const stageVideoUniforms = {
   cropBottom: { value: 0.57 },
   ceilingTop: { value: 0.07 },
   ceilingBottom: { value: 0.25 },
+  nativeSphere: { value: 0 },
+  validBottom: { value: 1 },
 }
 const screenMaterial = makeEquirectStageMaterial(stageVideoUniforms, 0)
 const ceilingMaterial = makeEquirectStageMaterial(stageVideoUniforms, 1)
@@ -578,6 +603,8 @@ function makeEquirectStageMaterial(sharedUniforms, surfaceType) {
       uniform float ceilingTop;
       uniform float ceilingBottom;
       uniform float surfaceType;
+      uniform float nativeSphere;
+      uniform float validBottom;
       varying vec3 vWorldPosition;
 
       const float PI = 3.141592653589793;
@@ -589,7 +616,9 @@ function makeEquirectStageMaterial(sharedUniforms, surfaceType) {
 
         if (mode < 0.5) {
           float sphereV = 0.5 - asin(clamp(direction.y, -1.0, 1.0)) / PI + verticalOffset;
-          if (surfaceType > 0.5) {
+          if (nativeSphere > 0.5) {
+            visualV = sphereV;
+          } else if (surfaceType > 0.5) {
             visualV = mix(ceilingTop, ceilingBottom, clamp(sphereV, 0.0, 1.0));
           } else {
             visualV = mix(cropTop, cropBottom, clamp(sphereV, 0.0, 1.0));
@@ -603,6 +632,10 @@ function makeEquirectStageMaterial(sharedUniforms, surfaceType) {
           visualV = mix(cropBottom, cropTop, heightT) + verticalOffset;
         }
 
+        if (nativeSphere > 0.5 && (visualV < 0.0 || visualV > validBottom)) {
+          gl_FragColor = vec4(0.025, 0.03, 0.025, 1.0);
+          return;
+        }
         visualV = clamp(visualV, 0.0, 1.0);
         vec4 color = texture2D(map, vec2(u, 1.0 - visualV));
         gl_FragColor = color;
@@ -675,6 +708,7 @@ assignReflectionMap(reflectionTarget.texture)
 
 buildCar()
 buildControls()
+// Vehicle attitude is visualized on the route map; the stabilized Lab stays level.
 bindCameraNavigation()
 applyPreset('amazon')
 setView(state.selectedView, false)
@@ -1749,6 +1783,10 @@ function loadInitialFootage() {
   document.querySelector('#videoUrl').value = footageUrl
   document.querySelector('#fileName').textContent = label
   loadVideoSource(footageUrl, label)
+  const start = Number(params.get('start'))
+  if (!sharedVideo && Number.isFinite(start) && start > 0) video.addEventListener('loadedmetadata', () => {
+    video.currentTime = Math.min(start, Math.max(0, video.duration - 1 / state.playback.fps))
+  }, { once: true })
 }
 
 function configurePlaybackContext(params) {
@@ -1830,6 +1868,14 @@ function renderStudioContext() {
 }
 
 async function loadVideoSource(src, label) {
+  const query = new URLSearchParams(location.search)
+  const initial = query.get('video')
+  const sameSource = initial && new URL(initial, location.href).href === new URL(src, location.href).href
+  const coverage = Number(query.get('coverageBottom'))
+  const native = sameSource && coverage > 0 && coverage <= 1
+  stageVideoUniforms.nativeSphere.value = native ? 1 : 0
+  stageVideoUniforms.validBottom.value = native ? coverage : 1
+  for (const id of ['cropTop','cropBottom','ceilingTop','ceilingBottom','footagePreset','sourceMode']) document.querySelector(`#${id}`).disabled = Boolean(native)
   state.playback.source = { src, label }
   clearViewerFailure()
   const texture = new THREE.VideoTexture(video)
@@ -1859,9 +1905,13 @@ async function loadVideoSource(src, label) {
 
   pendingLayoutListener = applyDecodedLayout
   video.addEventListener('loadedmetadata', applyDecodedLayout, { once: true })
-  video.src = src
-  video.playbackRate = state.playRate
-  video.load()
+  if (!sharedVideo) {
+    video.src = src
+    video.playbackRate = state.playRate
+    video.load()
+  } else {
+    initializeTransport()
+  }
 
   const previousTexture = activeVideoTexture
   activeVideoTexture = texture
@@ -1874,6 +1924,7 @@ async function loadVideoSource(src, label) {
   invalidateRender({ reflection: true })
 
   setPlaybackStatus(`Loaded ${label}`)
+  if (sharedVideo) return
   try {
     await video.play()
   } catch {
@@ -1892,7 +1943,7 @@ function scheduleVideoFrameRender() {
     videoFrameCallbackId !== null
       || !shouldScheduleVideoFrame({
         supported: supportsVideoFrameCallback,
-        visible: !document.hidden,
+        visible: !document.hidden && (embeddedActive || !embeddedReady),
         videoPlaying,
       })
   ) return
@@ -2103,6 +2154,7 @@ function seekFromTimeline(event) {
 }
 
 function updateTransport() {
+  if (window.parent !== window) window.parent.postMessage({type:'tpl-playback',time:video.currentTime,playing:!video.paused}, location.origin)
   const fps = state.playback.fps
   const duration = Number.isFinite(video.duration) ? video.duration : 0
   let currentFrame = currentPlaybackFrame()
@@ -2454,13 +2506,13 @@ function invalidateRender({ reflection = false } = {}) {
 }
 
 function scheduleRender() {
-  if (document.hidden || renderFrameId !== null) return
+  if (document.hidden || renderFrameId !== null || (sharedVideo && !embeddedActive && embeddedReady)) return
   renderFrameId = requestAnimationFrame(renderFrame)
 }
 
 function renderFrame(now) {
   renderFrameId = null
-  if (document.hidden) return
+  if (document.hidden || (sharedVideo && !embeddedActive && embeddedReady)) return
 
   const resized = resizeRenderer()
   const controlsChanged = controls.update()
@@ -2483,6 +2535,10 @@ function renderFrame(now) {
   }
 
   if (shouldRender) renderer.render(scene, camera)
+  if (sharedVideo && !embeddedReady && embeddedAssetsReady && video.readyState >= 2) {
+    embeddedReady = true
+    window.parent.postMessage({type:'tpl-stage-ready'}, location.origin)
+  }
   renderInvalidated = false
 
   if (shouldRenderContinuously({
@@ -2493,7 +2549,26 @@ function renderFrame(now) {
   })) scheduleRender()
 }
 
+// Warm once, then suspend hidden Lab rendering until the next view switch.
+window.addEventListener('message', event => {
+  if (!sharedVideo || event.origin !== location.origin || event.source !== window.parent || event.data?.type !== 'tpl-stage-active') return
+  embeddedActive = Boolean(event.data.active)
+  if (embeddedActive) { invalidateRender({reflection:true}); scheduleVideoFrameRender() }
+  else cancelVideoFrameRender()
+})
+if (sharedVideo) {
+  document.addEventListener('pointerdown', () => window.parent.postMessage({type:'tpl-stage-interaction'}, location.origin))
+  document.addEventListener('keydown', () => window.parent.postMessage({type:'tpl-stage-interaction'}, location.origin))
+  window.addEventListener('error', () => window.parent.postMessage({type:'tpl-stage-error'}, location.origin))
+}
+
 window.addEventListener('resize', () => invalidateRender({ reflection: true }))
+window.addEventListener('message', event => {
+  if (event.origin !== location.origin || event.source !== window.parent || event.data?.type !== 'tpl-seek' || !Number.isFinite(event.data.time) || !Number.isFinite(video.duration)) return
+  video.currentTime = THREE.MathUtils.clamp(event.data.time, 0, video.duration)
+  updateTransport()
+  invalidateRender({reflection:true})
+})
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     if (renderFrameId !== null) cancelAnimationFrame(renderFrameId)
@@ -2512,8 +2587,7 @@ window.addEventListener('pagehide', (event) => {
   resizeObserver?.disconnect()
   cancelVideoFrameRender()
   if (pendingLayoutListener) video.removeEventListener('loadedmetadata', pendingLayoutListener)
-  video.pause()
-  video.removeAttribute('src')
+  if (!sharedVideo) { video.pause(); video.removeAttribute('src') }
   activeVideoTexture?.dispose()
   activeVideoTexture = null
   disposeVehicleMaterials(dynamicVehicleMaterials, sharedCarMaterials)

@@ -22,7 +22,7 @@ export function PlateCard({
   browseReturnPath?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const studioHref = plate.renditions.stagePreview
+  const studioHref = plate.composite ? `/plate/${plate.sku}#plate-viewer` : plate.renditions.stagePreview
     ? buildStudioHref({
         video: publicMediaUrl(plate.renditions.stagePreview),
         label: `${plate.sku} · ${plate.title}`,
@@ -96,7 +96,7 @@ export function PlateCard({
       <div className="plate-card-actions">
         {studioHref ? (
           <Link href={studioHref} className="plate-card-studio mono">
-            Open in Studio <span aria-hidden="true">→</span>
+            {plate.composite ? "Open in Lab 360" : "Open in Studio"} <span aria-hidden="true">→</span>
           </Link>
         ) : (
           <span className="plate-card-studio is-unavailable mono">

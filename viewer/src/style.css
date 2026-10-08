@@ -967,3 +967,34 @@ input[type="checkbox"] {
     animation-iteration-count: 1 !important;
   }
 }
+/* Local composite pilot: media-clock-driven orientation controls. */
+.imu-controls { border-top:1px solid #464b43; margin:18px 0; padding:18px 14px; background:#202620; border-radius:8px; color:#e5e8dd; }
+.imu-controls strong { font-size:14px; }
+.imu-controls p { font-size:11px; color:#acb5a7; line-height:1.5; }
+.imu-controls label { display:block; font-size:12px; margin:14px 0; }
+.imu-controls input[type=range] { display:block; width:100%; margin-top:7px; }
+.imu-controls output { float:right; font-variant-numeric:tabular-nums; }
+.imu-controls button { padding:8px 12px; border:1px solid #68725f; background:transparent; color:inherit; border-radius:4px; cursor:pointer; }
+.composite-embed .viewport__bar { padding:18px 22px; }
+.composite-embed .viewport__bar h1 { font-size:21px; }
+.composite-embed .viewport__bar .eyebrow { font-size:8px; }
+.composite-embed .studio-origin,.composite-embed .transport__selection { display:none; }
+.composite-embed .transport { bottom:116px; }
+.composite-embed .control-panel { width:260px; }
+@media (max-width: 700px) {
+  .composite-embed .viewport,.composite-embed #stageCanvas { height:82vh; min-height:560px; }
+  .composite-embed .view-strip { max-height:90px; }
+  .composite-embed .transport { bottom:120px; }
+  .composite-embed .control-panel { width:100%; box-sizing:border-box; zoom:1; }
+}
+
+/* Preloaded composite preview: parent owns the transport; keep the Lab in the same frame. */
+.composite-preview .viewport,.composite-preview #stageCanvas{height:100vh;min-height:0}
+.composite-preview .viewport__bar,.composite-preview .transport{display:none}
+.composite-preview .view-strip{left:12px;right:28px;bottom:10px;gap:5px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:#596450 #141a12;max-height:65px}
+.composite-preview .view-group{flex:0 0 auto;flex-wrap:nowrap;max-width:none;padding:3px;gap:3px}
+.composite-preview .view-strip button{padding:6px 8px;font-size:10px}
+.composite-preview .control-panel{height:100vh;max-height:100vh;zoom:1;width:260px;font-size:11px}
+.composite-preview .workbench{grid-template-columns:minmax(0,1fr) 260px}
+.composite-preview .workbench.is-collapsed{grid-template-columns:minmax(0,1fr) 0}
+@media(max-width:700px){.composite-preview .control-panel{width:220px}.composite-preview .workbench{grid-template-columns:minmax(0,1fr) 220px}.composite-preview .view-group>span{display:none}}

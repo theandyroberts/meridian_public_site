@@ -115,8 +115,7 @@ export default async function HomePage() {
           <div className="empty-state">
             <p className="mono">Catalog is empty</p>
             <p style={{ marginTop: 12 }}>
-              Run <code className="mono-md">npm run demo:generate && npm run demo:ingest</code>{" "}
-              to populate the demo catalog.
+              New plates will appear here once they are ready.
             </p>
           </div>
         )}

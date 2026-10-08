@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { CompositeDetail } from "@/components/CompositeDetail";
+import { loadImportedComposite } from "@/lib/importedComposite";
 import crypto from "node:crypto";
 import { notFound } from "next/navigation";
 import {
@@ -48,6 +50,11 @@ export default async function PlatePage({
       ? await getPlate(sku, { includeDrafts: true })
       : undefined);
   if (!plate) notFound();
+
+  if (plate.composite) {
+    const clip = await loadImportedComposite(plate);
+    return <><CompositeDetail clip={clip} catalogMode browseHref={browseReturnPath}/><section className="wrap" style={{paddingBottom:64}}><PriceBlock plate={plate}/></section></>;
+  }
 
   const related = (await getLivePlates())
     .filter(

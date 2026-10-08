@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getPlate } from "@/lib/catalog";
 import { siteTitle } from "@/lib/siteTitle";
 
 export const metadata: Metadata = {
@@ -56,7 +57,10 @@ export default async function StageViewerPage({
   for (const name of forwardedParameters) {
     if (query[name]) viewerQuery.set(name, query[name]);
   }
-  const viewerSrc = `/stage/index.html${viewerQuery.size ? `?${viewerQuery}` : ""}`;
+  const plate = query.sku ? await getPlate(query.sku) : undefined;
+  if (plate?.composite) viewerQuery.set("coverageBottom", String(plate.composite.coverageBottom));
+  const viewerBase = plate?.composite ? "/imported-stage" : "/stage";
+  const viewerSrc = `${viewerBase}/index.html${viewerQuery.size ? `?${viewerQuery}` : ""}`;
 
   return (
     <div

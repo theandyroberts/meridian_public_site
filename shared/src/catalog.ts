@@ -19,9 +19,9 @@ export const SHOT_TYPES = [
   "rural",
 ] as const;
 
-export const TIMES_OF_DAY = ["dawn", "day", "dusk", "night"] as const;
+export const TIMES_OF_DAY = ["dawn", "day", "dusk", "night", "unverified"] as const;
 
-export const WEATHER = ["clear", "cloudy", "rain", "fog", "snow"] as const;
+export const WEATHER = ["clear", "cloudy", "rain", "fog", "snow", "unverified"] as const;
 
 export const SEASONS = ["spring", "summer", "fall", "winter"] as const;
 
@@ -156,6 +156,13 @@ export const plateSchema = z.object({
   gps: gpsSchema.optional(),
   imu: imuSchema,
 
+  composite: z.object({
+    id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    sourceFingerprint: z.string().min(1),
+    release: z.string().regex(/^[a-z0-9-]+$/),
+    approvedAt: z.string(),
+    coverageBottom: z.number().min(0).max(1),
+  }).optional(),
   status: z.enum(PLATE_STATUS).default("live"),
   /** Definitive library↔catalog link. MMM's immutable stock clip ID. */
   mmm: z.object({ stockClipId: z.string().min(1) }).optional(),
