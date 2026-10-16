@@ -1,4 +1,4 @@
-import { GlobeMark, Logo } from "@/components/Logo";
+import { BrandArtwork, Logo } from "@/components/Logo";
 import { MailingListForm } from "@/components/MailingListForm";
 
 export function ComingSoon() {
@@ -6,7 +6,7 @@ export function ComingSoon() {
     <main className="coming-soon">
       <div className="coming-soon-grid" aria-hidden="true" />
       <div className="coming-soon-orbit" aria-hidden="true">
-        <GlobeMark size={720} />
+        <BrandArtwork size={720} />
       </div>
       <section className="coming-soon-content">
         <Logo />
