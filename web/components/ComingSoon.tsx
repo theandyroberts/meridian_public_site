@@ -5,10 +5,10 @@ export function ComingSoon() {
     <main className="coming-soon">
       <div className="coming-soon-grid" aria-hidden="true" />
       <div className="coming-soon-orbit" aria-hidden="true">
-        <BrandArtwork size={720} />
+        <BrandArtwork size={720} variant="stacked" />
       </div>
       <section className="coming-soon-content">
-        <Logo />
+        <Logo variant="stacked" />
         <div className="coming-soon-horizon" />
         <p className="mono accent">360×180 environments</p>
         <h1>

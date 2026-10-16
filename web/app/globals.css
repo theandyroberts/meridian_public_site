@@ -2205,15 +2205,21 @@ body::before {
 .plate-grid > *:nth-child(5) { animation-delay: 0.24s; }
 .plate-grid > *:nth-child(6) { animation-delay: 0.3s; }
 
-/* Supplied Plate Lab artwork, shared across both site versions. */
-.site-logo{display:block;flex-shrink:0;width:164px}
+/* Supplied horizontal lockup; the launch hero retains the stacked artwork. */
+.site-logo{display:block;flex-shrink:0;width:260px}
+.brand-artwork-horizontal{position:relative;display:block;max-width:100%;aspect-ratio:840/124;overflow:hidden;mix-blend-mode:screen}
+.brand-artwork-horizontal>img{position:absolute;display:block;max-width:none;width:127.61905%;height:auto;left:-11.42857%;top:-74.19355%}
+.site-logo>.brand-artwork-horizontal{width:100%!important}
 .coming-soon-content .site-logo{width:300px;max-width:75vw}
 .coming-soon-content .site-logo img{width:100%!important}
 .coming-soon-orbit img{width:100%;height:auto}
-@media(max-width:700px){.site-logo{width:124px}.site-logo img{width:100%!important}}
+.site-header{--header-logo-width:260px;background:linear-gradient(to right,#000 0,#000 calc(var(--header-logo-width) + 20px),rgba(14,14,16,.96) calc(var(--header-logo-width) + 220px),rgba(14,14,16,.88) 100%)}
+.site-header .wrap{max-width:none;width:100%;margin:0;padding:0 clamp(16px,4vw,64px) 0 0;gap:24px}
+.site-header .site-logo{width:var(--header-logo-width)}
+@media(max-width:720px){.site-header{--header-logo-width:200px}.site-header .wrap{gap:12px}}
 @media(max-width:520px){
-  .site-header .wrap{gap:10px;height:auto;min-height:72px;padding-top:8px;padding-bottom:8px}
-  .site-header .site-logo{width:104px}
+  .site-header{--header-logo-width:150px}
+  .site-header .wrap{gap:10px;height:auto;min-height:72px;padding:8px 12px 8px 0}
   .site-nav{flex:1;min-width:0;flex-wrap:wrap;justify-content:flex-end}
   .site-auth-actions{flex-wrap:wrap;justify-content:flex-end}
 }
