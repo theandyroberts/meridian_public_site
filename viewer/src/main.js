@@ -45,6 +45,7 @@ import {
   scaleModelToLength,
 } from './scene-scale.js'
 import { VEHICLE_PHYSICAL_LENGTHS_FT } from './vehicle-specs.js'
+import { orientVehicleModel } from './vehicle-orientation.js'
 
 const FEET_TO_UNITS = FEET_TO_SCENE_UNITS
 const CAMERA_SENSOR_WIDTH_MM = 36
@@ -148,7 +149,6 @@ const vehicleModels = {
     label: 'Sports convertible',
     file: `${import.meta.env.BASE_URL}models/ferrari.glb`,
     credit: 'Ferrari 458 Italia by vicent091036 via the official Three.js car materials example.',
-    rotationY: -Math.PI / 2,
     targetLengthFt: VEHICLE_PHYSICAL_LENGTHS_FT.ferrari,
     shadow: 'ferrari',
   },
@@ -156,7 +156,6 @@ const vehicleModels = {
     label: 'BMW M5 sedan',
     file: `${import.meta.env.BASE_URL}models/bmw_m5.glb`,
     credit: 'BMW M5 sedan test model from Get3DModels/DreamCar.',
-    rotationY: 0,
     targetLengthFt: VEHICLE_PHYSICAL_LENGTHS_FT.bmwM5,
     shadow: 'soft',
   },
@@ -164,7 +163,6 @@ const vehicleModels = {
     label: 'Escalade SUV',
     file: `${import.meta.env.BASE_URL}models/escalade.glb`,
     credit: 'Cadillac Escalade ESV test model from Get3DModels/OUTPISTON.',
-    rotationY: 0,
     targetLengthFt: VEHICLE_PHYSICAL_LENGTHS_FT.escalade,
     shadow: 'soft',
   },
@@ -1155,6 +1153,7 @@ function loadVehicle(key) {
 }
 
 function loadVehicleSpec(vehicle) {
+  const vehicleKey = state.vehicleKey
   vehicleReady = false
   disposeVehicleMaterials(dynamicVehicleMaterials, sharedCarMaterials)
   dynamicVehicleMaterials.clear()
@@ -1164,11 +1163,10 @@ function loadVehicleSpec(vehicle) {
   vehicleLoader.load(
     vehicle.file,
     (gltf) => {
-      const carModel = gltf.scene.children[0] || gltf.scene
+      const carModel = orientVehicleModel(gltf.scene, vehicleKey)
       const sourceMaterials = collectObjectMaterials(carModel)
       carModel.name = vehicle.label
-      carModel.rotation.y = vehicle.rotationY
-      prepareVehicleOptics(carModel, state.vehicleKey)
+      prepareVehicleOptics(carModel, vehicleKey)
       applyCarMaterials(carModel)
       disposeVehicleMaterials(sourceMaterials, collectObjectMaterials(carModel))
       normalizeVehicleModel(carModel, vehicle)

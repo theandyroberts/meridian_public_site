@@ -6,6 +6,7 @@ import * as THREE from 'three'
 import { fileURLToPath } from 'node:url'
 import { scaleModelToLength } from '../src/scene-scale.js'
 import { VEHICLE_PHYSICAL_LENGTHS_FT } from '../src/vehicle-specs.js'
+import { orientVehicleModel } from '../src/vehicle-orientation.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const modelDir = path.resolve(here, '..', 'public', 'models')
@@ -33,7 +34,36 @@ for (const [key, expected] of Object.entries(vehicles)) {
   })
 }
 
-function readGlbBounds(file) {
+for (const [key, expected] of Object.entries(vehicles)) {
+  test(`${key} stage orientation aligns its length to forward while preserving height`, () => {
+    const file = path.join(modelDir, expected.file)
+    const authoredSize = readGlbBounds(file)
+    const source = new THREE.Group()
+    const model = orientVehicleModel(source, key)
+    model.updateMatrixWorld(true)
+    const stageSize = readGlbBounds(file, model.matrixWorld)
+    assert.ok(stageSize.x > stageSize.z * 2, 'longitudinal axis must follow stage +X/-X, not sideways')
+    assert.ok(Math.abs(stageSize.y - authoredSize.y) < 0.0001, 'authored up-axis must stay upright')
+    // Front directions verified against the headlights/grille in each asset.
+    const front = new THREE.Vector3(0, 0, key === 'ferrari' ? -1 : 1).transformDirection(model.matrixWorld)
+    assert.ok(front.x > 0.999, 'front must face +X, toward the front camera presets')
+  })
+}
+
+test('orientation preserves imported root transforms and every scene root', () => {
+  const scene = new THREE.Group()
+  const root = new THREE.Group()
+  root.rotation.x = -Math.PI / 2
+  root.scale.setScalar(0.01)
+  scene.add(root, new THREE.Group())
+  const model = orientVehicleModel(scene, 'bmwM5')
+  assert.equal(model.children[0], scene)
+  assert.equal(scene.children.length, 2)
+  assert.equal(root.rotation.x, -Math.PI / 2)
+  assert.equal(root.scale.x, 0.01)
+})
+
+function readGlbBounds(file, orientation = new THREE.Matrix4()) {
   const buffer = fs.readFileSync(file)
   assert.equal(buffer.toString('utf8', 0, 4), 'glTF')
   const jsonLength = buffer.readUInt32LE(12)
@@ -65,6 +95,6 @@ function readGlbBounds(file) {
   }
 
   const scene = gltf.scenes[gltf.scene || 0]
-  for (const nodeIndex of scene.nodes) visitNode(nodeIndex, new THREE.Matrix4())
+  for (const nodeIndex of scene.nodes) visitNode(nodeIndex, orientation)
   return bounds.getSize(new THREE.Vector3())
 }
