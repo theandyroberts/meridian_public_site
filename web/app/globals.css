@@ -2204,3 +2204,16 @@ body::before {
 .plate-grid > *:nth-child(4) { animation-delay: 0.18s; }
 .plate-grid > *:nth-child(5) { animation-delay: 0.24s; }
 .plate-grid > *:nth-child(6) { animation-delay: 0.3s; }
+
+/* Supplied Plate Lab artwork, shared across both site versions. */
+.site-logo{display:block;flex-shrink:0;width:164px}
+.coming-soon-content .site-logo{width:300px;max-width:75vw}
+.coming-soon-content .site-logo img{width:100%!important}
+.coming-soon-orbit img{width:100%;height:auto}
+@media(max-width:700px){.site-logo{width:124px}.site-logo img{width:100%!important}}
+@media(max-width:520px){
+  .site-header .wrap{gap:10px;height:auto;min-height:72px;padding-top:8px;padding-bottom:8px}
+  .site-header .site-logo{width:104px}
+  .site-nav{flex:1;min-width:0;flex-wrap:wrap;justify-content:flex-end}
+  .site-auth-actions{flex-wrap:wrap;justify-content:flex-end}
+}

@@ -43,3 +43,27 @@
 .highlightBar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;font-size:11px;color:#a9b39f}.highlightBar button{background:var(--category-soft);border:1px solid var(--category-color);border-radius:4px;padding:7px 11px;color:var(--category-color);font-size:11px}.highlightBar button[aria-pressed="true"]{background:var(--category-color);color:#11180f}.cardFrame .frameTime,.cardFrame .frameCount{z-index:1}
 
 .highlightsSummary{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:14px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:4px;background:#bccaa907}.highlightsSummary p{margin:0;font-size:11px;line-height:1.6;color:#a5af9c}.highlightsSummary strong{display:block;color:#d2d8c9;font-weight:450}.highlightsSummary span{display:block}.highlightsSummary button{flex-shrink:0;padding:9px 13px;border:1px solid #c4ae8780;background:#c4ae8717;border-radius:4px;color:#e1c99f;font-size:11px}.highlightsSummary button[aria-pressed="true"]{background:#c4ae87;color:#151b12}.highlightsSummary button:disabled,.highlightBar button:disabled{opacity:.5;cursor:default}.highlightBar>div{display:flex;gap:8px;flex-shrink:0}@media(max-width:700px){.highlightBar{align-items:flex-start;flex-direction:column}.highlightsSummary{padding:10px;gap:8px}.highlightsSummary button{padding:8px;font-size:10px}}
+
+/* Panorama and synchronized location share one row; Lab retains the full width. */
+.previewRow{display:grid;grid-template-columns:minmax(0,1fr);min-height:0}
+.panoramaRow{grid-template-columns:minmax(0,2fr) minmax(260px,1fr);align-items:stretch}
+.panoramaRow .previewFrame{aspect-ratio:auto;min-height:300px}
+.panoramaRow .panoramaLayer{display:flex;align-items:center}
+.panoramaRow .crop{height:auto;aspect-ratio:32/9;background:#080b09}
+.panoramaRow .crop video{width:100%;height:auto;object-fit:fill;aspect-ratio:2/1}
+.panoramaAside{border-left:1px solid #343c32;padding:16px;background:#171d17;min-width:0}
+.panoramaAside[hidden]{display:none}
+.panoramaAside .mapCard{padding:0;border:0;background:none}
+.panoramaAside .sectionTitle{margin-bottom:10px}
+.panoramaAside h2{font-size:21px}
+.panoramaAside .map{aspect-ratio:1000/650;min-height:0}
+.panoramaAside .mapCaption{padding-top:10px}
+.gpsReadings{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin:12px 0;font:10px var(--font-plex-mono),monospace}
+.gpsReadings dt{color:#929d8d;font-size:9px;margin-bottom:4px}.gpsReadings dd{margin:0;color:#dedfd2;font-variant-numeric:tabular-nums}
+.notableLabels{border-left:1px solid #343c32;padding-left:30px}
+.notableLabels h2{font-size:27px;margin:9px 0 20px}
+.notableLabels ul{margin:0;padding-left:20px;display:grid;gap:14px;color:#bd795b}
+.notableLabels button{background:none;border:0;text-align:left;padding:0;color:#e2e2d5;font:inherit;cursor:pointer;line-height:1.4}
+.notableLabels button:hover{text-decoration:underline}.notableLabels button span{display:block;margin-top:3px;font-size:10px;color:#9da594}
+.expandedPlayer .previewRow{flex:1;min-height:0}.expandedPlayer .previewFrame{height:100%}
+@media(max-width:800px){.panoramaRow{grid-template-columns:minmax(0,1fr)}.panoramaRow .previewFrame{aspect-ratio:32/9;min-height:160px}.panoramaAside{border-left:0;border-top:1px solid #343c32}.panoramaAside .map{max-height:280px}.notableLabels{border-left:0;border-top:1px solid #343c32;padding:24px 0 0}}

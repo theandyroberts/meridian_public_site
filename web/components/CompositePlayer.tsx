@@ -1,9 +1,10 @@
 'use client';
 import {forwardRef,useEffect,useImperativeHandle,useRef,useState} from 'react';
+import type {ReactNode} from 'react';
 import styles from './CompositeDetail.module.css';
 
 export type CompositePlayerHandle={seek:(time:number)=>void};
-type Props={id:string;title:string;videoURL:string;stageBase:string;posterURL:string;start:number;duration:number;fps:number;sourceTimecode:string;coverageBottom:number;onTimeChange:(time:number)=>void};
+type Props={id:string;title:string;videoURL:string;stageBase:string;posterURL:string;start:number;duration:number;fps:number;sourceTimecode:string;coverageBottom:number;onTimeChange:(time:number)=>void;panoramaAside?:ReactNode};
 const AUTO_SWITCH_SECONDS=10;
 const clock=(time:number)=>`${Math.floor(time/60).toString().padStart(2,'0')}:${Math.floor(time%60).toString().padStart(2,'0')}`;
 
@@ -13,7 +14,7 @@ function PauseIcon(){return <svg viewBox="0 0 24 24" width="24" height="24" aria
 
 export const CompositePlayer=forwardRef<CompositePlayerHandle,Props>(function CompositePlayer(props,ref){
   const video=useRef<HTMLVideoElement>(null),iframe=useRef<HTMLIFrameElement>(null),shell=useRef<HTMLDivElement>(null);
-  const [mode,setMode]=useState<'panorama'|'stage'>('panorama'),[playing,setPlaying]=useState(false),[ready,setReady]=useState(false),[stageReady,setStageReady]=useState(false),[auto,setAuto]=useState(true),[error,setError]=useState(''),[stageError,setStageError]=useState(''),[current,setCurrent]=useState(props.start),[expanded,setExpanded]=useState(false);
+  const [mode,setMode]=useState<'panorama'|'stage'>('stage'),[playing,setPlaying]=useState(false),[ready,setReady]=useState(false),[stageReady,setStageReady]=useState(false),[auto,setAuto]=useState(false),[error,setError]=useState(''),[stageError,setStageError]=useState(''),[current,setCurrent]=useState(props.start),[expanded,setExpanded]=useState(false);
   const expandButton=useRef<HTMLButtonElement>(null),closeButton=useRef<HTMLButtonElement>(null);
   const pendingStage=useRef(false),targetTime=useRef(props.start),playPromise=useRef<Promise<void>|null>(null),playIntent=useRef(false),hoverPaused=useRef(false);
   const videoId=`composite-video-${props.id}`;
@@ -46,7 +47,8 @@ export const CompositePlayer=forwardRef<CompositePlayerHandle,Props>(function Co
   }
   function chooseMode(next:'panorama'|'stage'){
     setAuto(false);pendingStage.current=next==='stage'&&!stageReady;
-    if(next==='panorama'||stageReady)setMode(next);
+    setMode(next);
+    if(next==='panorama')void startPlayback();
   }
   function openFullLab(){
     chooseMode('stage');setExpanded(true);
@@ -108,13 +110,14 @@ export const CompositePlayer=forwardRef<CompositePlayerHandle,Props>(function Co
   return <div id="plate-viewer" className={styles.compositeViewer}>
     <div className={styles.viewerBar}>
       <div className={styles.modeSwitch} role="group" aria-label="Preview view">
-        <button aria-pressed={mode==='panorama'} className={mode==='panorama'?styles.active:''} onClick={()=>chooseMode('panorama')}><span aria-hidden="true">▭</span> Panoramic view <small>32:9</small></button>
         <button aria-pressed={mode==='stage'} className={mode==='stage'?styles.active:''} onClick={()=>chooseMode('stage')}><span aria-hidden="true">◉</span> Lab 360</button>
+        <button aria-pressed={mode==='panorama'} className={mode==='panorama'?styles.active:''} onClick={()=>chooseMode('panorama')}><span aria-hidden="true">▭</span> Panoramic view <small>32:9</small></button>
       </div>
       <div className={styles.viewerActions}><button className={`${styles.autoSwitch} ${auto?styles.autoSwitchOn:''}`} aria-pressed={auto} onClick={()=>setAuto(value=>!value)}>Auto-switch <span>{AUTO_SWITCH_SECONDS}s</span></button><button ref={expandButton} className={styles.fullLabButton} onClick={openFullLab}><span aria-hidden="true">⛶</span> Full Lab</button></div>
     </div>
     <div className={`${styles.player} ${expanded?styles.expandedPlayer:''}`} ref={shell} data-preview-mode={mode}>
       {expanded&&<div className={styles.expandedBar}><strong>Lab 360</strong><button ref={closeButton} onClick={closeFullLab}>Exit Full Lab <span aria-hidden="true">×</span></button></div>}
+      <div className={`${styles.previewRow} ${mode==='panorama'&&props.panoramaAside?styles.panoramaRow:''}`}>
       <div className={styles.previewFrame} onPointerEnter={event=>{if(event.pointerType==='mouse'&&!hoverPaused.current)void startPlayback();}} onPointerLeave={()=>{hoverPaused.current=false;}}>
         <div className={`${styles.panoramaLayer} ${mode==='panorama'?styles.layerActive:''}`} aria-hidden={mode!=='panorama'} inert={mode!=='panorama'}>
           <div className={styles.crop}>
@@ -125,9 +128,11 @@ export const CompositePlayer=forwardRef<CompositePlayerHandle,Props>(function Co
         </div>
         <iframe ref={iframe} className={`${styles.stageLayer} ${mode==='stage'?styles.layerActive:''}`} aria-hidden={mode!=='stage'} inert={mode!=='stage'} tabIndex={mode==='stage'?0:-1} title="Lab 360 — stabilized composite" src={stageURL} allow="autoplay; fullscreen" loading="eager"/>
       </div>
+      {props.panoramaAside&&<aside className={styles.panoramaAside} hidden={mode!=='panorama'} aria-label="Map and motion telemetry">{props.panoramaAside}</aside>}
+      </div>
       <div className={styles.transport}><button onClick={()=>video.current?.paused?void startPlayback():pause()} aria-label={playing?'Pause composite':'Play composite'}>{playing?<PauseIcon/>:<PlayIcon/>}</button><span>{clock(current)}</span><input aria-label="Clip timeline" type="range" min="0" max={props.duration-1/props.fps} step={1/props.fps} value={current} onChange={event=>seek(Number(event.target.value))}/><span className={styles.dim}>{clock(props.duration)}</span><button onClick={()=>expanded?closeFullLab():shell.current?.requestFullscreen?.().catch(()=>{})} aria-label={expanded?'Exit Full Lab':'Full screen'}>⛶</button></div>
       {error&&<p role="alert" className={styles.playbackError}>{error}</p>}
     </div>
-    <p className={styles.previewHint} role="status">{stageError||(!stageReady?'Preparing Lab 360 in the background…':auto?`Hover to play · views alternate every ${AUTO_SWITCH_SECONDS} seconds`:'Hover to play · manual view selected')}</p>
+    <p className={styles.previewHint} role="status">{stageError||(!stageReady?'Preparing Lab 360…':auto?`Hover to play · views alternate every ${AUTO_SWITCH_SECONDS} seconds`:'Choose a view · playback and location stay in sync')}</p>
   </div>;
 });

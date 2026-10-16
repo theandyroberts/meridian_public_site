@@ -1,4 +1,7 @@
 import './style.css'
+import {createVehicleLook,defaultVehicleLook} from './vehicle-look.js'
+import {makeWindowGlass,prepareVehicleOptics} from './vehicle-optics.js'
+import {createEnvironmentUpdateGate,captureEnvironment} from './environment-lighting.js'
 import * as THREE from 'three'
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
@@ -169,7 +172,7 @@ const vehicleModels = {
 const state = {
   presetKey: 'amazon',
   selectedView: 'mediumRear',
-  finishKey: 'silver',
+  finishKey: 'red',
   vehicleKey: 'ferrari',
   vehicleYaw: 0,
   exposure: 1.15,
@@ -557,6 +560,8 @@ const stageVideoUniforms = {
   ceilingBottom: { value: 0.25 },
   nativeSphere: { value: 0 },
   validBottom: { value: 1 },
+  captureRadiance: { value: 0 },
+  radianceGain: { value: 2 },
 }
 const screenMaterial = makeEquirectStageMaterial(stageVideoUniforms, 0)
 const ceilingMaterial = makeEquirectStageMaterial(stageVideoUniforms, 1)
@@ -605,15 +610,31 @@ function makeEquirectStageMaterial(sharedUniforms, surfaceType) {
       uniform float surfaceType;
       uniform float nativeSphere;
       uniform float validBottom;
+      uniform float captureRadiance;
+      uniform float radianceGain;
       varying vec3 vWorldPosition;
 
       const float PI = 3.141592653589793;
 
+      vec4 plateOutput(vec3 color) {
+        return captureRadiance > 0.5
+          ? vec4(sRGBTransferEOTF(vec4(max(color, vec3(0.0)), 1.0)).rgb * radianceGain, 1.0)
+          : vec4(color, 1.0);
+      }
       void main() {
         vec3 direction = normalize(vec3(vWorldPosition.x, vWorldPosition.y - originY, vWorldPosition.z));
+        if (surfaceType > 2.5) direction = normalize(vWorldPosition);
         float u = fract(atan(direction.z, direction.x) / (2.0 * PI) + 0.5 + yaw);
         float visualV;
 
+        if (surfaceType > 2.5) {
+          float sphereV = clamp(0.5 - asin(clamp(direction.y, -1.0, 1.0)) / PI + verticalOffset, 0.0, 1.0);
+          float sourceV = nativeSphere > 0.5 ? sphereV : mix(cropTop, cropBottom, sphereV);
+          // Uncaptured lower hemisphere contributes no invented radiance.
+          vec3 color = nativeSphere > 0.5 && sourceV > validBottom ? vec3(0.0) : texture2D(map, vec2(u, 1.0 - sourceV)).rgb;
+          gl_FragColor = plateOutput(color);
+          return;
+        }
         if (mode < 0.5) {
           float sphereV = 0.5 - asin(clamp(direction.y, -1.0, 1.0)) / PI + verticalOffset;
           if (nativeSphere > 0.5) {
@@ -638,7 +659,7 @@ function makeEquirectStageMaterial(sharedUniforms, surfaceType) {
         }
         visualV = clamp(visualV, 0.0, 1.0);
         vec4 color = texture2D(map, vec2(u, 1.0 - visualV));
-        gl_FragColor = color;
+        gl_FragColor = plateOutput(color.rgb);
       }
     `,
   })
@@ -650,7 +671,8 @@ const floorMaterial = new THREE.MeshStandardMaterial({
   metalness: 0.02,
   envMapIntensity: 0,
 })
-const floorLogoTexture = makePlateLabLogoTexture()
+const floorLogoTexture = new THREE.TextureLoader().load('/branding/plate-lab-logo.jpeg')
+floorLogoTexture.colorSpace = THREE.SRGBColorSpace
 const floorLogoMaterial = new THREE.MeshBasicMaterial({
   map: floorLogoTexture,
   transparent: true,
@@ -661,22 +683,14 @@ const floorLogoMaterial = new THREE.MeshBasicMaterial({
 
 const carMaterials = {
   paint: new THREE.MeshPhysicalMaterial({
-    color: finishPresets.silver.color,
+    color: finishPresets.red.color,
     metalness: 1,
     roughness: 0.18,
     clearcoat: 1,
     clearcoatRoughness: 0.025,
     envMapIntensity: 2.8,
   }),
-  glass: new THREE.MeshPhysicalMaterial({
-    color: 0xdcecff,
-    metalness: 0.08,
-    roughness: 0.01,
-    transmission: 0.72,
-    transparent: true,
-    opacity: 0.42,
-    envMapIntensity: 2.2,
-  }),
+  glass: makeWindowGlass(),
   rubber: new THREE.MeshStandardMaterial({ color: 0x030303, roughness: 0.82, metalness: 0.08, envMapIntensity: 0.35 }),
   chrome: new THREE.MeshPhysicalMaterial({ color: 0xe8eeee, metalness: 1, roughness: 0.06, envMapIntensity: 2.6 }),
   details: new THREE.MeshStandardMaterial({ color: 0xcfd6d3, roughness: 0.34, metalness: 1, envMapIntensity: 1.8 }),
@@ -684,27 +698,35 @@ const carMaterials = {
   amberLight: new THREE.MeshPhysicalMaterial({ color: 0xf2a340, emissive: 0x301303, roughness: 0.18, metalness: 0.2 }),
   dark: new THREE.MeshStandardMaterial({ color: 0x0e1011, roughness: 0.64, metalness: 0.18, envMapIntensity: 0.45 }),
 }
+const vehicleLook = createVehicleLook(defaultVehicleLook())
 const sharedCarMaterials = new Set(Object.values(carMaterials))
 const dynamicVehicleMaterials = new Set()
 
 const keyLight = new THREE.DirectionalLight(0xffffff, 1.8)
 keyLight.position.set(5, 8, 4)
 scene.add(keyLight)
-const rimLight = new THREE.DirectionalLight(0xb7e37d, 1.2)
+const rimLight = new THREE.DirectionalLight(0xffffff, 1.2)
 rimLight.position.set(-5, 5, -6)
 scene.add(rimLight)
-scene.add(new THREE.HemisphereLight(0x91b9ff, 0x121008, 0.65))
-scene.add(new THREE.AmbientLight(0xffffff, 0.18))
+const previewHemisphere = new THREE.HemisphereLight(0xffffff, 0x101010, 0.65)
+const previewAmbient = new THREE.AmbientLight(0xffffff, 0.18)
+scene.add(previewHemisphere, previewAmbient)
 
-const reflectionTarget = new THREE.WebGLCubeRenderTarget(256, {
+const reflectionTarget = new THREE.WebGLCubeRenderTarget(512, {
   type: THREE.HalfFloatType,
-  generateMipmaps: true,
-  minFilter: THREE.LinearMipmapLinearFilter,
+  generateMipmaps: false,
+  minFilter: THREE.LinearFilter,
 })
+reflectionTarget.texture.colorSpace = THREE.LinearSRGBColorSpace
 const reflectionCamera = new THREE.CubeCamera(0.1, 80, reflectionTarget)
 reflectionCamera.position.set(0, 1.05, 0)
 scene.add(reflectionCamera)
-assignReflectionMap(reflectionTarget.texture)
+const environmentGate = createEnvironmentUpdateGate(20)
+const plateLightingScene = new THREE.Scene()
+plateLightingScene.background = new THREE.Color(0)
+const plateLightingMaterial = makeEquirectStageMaterial(stageVideoUniforms, 3)
+plateLightingScene.add(new THREE.Mesh(new THREE.SphereGeometry(40,48,24),plateLightingMaterial))
+assignReflectionMap(null)
 
 buildCar()
 buildControls()
@@ -999,7 +1021,7 @@ function rebuildStage() {
   const height = state.dimensions.heightFt * FEET_TO_UNITS
   const arc = THREE.MathUtils.degToRad(state.dimensions.arcDeg)
   const thetaStart = Math.PI / 2 - arc / 2
-  stageVideoUniforms.originY.value = state.cameraRig?.lensHeight || 1.0
+  stageVideoUniforms.originY.value = 1.0
   stageVideoUniforms.stageHeight.value = height
   stageVideoUniforms.stageRadius.value = radius
 
@@ -1143,9 +1165,12 @@ function loadVehicleSpec(vehicle) {
       const sourceMaterials = collectObjectMaterials(carModel)
       carModel.name = vehicle.label
       carModel.rotation.y = vehicle.rotationY
+      prepareVehicleOptics(carModel, state.vehicleKey)
       applyCarMaterials(carModel)
       disposeVehicleMaterials(sourceMaterials, collectObjectMaterials(carModel))
       normalizeVehicleModel(carModel, vehicle)
+      vehicleLook.install(carModel)
+      syncEnvironment()
 
       carGroup.add(makeVehicleShadow(vehicle))
       carGroup.add(carModel)
@@ -1180,6 +1205,7 @@ function applyCarMaterials(carModel) {
 
   carModel.traverse((child) => {
     if (!child.isMesh) return
+    if ([child.material].flat().some(material=>material?.userData.spherisOptics)) { registerVehicleMaterial(child.material); return }
     child.castShadow = true
     child.receiveShadow = true
     const name = child.name.toLowerCase()
@@ -1267,7 +1293,8 @@ function normalizeVehicleModel(carModel, vehicle) {
   scaledBox.getCenter(center)
   carModel.position.x -= center.x
   carModel.position.z -= center.z
-  carModel.position.y -= scaledBox.min.y - 0.02
+  // Each model has its own authored origin: align its lowest contact point to the stage floor.
+  carModel.position.y -= scaledBox.min.y + 0.015
 }
 
 function makeVehicleShadow(vehicle) {
@@ -1286,7 +1313,7 @@ function makeVehicleShadow(vehicle) {
     new THREE.MeshBasicMaterial(materialOptions),
   )
   shadow.rotation.x = -Math.PI / 2
-  shadow.position.y = 0.018
+  shadow.position.y = -0.014
   shadow.renderOrder = 2
   return shadow
 }
@@ -1321,40 +1348,12 @@ function buildFallbackCar() {
 }
 
 function addFloorLogo(x, z, rotationZ) {
-  const logo = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.72), floorLogoMaterial.clone())
+  const logo = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4 * 305 / 720), floorLogoMaterial.clone())
   logo.rotation.x = -Math.PI / 2
   logo.rotation.z = rotationZ
   logo.position.set(x, 0.021, z)
   logo.renderOrder = 3
   scene.add(logo)
-}
-
-function makePlateLabLogoTexture() {
-  const logoCanvas = document.createElement('canvas')
-  logoCanvas.width = 1024
-  logoCanvas.height = 320
-  const ctx = logoCanvas.getContext('2d')
-  ctx.clearRect(0, 0, logoCanvas.width, logoCanvas.height)
-
-  ctx.fillStyle = 'rgba(238, 244, 238, 0.92)'
-  ctx.font = '900 108px Inter, Arial, sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('PLATE LAB', 512, 154)
-
-  ctx.strokeStyle = 'rgba(130, 215, 208, 0.7)'
-  ctx.lineWidth = 8
-  ctx.beginPath()
-  ctx.roundRect(126, 70, 772, 168, 28)
-  ctx.stroke()
-
-  ctx.fillStyle = 'rgba(183, 227, 125, 0.82)'
-  ctx.fillRect(190, 248, 644, 8)
-
-  const texture = new THREE.CanvasTexture(logoCanvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 8
-  return texture
 }
 
 function roundedBox(width, height, depth, radius, material) {
@@ -1406,7 +1405,7 @@ function setView(key, animate = true) {
   })
   document.querySelector('#cameraMode').textContent = 'Locked shot'
   syncCameraRigFromView(view)
-  stageVideoUniforms.originY.value = state.cameraRig.lensHeight
+  stageVideoUniforms.originY.value = 1.0
 
   const destination = new THREE.Vector3(...view.position)
   const target = new THREE.Vector3(...view.target)
@@ -1440,7 +1439,7 @@ function setView(key, animate = true) {
 
 function applyCameraRig() {
   const rig = state.cameraRig
-  stageVideoUniforms.originY.value = rig.lensHeight
+  stageVideoUniforms.originY.value = 1.0
   const yaw = THREE.MathUtils.degToRad(rig.orbitDeg)
   const target = new THREE.Vector3(0, rig.aimHeight, 0)
   const destination = new THREE.Vector3(
@@ -1628,7 +1627,7 @@ function syncCameraRigFromLiveCamera() {
   state.cameraRig.lensHeight = Number(camera.position.y.toFixed(2))
   state.cameraRig.aimHeight = Number(controls.target.y.toFixed(2))
   state.cameraRig.focalLength = Math.round(fovToFocalLength(camera.fov))
-  stageVideoUniforms.originY.value = state.cameraRig.lensHeight
+  stageVideoUniforms.originY.value = 1.0
   updateCameraRigOutputs()
 }
 
@@ -2054,26 +2053,10 @@ function drawScreenshotBranding(context, width, height, details) {
   context.fillStyle = '#d16d3d'
   context.fillRect(0, topHeight - Math.max(2, Math.round(3 * scale)), width, Math.max(2, Math.round(3 * scale)))
 
-  const markRadius = Math.round(20 * scale)
-  const markX = padding + markRadius
   const markY = Math.round(topHeight / 2)
-  context.strokeStyle = '#d16d3d'
-  context.lineWidth = Math.max(2, Math.round(2 * scale))
-  context.beginPath()
-  context.arc(markX, markY, markRadius, 0, Math.PI * 2)
-  context.moveTo(markX - markRadius, markY)
-  context.lineTo(markX + markRadius, markY)
-  context.moveTo(markX, markY - markRadius)
-  context.lineTo(markX, markY + markRadius)
-  context.stroke()
-
-  const textX = markX + markRadius + Math.round(14 * scale)
-  context.fillStyle = '#f3f5ef'
-  context.font = `700 ${Math.round(23 * scale)}px Inter, Arial, sans-serif`
-  context.fillText('THE PLATE LAB', textX, markY - Math.round(2 * scale))
-  context.fillStyle = '#aab5ad'
-  context.font = `600 ${Math.round(11 * scale)}px ui-monospace, SFMono-Regular, Menlo, monospace`
-  context.fillText('360 STUDIO PREVIEW', textX, markY + Math.round(18 * scale))
+  const brandWidth = Math.round(142 * scale)
+  const brandHeight = brandWidth * 305 / 720
+  if (floorLogoTexture.image) context.drawImage(floorLogoTexture.image, padding, (topHeight-brandHeight)/2, brandWidth, brandHeight)
 
   context.textAlign = 'right'
   context.fillStyle = '#b7e37d'
@@ -2366,31 +2349,21 @@ function setSelectionFeedback(message, tone = '') {
 }
 
 function syncEnvironment(texture = stageVideoUniforms.map.value) {
-  if (state.reflections && texture) {
-    assignReflectionMap(reflectionTarget.texture)
-    carMaterials.paint.envMapIntensity = 1.7
-    carMaterials.chrome.envMapIntensity = 2.2
-    carMaterials.glass.envMapIntensity = 1.35
-  } else {
-    assignReflectionMap(null)
-    carMaterials.paint.envMapIntensity = 0.7
-    carMaterials.chrome.envMapIntensity = 0.8
-    carMaterials.glass.envMapIntensity = 0.45
-  }
+  const active = state.reflections && Boolean(texture?.isVideoTexture) && video.readyState >= 2
+  assignReflectionMap(active ? reflectionTarget.texture : null)
+  keyLight.intensity = active ? 0 : 1.8
+  rimLight.intensity = active ? 0 : 1.2
+  previewHemisphere.intensity = active ? 0 : 0.65
+  previewAmbient.intensity = active ? 0 : 0.18
+  environmentGate.reset()
 }
 
 function assignReflectionMap(envMap) {
-  ;[
-    carMaterials.paint,
-    carMaterials.glass,
-    carMaterials.chrome,
-    carMaterials.details,
-    ...dynamicVehicleMaterials,
-  ].forEach((material) => {
-    material.envMap = envMap
-    if ('envMapIntensity' in material && material.envMapIntensity < 1.1) material.envMapIntensity = envMap ? 1.25 : 0.45
-    material.needsUpdate = true
-  })
+  for (const material of new Set([...Object.values(carMaterials), ...dynamicVehicleMaterials])) {
+    if (!('envMap' in material)) continue
+    if (material.envMap !== envMap) { material.envMap = envMap; material.needsUpdate = true }
+    material.envMapIntensity = material.userData.spherisEnvMapIntensity ?? 1
+  }
 }
 
 function applyFootageTransform(texture = stageVideoUniforms.map.value) {
@@ -2520,18 +2493,15 @@ function renderFrame(now) {
   const videoPlaying = Boolean(video.src && !video.paused && !video.ended)
   const shouldRender = renderInvalidated || resized || controlsChanged || constrained || videoPlaying
 
-  if (shouldRefreshReflection({
-    enabled: state.reflections,
-    videoPlaying,
-    reflectionInvalidated,
-    elapsedMs: now - lastReflectionRefresh,
-  })) {
-    carGroup.visible = false
-    reflectionCamera.position.set(0, 1.05, 0)
-    reflectionCamera.update(renderer, scene)
-    carGroup.visible = true
-    reflectionInvalidated = false
-    lastReflectionRefresh = now
+  if (state.reflections && activeVideoTexture && video.readyState >= 2) {
+    if (!carMaterials.paint.envMap) syncEnvironment()
+    const environmentKey = [activeVideoTexture.uuid,state.footageYaw,state.footageVertical,state.cropTop,state.cropBottom,stageVideoUniforms.nativeSphere.value,stageVideoUniforms.validBottom.value].join(':')
+    if (environmentGate.shouldUpdate(now,video.currentTime,environmentKey)) {
+      reflectionCamera.position.set(0,0,0)
+      captureEnvironment({renderer,camera:reflectionCamera,scene:plateLightingScene,radianceUniform:stageVideoUniforms.captureRadiance})
+      reflectionInvalidated = false
+      lastReflectionRefresh = now
+    }
   }
 
   if (shouldRender) renderer.render(scene, camera)
