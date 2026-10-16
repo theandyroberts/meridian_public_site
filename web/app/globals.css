@@ -84,8 +84,8 @@ body::before {
   position: absolute;
   z-index: -2;
   top: 50%;
-  right: -120px;
-  width: min(62vw, 760px);
+  right: clamp(0px, 2vw, 48px);
+  width: min(42vw, 620px);
   color: var(--orange);
   opacity: 0.24;
   transform: translateY(-50%);
@@ -109,7 +109,7 @@ body::before {
 .coming-soon-content h1 {
   max-width: 800px;
   margin-top: 18px;
-  font-size: clamp(56px, 8.5vw, 126px);
+  font-size: clamp(56px, 7.4vw, 112px);
   line-height: 0.88;
   letter-spacing: -0.055em;
 }
@@ -145,8 +145,10 @@ body::before {
   .coming-soon-orbit {
     top: auto;
     right: -30vw;
-    bottom: -18vw;
+    bottom: 40px;
     width: 100vw;
+    opacity: 0.12;
+    transform: none;
   }
   .coming-soon-content {
     width: calc(100% - 40px);
@@ -2207,11 +2209,9 @@ body::before {
 
 /* Supplied horizontal lockup; the launch hero retains the stacked artwork. */
 .site-logo{display:block;flex-shrink:0;width:260px}
-.brand-artwork-horizontal{position:relative;display:block;max-width:100%;aspect-ratio:840/124;overflow:hidden;mix-blend-mode:screen}
-.brand-artwork-horizontal>img{position:absolute;display:block;max-width:none;width:127.61905%;height:auto;left:-11.42857%;top:-74.19355%}
-.site-logo>.brand-artwork-horizontal{width:100%!important}
-.coming-soon-content .site-logo{width:300px;max-width:75vw}
-.coming-soon-content .site-logo img{width:100%!important}
+.brand-artwork{display:block}
+.site-logo>.brand-artwork{width:100%!important}
+.coming-soon-content .site-logo{width:320px;max-width:85vw}
 .coming-soon-orbit img{width:100%;height:auto}
 .site-header{--header-logo-width:260px;background:linear-gradient(to right,#000 0,#000 calc(var(--header-logo-width) + 20px),rgba(14,14,16,.96) calc(var(--header-logo-width) + 220px),rgba(14,14,16,.88) 100%)}
 .site-header .wrap{max-width:none;width:100%;margin:0;padding:0 clamp(16px,4vw,64px) 0 0;gap:24px}
@@ -2223,3 +2223,5 @@ body::before {
   .site-nav{flex:1;min-width:0;flex-wrap:wrap;justify-content:flex-end}
   .site-auth-actions{flex-wrap:wrap;justify-content:flex-end}
 }
+
+@media(min-width:1000px){.coming-soon-content{width:min(780px,calc(56vw - 32px))}}
