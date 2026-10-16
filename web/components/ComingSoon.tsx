@@ -1,12 +1,11 @@
-import { BrandArtwork, Logo } from "@/components/Logo";
+import { ComingSoonGlobe } from "@/components/ComingSoonGlobe";
+import { Logo } from "@/components/Logo";
 
 export function ComingSoon() {
   return (
     <main className="coming-soon">
       <div className="coming-soon-grid" aria-hidden="true" />
-      <div className="coming-soon-orbit" aria-hidden="true">
-        <BrandArtwork size={620} variant="globe" />
-      </div>
+      <ComingSoonGlobe />
       <section className="coming-soon-content">
         <Logo />
         <div className="coming-soon-horizon" />

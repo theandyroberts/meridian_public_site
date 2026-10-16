@@ -2207,7 +2207,7 @@ body::before {
 .plate-grid > *:nth-child(5) { animation-delay: 0.24s; }
 .plate-grid > *:nth-child(6) { animation-delay: 0.3s; }
 
-/* Supplied horizontal lockup; the launch hero retains the stacked artwork. */
+/* Shared transparent vector branding. */
 .site-logo{display:block;flex-shrink:0;width:260px}
 .brand-artwork{display:block}
 .site-logo>.brand-artwork{width:100%!important}
@@ -2225,3 +2225,13 @@ body::before {
 }
 
 @media(min-width:1000px){.coming-soon-content{width:min(780px,calc(56vw - 32px))}}
+
+/* Oversized orbital artwork overlaps the composition; only the wire globe moves. */
+.coming-soon-orbit{width:min(80vw,1180px);right:-8vw;top:46%;opacity:1;aspect-ratio:180/124;pointer-events:none;perspective:1200px}
+.coming-soon-globe-follow{position:absolute;inset:0;mask-image:linear-gradient(to right,#0002,#000 38%);transform:rotateX(var(--globe-pitch,0deg)) rotateY(var(--globe-yaw,0deg));transform-origin:50% 50%}
+.coming-soon-orbit .coming-soon-globe-drift{display:block;width:100%;height:100%;opacity:.32;transform-origin:50% 50%;animation:coming-soon-orbit-drift 22s ease-in-out infinite;will-change:transform}
+.coming-soon-orbit .coming-soon-fixed-plate{position:absolute;inset:0;width:100%;height:100%;opacity:.78}
+.coming-soon-orbit[data-paused="true"] .coming-soon-globe-drift{animation-play-state:paused}
+@keyframes coming-soon-orbit-drift{0%,100%{transform:rotateZ(-7deg) rotateY(-12deg) rotateX(5deg)}50%{transform:rotateZ(7deg) rotateY(12deg) rotateX(-5deg)}}
+@media(max-width:700px){.coming-soon-orbit{width:160vw;right:-72vw;top:40%;bottom:auto;transform:translateY(-50%)}.coming-soon-orbit .coming-soon-globe-drift{opacity:.14}.coming-soon-orbit .coming-soon-fixed-plate{opacity:.26}}
+@media(prefers-reduced-motion:reduce){.coming-soon-globe-follow{transform:none}.coming-soon-orbit .coming-soon-globe-drift{animation:none;will-change:auto}}
