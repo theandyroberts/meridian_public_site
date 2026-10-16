@@ -32,3 +32,9 @@ export function shouldRefreshReflection({
       ),
   )
 }
+
+// Download completion alone is not presentation readiness: the decoded frame,
+// vehicle and its environment must all participate in a completed render.
+export function canPresentPreview({ rendered, modelReady, decodedFrameReady, lightingReady }) {
+  return Boolean(rendered && modelReady && decodedFrameReady && lightingReady)
+}

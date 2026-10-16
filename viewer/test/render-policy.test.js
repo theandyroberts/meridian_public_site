@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   cappedDevicePixelRatio,
+  canPresentPreview,
   shouldRefreshReflection,
   shouldRenderContinuously,
   shouldScheduleVideoFrame,
@@ -35,4 +36,23 @@ test('refreshes the six-face reflection capture only for changed content', () =>
   assert.equal(shouldRefreshReflection({ enabled: true, reflectionInvalidated: true }), true)
   assert.equal(shouldRefreshReflection({ enabled: true }), false)
   assert.equal(shouldRefreshReflection({ enabled: false, videoPlaying: true }), false)
+})
+
+ test('does not reveal a paused preview when media wins the race against the model', () => {
+  const frame = { rendered: true, decodedFrameReady: true, lightingReady: true, modelReady: false }
+  assert.equal(canPresentPreview(frame), false)
+  frame.modelReady = true
+  frame.rendered = false
+  assert.equal(canPresentPreview(frame), false)
+  frame.rendered = true
+  assert.equal(canPresentPreview(frame), true)
+})
+
+test('does not reveal a loaded vehicle until its video and reflections are rendered', () => {
+  const frame = { rendered: true, modelReady: true, decodedFrameReady: false, lightingReady: false }
+  assert.equal(canPresentPreview(frame), false)
+  frame.decodedFrameReady = true
+  assert.equal(canPresentPreview(frame), false)
+  frame.lightingReady = true
+  assert.equal(canPresentPreview(frame), true)
 })

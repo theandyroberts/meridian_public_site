@@ -17,6 +17,7 @@ import {
 } from './duration-tier.js'
 import {
   cappedDevicePixelRatio,
+  canPresentPreview,
   shouldRefreshReflection,
   shouldRenderContinuously,
   shouldScheduleVideoFrame,
@@ -516,8 +517,8 @@ if (embedParams.get('sharedVideo') && window.parent !== window) {
 const video = sharedVideo || document.createElement('video')
 let embeddedActive = !sharedVideo
 let embeddedReady = false
-let embeddedAssetsReady = false
-THREE.DefaultLoadingManager.onLoad = () => { embeddedAssetsReady = true; invalidateRender({reflection:true}) }
+let vehicleReady = false
+THREE.DefaultLoadingManager.onLoad = () => invalidateRender({reflection:true})
 video.loop = true
 video.muted = true
 video.playsInline = true
@@ -914,6 +915,7 @@ function buildControls() {
     invalidateRender({ reflection: true })
   })
   video.addEventListener('loadedmetadata', initializeTransport)
+  video.addEventListener('loadeddata', () => invalidateRender({ reflection: true }))
   video.addEventListener('canplay', () => {
     clearViewerFailure()
     setPlaybackStatus(video.paused ? 'Ready to play' : 'Playing')
@@ -1153,6 +1155,7 @@ function loadVehicle(key) {
 }
 
 function loadVehicleSpec(vehicle) {
+  vehicleReady = false
   disposeVehicleMaterials(dynamicVehicleMaterials, sharedCarMaterials)
   dynamicVehicleMaterials.clear()
   clearGroup(carGroup)
@@ -1174,6 +1177,7 @@ function loadVehicleSpec(vehicle) {
 
       carGroup.add(makeVehicleShadow(vehicle))
       carGroup.add(carModel)
+      vehicleReady = true
       setPlaybackStatus(video.src ? 'Playing' : `${vehicle.label} loaded`)
       document.querySelector('#vehicleCredit').textContent = vehicle.credit
       invalidateRender()
@@ -1182,6 +1186,8 @@ function loadVehicleSpec(vehicle) {
     () => {
       clearGroup(carGroup)
       buildFallbackCar()
+      vehicleReady = true
+      syncEnvironment()
       setPlaybackStatus('Using fallback car')
       invalidateRender()
     },
@@ -2493,7 +2499,13 @@ function renderFrame(now) {
   const videoPlaying = Boolean(video.src && !video.paused && !video.ended)
   const shouldRender = renderInvalidated || resized || controlsChanged || constrained || videoPlaying
 
-  if (state.reflections && activeVideoTexture && video.readyState >= 2) {
+  // A paused/shared video may already have decoded before VideoTexture was
+  // created, so no new video-frame callback is guaranteed until playback.
+  const decodedFrameReady = Boolean(activeVideoTexture && video.readyState >= 2 && !video.seeking)
+  if (shouldRender && decodedFrameReady && (video.paused || !embeddedReady)) activeVideoTexture.needsUpdate = true
+
+  if (state.reflections && decodedFrameReady) {
+    if (reflectionInvalidated) environmentGate.reset()
     if (!carMaterials.paint.envMap) syncEnvironment()
     const environmentKey = [activeVideoTexture.uuid,state.footageYaw,state.footageVertical,state.cropTop,state.cropBottom,stageVideoUniforms.nativeSphere.value,stageVideoUniforms.validBottom.value].join(':')
     if (environmentGate.shouldUpdate(now,video.currentTime,environmentKey)) {
@@ -2505,7 +2517,10 @@ function renderFrame(now) {
   }
 
   if (shouldRender) renderer.render(scene, camera)
-  if (sharedVideo && !embeddedReady && embeddedAssetsReady && video.readyState >= 2) {
+  if (sharedVideo && !embeddedReady && canPresentPreview({
+    rendered: shouldRender, modelReady: vehicleReady, decodedFrameReady,
+    lightingReady: !state.reflections || !reflectionInvalidated,
+  })) {
     embeddedReady = true
     window.parent.postMessage({type:'tpl-stage-ready'}, location.origin)
   }

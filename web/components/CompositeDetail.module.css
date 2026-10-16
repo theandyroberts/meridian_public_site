@@ -64,3 +64,5 @@
 .notableLabels button:hover{text-decoration:underline}.notableLabels button span{display:block;margin-top:3px;font-size:10px;color:#9da594}
 .expandedPlayer .previewRow{flex:1;min-height:0}.expandedPlayer .previewFrame{height:100%}
 @media(max-width:800px){.panoramaRow{grid-template-columns:minmax(0,1fr)}.panoramaRow .previewFrame{aspect-ratio:32/9;min-height:160px}.panoramaAside{border-left:0;border-top:1px solid #343c32}.panoramaAside .map{max-height:280px}.notableLabels{border-left:0;border-top:1px solid #343c32;padding:24px 0 0}}
+
+.stageLoading{position:absolute;inset:0;overflow:hidden;background:#080b07;pointer-events:none}.stageLoading>span{position:absolute;left:16px;bottom:16px;padding:8px 12px;border:1px solid #ffffff30;border-radius:4px;background:#10150fe8;color:#e3e3d5;font-size:12px}

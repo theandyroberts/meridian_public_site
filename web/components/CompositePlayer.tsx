@@ -115,7 +115,7 @@ export const CompositePlayer=forwardRef<CompositePlayerHandle,Props>(function Co
       </div>
       <div className={styles.viewerActions}><button className={`${styles.autoSwitch} ${auto?styles.autoSwitchOn:''}`} aria-pressed={auto} onClick={()=>setAuto(value=>!value)}>Auto-switch <span>{AUTO_SWITCH_SECONDS}s</span></button><button ref={expandButton} className={styles.fullLabButton} onClick={openFullLab}><span aria-hidden="true">⛶</span> Full Lab</button></div>
     </div>
-    <div className={`${styles.player} ${expanded?styles.expandedPlayer:''}`} ref={shell} data-preview-mode={mode}>
+    <div className={`${styles.player} ${expanded?styles.expandedPlayer:''}`} ref={shell} data-preview-mode={mode} data-stage-ready={stageReady}>
       {expanded&&<div className={styles.expandedBar}><strong>Lab 360</strong><button ref={closeButton} onClick={closeFullLab}>Exit Full Lab <span aria-hidden="true">×</span></button></div>}
       <div className={`${styles.previewRow} ${mode==='panorama'&&props.panoramaAside?styles.panoramaRow:''}`}>
       <div className={styles.previewFrame} onPointerEnter={event=>{if(event.pointerType==='mouse'&&!hoverPaused.current)void startPlayback();}} onPointerLeave={()=>{hoverPaused.current=false;}}>
@@ -126,7 +126,8 @@ export const CompositePlayer=forwardRef<CompositePlayerHandle,Props>(function Co
             {!playing&&<button className={styles.bigPlay} onClick={()=>void startPlayback()} aria-label="Play composite"><PlayIcon/></button>}
           </div>
         </div>
-        <iframe ref={iframe} className={`${styles.stageLayer} ${mode==='stage'?styles.layerActive:''}`} aria-hidden={mode!=='stage'} inert={mode!=='stage'} tabIndex={mode==='stage'?0:-1} title="Lab 360 — stabilized composite" src={stageURL} allow="autoplay; fullscreen" loading="eager"/>
+        <iframe ref={iframe} className={`${styles.stageLayer} ${mode==='stage'&&stageReady?styles.layerActive:''}`} aria-hidden={mode!=='stage'||!stageReady} inert={mode!=='stage'||!stageReady} tabIndex={mode==='stage'&&stageReady?0:-1} title="Lab 360 — stabilized composite" src={stageURL} allow="autoplay; fullscreen" loading="eager"/>
+        {mode==='stage'&&!stageReady&&<div className={styles.stageLoading} aria-busy="true"><img className={styles.playerPoster} src={props.posterURL} alt="Panoramic preview while Lab 360 loads"/><span>Preparing Lab 360…</span></div>}
       </div>
       {props.panoramaAside&&<aside className={styles.panoramaAside} hidden={mode!=='panorama'} aria-label="Map and motion telemetry">{props.panoramaAside}</aside>}
       </div>
