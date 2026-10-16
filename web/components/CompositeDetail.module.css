@@ -46,20 +46,17 @@
 
 /* Panorama and synchronized location share one row; Lab retains the full width. */
 .previewRow{display:grid;grid-template-columns:minmax(0,1fr);min-height:0}
-.panoramaRow{grid-template-columns:minmax(0,2fr) minmax(260px,1fr);align-items:stretch}
-.panoramaRow .previewFrame{aspect-ratio:auto;min-height:300px}
+.panoramaRow{grid-template-columns:minmax(0,11fr) minmax(0,4fr);align-items:stretch}
+.panoramaRow .previewFrame{aspect-ratio:32/9;min-height:0}
 .panoramaRow .panoramaLayer{display:flex;align-items:center}
 .panoramaRow .crop{height:auto;aspect-ratio:32/9;background:#080b09}
 .panoramaRow .crop video{width:100%;height:auto;object-fit:fill;aspect-ratio:2/1}
-.panoramaAside{border-left:1px solid #343c32;padding:16px;background:#171d17;min-width:0}
+.panoramaAside{border-left:1px solid #343c32;padding:10px;background:#171d17;min-width:0}
 .panoramaAside[hidden]{display:none}
 .panoramaAside .mapCard{padding:0;border:0;background:none}
-.panoramaAside .sectionTitle{margin-bottom:10px}
-.panoramaAside h2{font-size:21px}
 .panoramaAside .map{aspect-ratio:1000/650;min-height:0}
-.panoramaAside .mapCaption{padding-top:10px}
-.gpsReadings{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin:12px 0;font:10px var(--font-plex-mono),monospace}
-.gpsReadings dt{color:#929d8d;font-size:9px;margin-bottom:4px}.gpsReadings dd{margin:0;color:#dedfd2;font-variant-numeric:tabular-nums}
+.gpsReadings{display:flex;flex-wrap:wrap;justify-content:space-between;gap:5px 8px;margin:7px 0 0;font:9px var(--font-mono),monospace}
+.gpsReadings>div{display:flex;align-items:baseline;gap:5px}.gpsReadings dt{color:#929d8d;font-size:8px}.gpsReadings dd{margin:0;color:#dedfd2;font-variant-numeric:tabular-nums}
 .notableLabels{border-left:1px solid #343c32;padding-left:30px}
 .notableLabels h2{font-size:27px;margin:9px 0 20px}
 .notableLabels ul{margin:0;padding-left:20px;display:grid;gap:14px;color:#bd795b}
