@@ -6,16 +6,18 @@ export function ComingSoon() {
     <main className="coming-soon">
       <div className="coming-soon-grid" aria-hidden="true" />
       <div className="coming-soon-orbit" aria-hidden="true">
-        <BrandArtwork size={720} variant="stacked" />
+        <BrandArtwork size={620} variant="globe" />
       </div>
       <section className="coming-soon-content">
-        <Logo variant="stacked" />
+        <Logo />
         <div className="coming-soon-horizon" />
         <p className="mono accent">360×180 environments</p>
         <h1>
           See the world
           <br />
-          before you shoot it.
+          before you
+          <br />
+          shoot it.
         </h1>
         <p className="coming-soon-lede">
           Production-ready environments for LED volumes, virtual production,
