@@ -5,6 +5,7 @@ const PREVIEW_BUCKET = "plate-previews";
 type PublicMediaEnvironment = {
   siteUrl?: string;
   supabaseUrl?: string;
+  mediaBaseUrl?: string;
 };
 
 export function publicMediaUrl(
@@ -12,11 +13,17 @@ export function publicMediaUrl(
   environment: PublicMediaEnvironment = {
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    mediaBaseUrl: process.env.NEXT_PUBLIC_MEDIA_BASE_URL,
   },
 ): string {
   if (!assetUrl.startsWith("/media/")) return assetUrl;
 
   try {
+    if (environment.mediaBaseUrl) {
+      const base = `${environment.mediaBaseUrl.replace(/\/+$/, "")}/`;
+      return new URL(assetUrl.slice("/media/".length), base).href;
+    }
+
     if (
       !environment.siteUrl ||
       !environment.supabaseUrl ||
