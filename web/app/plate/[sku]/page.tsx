@@ -1,11 +1,21 @@
 import Link from "next/link";
+import { CompositeDetail } from "@/components/CompositeDetail";
+import { loadImportedComposite } from "@/lib/importedComposite";
 import crypto from "node:crypto";
 import { notFound } from "next/navigation";
-import { getPlate, getLivePlates, formatDuration } from "@/lib/catalog";
+import {
+  getLivePlate,
+  getPlate,
+  getLivePlates,
+  formatDuration,
+} from "@/lib/catalog";
 import { SyncedPlayer } from "@/components/SyncedPlayer";
 import { GpsPanel } from "@/components/GpsPanel";
 import { PriceBlock } from "@/components/PriceBlock";
 import { PlateCard } from "@/components/PlateCard";
+import { publicMediaUrl } from "@/lib/publicMediaUrl";
+import { buildStudioHref } from "@/lib/studioHref";
+import { safeBrowseReturnPath } from "@/lib/browseSearch";
 
 export const dynamic = "force-dynamic";
 
@@ -24,17 +34,29 @@ export default async function PlatePage({
   searchParams,
 }: {
   params: Promise<{ sku: string }>;
-  searchParams: Promise<{ exp?: string; sig?: string }>;
+  searchParams: Promise<{
+    exp?: string;
+    sig?: string;
+    from?: string | string[];
+  }>;
 }) {
   const { sku } = await params;
-  const plate = getPlate(sku);
+  const { exp, sig, from } = await searchParams;
+  const browseReturnPath = safeBrowseReturnPath(from);
+  const livePlate = await getLivePlate(sku);
+  const plate =
+    livePlate ??
+    (validPreviewSig(sku, exp, sig)
+      ? await getPlate(sku, { includeDrafts: true })
+      : undefined);
   if (!plate) notFound();
-  if (plate.status === "draft") {
-    const { exp, sig } = await searchParams;
-    if (!validPreviewSig(sku, exp, sig)) notFound();
+
+  if (plate.composite) {
+    const clip = await loadImportedComposite(plate);
+    return <><CompositeDetail clip={clip} catalogMode browseHref={browseReturnPath}/><section className="wrap" style={{paddingBottom:64}}><PriceBlock plate={plate}/></section></>;
   }
 
-  const related = getLivePlates()
+  const related = (await getLivePlates())
     .filter(
       (p) =>
         p.sku !== plate.sku &&
@@ -47,13 +69,22 @@ export default async function PlatePage({
     "green-screen": "Green Screen",
     projection: "Projection",
   };
+  const stageHref = plate.renditions.stagePreview
+    ? buildStudioHref({
+        video: publicMediaUrl(plate.renditions.stagePreview),
+        label: `${plate.sku} · ${plate.title}`,
+        fps: plate.media.fps,
+        sourceTimecode: plate.media.timecode,
+        sku: plate.sku,
+      })
+    : null;
 
   return (
     <main className="wrap">
       <div className="detail-head">
         <div>
           <div className="crumbs mono dimmer">
-            <Link href="/browse">Plates</Link>
+            <Link href={browseReturnPath}>Plates</Link>
             <span>/</span>
             <span className="accent">{plate.sku}</span>
           </div>
@@ -67,7 +98,14 @@ export default async function PlatePage({
         </div>
       </div>
 
-      <SyncedPlayer plate={plate} />
+      <SyncedPlayer
+        plate={plate}
+        stageHref={
+          plate.stageCompat.includes("led-volume") && stageHref
+            ? stageHref
+            : undefined
+        }
+      />
 
       <div className="detail-cols">
         <div>
@@ -181,13 +219,17 @@ export default async function PlatePage({
         <section className="related">
           <div className="section-head">
             <h2>Similar plates</h2>
-            <Link href="/browse" className="mono dim">
+            <Link href={browseReturnPath} className="mono dim">
               Browse all →
             </Link>
           </div>
           <div className="plate-grid">
             {related.map((p) => (
-              <PlateCard key={p.sku} plate={p} />
+              <PlateCard
+                key={p.sku}
+                plate={p}
+                browseReturnPath={browseReturnPath}
+              />
             ))}
           </div>
         </section>

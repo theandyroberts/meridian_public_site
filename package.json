@@ -1,16 +1,45 @@
 {
   "name": "platelab",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0 <27"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
+  },
   "workspaces": [
     "shared",
     "pipeline",
     "web"
   ],
+  "dependencies": {
+    "@supabase/supabase-js": "2.111.0"
+  },
   "scripts": {
     "demo:generate": "npm run generate -w pipeline",
+    "ingest:preflight": "npm run preflight -w pipeline --",
+    "ingest:preflight:all": "npm run preflight:all -w pipeline --",
     "demo:ingest": "npm run ingest:all -w pipeline",
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset --local",
+    "db:lint": "supabase db lint --local --level warning",
+    "db:test": "psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0001_foundation_checks.sql && psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0002_rls_access_matrix.sql && psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0003_project_onboarding_checks.sql && psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0004_catalog_search_checks.sql && psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0005_scene_workflow_checks.sql && psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0006_scene_json_import_checks.sql && psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0007_private_project_titles_checks.sql && psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0008_default_stage_vehicle_checks.sql && psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0009_scene_configuration_checks.sql && psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/tests/0010_scene_search_guidance_checks.sql",
+    "db:types": "node scripts/generate-supabase-types.mjs",
+    "db:smoke:auth": "node scripts/smoke-local-auth.mjs",
+    "db:staging:check": "node scripts/staging-database.mjs check",
+    "db:staging:apply": "node scripts/staging-database.mjs apply",
+    "catalog:local:import": "node --env-file-if-exists=.env --import tsx scripts/catalog-database.ts import local",
+    "catalog:local:check": "node --env-file-if-exists=.env --import tsx scripts/catalog-database.ts check local",
+    "catalog:local:embed": "node --env-file-if-exists=.env --import tsx scripts/catalog-database.ts embed local",
+    "catalog:staging:import": "node --env-file-if-exists=.env --import tsx scripts/catalog-database.ts import staging",
+    "catalog:staging:check": "node --env-file-if-exists=.env --import tsx scripts/catalog-database.ts check staging",
+    "catalog:staging:embed": "node --env-file-if-exists=.env --import tsx scripts/catalog-database.ts embed staging",
+    "stage:previews:build": "bash pipeline/stitch/build-stage-previews.sh",
+    "stage:previews:check": "node scripts/check-stage-previews.mjs",
+    "staging:smoke:email": "node scripts/staging-auth-email-smoke.mjs",
     "test": "npm test -w pipeline"
   }
 }

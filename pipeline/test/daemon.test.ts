@@ -4,6 +4,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+// Metadata fallbacks are permitted only in this non-production daemon fixture.
+process.env.PLATELAB_ALLOW_STUB_METADATA = "true";
+process.env.PLATELAB_TRUST_SUPPLIED_MASTER = "true";
+
 test("daemon processes an uploaded handoff end to end into draft plates", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tpl-daemon-"));
   process.env.PLATELAB_ROOT = root;

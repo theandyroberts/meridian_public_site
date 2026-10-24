@@ -1,0 +1,36 @@
+.statusRow {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.status {
+  color: var(--paper-60);
+  font-size: 12px;
+}
+
+.status[data-state="saved"] {
+  color: #31725a;
+}
+
+.status[data-state="saving"],
+.status[data-state="dirty"] {
+  color: var(--orange);
+}
+
+.status[data-state="error"] {
+  color: #9c332f;
+}
+
+.retry {
+  min-height: 36px;
+}
+
+@media (max-width: 720px) {
+  .statusRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

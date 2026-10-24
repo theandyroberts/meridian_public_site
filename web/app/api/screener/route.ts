@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   if (!secret) {
     return NextResponse.json({ error: "screener not configured" }, { status: 503 });
   }
-  if (!getPlate(sku)) {
+  if (!(await getPlate(sku, { includeDrafts: true }))) {
     return NextResponse.json({ error: "unknown sku" }, { status: 404 });
   }
   if (expiresAt < Math.floor(Date.now() / 1000)) {

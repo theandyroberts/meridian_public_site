@@ -73,3 +73,13 @@ test("adapt: complex hyphenated slugs (PRIVATE-001) parse correctly", async () =
   assert.equal(drop.meta.shootDate, "2026-07-08");
   assert.equal(drop.meta.location.city, "Private 001");
 });
+
+test("adapt: Legacy GA DTLA clips select their solved rig calibration", async () => {
+  const root = tmp();
+  const legacyClip = "SPH-STK-LEGACY-20260803-GA-DTLA-DTLA-DAY01-CLIP-0010";
+  await makeHandoff(root, { clips: [{ stockClipId: legacyClip }] });
+  const manifest = await verifyHandoff(root);
+  const { drop } = adaptClip(root, manifest.clips[0]);
+  assert.equal(drop.meta.rig, "Legacy XL");
+  assert.equal(drop.meta.calibrationProfile, "legacy-xl-ga-dtla-2024-v2");
+});

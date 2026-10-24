@@ -2,9 +2,10 @@ import Link from "next/link";
 import { listTransfers } from "@platelab/shared/server";
 import { requireAdmin } from "@/lib/admin/session";
 import { TRANSFERS_DIR } from "@/lib/ingest/paths";
+import { siteTitle } from "@/lib/siteTitle";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Handoffs — TPL Admin" };
+export const metadata = { title: siteTitle("Handoffs — TPL Admin") };
 
 export default async function HandoffsPage() {
   await requireAdmin();

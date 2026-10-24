@@ -9,11 +9,11 @@ import {
 import { audit } from "./audit.js";
 import { PUBLIC_MEDIA } from "./paths.js";
 import { discover, type Drop } from "./stages/discover.js";
-import { probe } from "./stages/probe.js";
 import { sha256File } from "./stages/checksum.js";
-import { loadTelemetry } from "./stages/telemetry.js";
+import { enrichTelemetryLocations, loadTelemetry } from "./stages/telemetry.js";
 import { labelDrop } from "./stages/label.js";
 import { describePlate } from "./stages/describe.js";
+import { prepareFullSphereMaster } from "./stages/master.js";
 import { buildRenditions } from "./stages/renditions.js";
 import { uploadRenditions } from "./stages/upload.js";
 import { publishPlate } from "./stages/publish.js";
@@ -37,9 +37,16 @@ export async function ingestDiscovered(drop: Drop, opts: IngestOpts = {}): Promi
   const t0 = Date.now();
   audit("ingest.start", { dropDir: drop.dir });
 
-  const masterFile = drop.stitchedMaster ?? drop.cameraFiles.A;
-  if (!masterFile) throw new Error(`${drop.dir}: no master (stitched or cam A)`);
-  const probed = await probe(masterFile);
+  const preparedMaster = await prepareFullSphereMaster(drop);
+  const masterFile = preparedMaster.path;
+  const probed = preparedMaster.probe;
+  audit("ingest.master", {
+    dropDir: drop.dir,
+    source: preparedMaster.source,
+    calibration: preparedMaster.calibration?.id,
+    calibrationSource: preparedMaster.calibration?.source,
+    metricsPath: preparedMaster.metricsPath,
+  });
   audit("ingest.probe", { dropDir: drop.dir, ...probed });
 
   const sku = opts.sku ?? assignSku();
@@ -49,8 +56,10 @@ export async function ingestDiscovered(drop: Drop, opts: IngestOpts = {}): Promi
   const masterSha256 = await sha256File(masterFile);
   audit("ingest.checksum", { sku, masterSha256 });
 
-  const telemetry = drop.telemetryPath ? loadTelemetry(drop.telemetryPath) : undefined;
-  const labels = await labelDrop(masterFile, probed.durationSec, drop.meta);
+  const telemetry = drop.telemetryPath
+    ? await enrichTelemetryLocations(loadTelemetry(drop.telemetryPath))
+    : undefined;
+  const labels = await labelDrop(masterFile, probed.durationSec, drop.meta, telemetry);
   audit("ingest.label", { sku, labeler: labels.labeler, count: labels.objects.length });
 
   const described = await describePlate(
@@ -61,9 +70,14 @@ export async function ingestDiscovered(drop: Drop, opts: IngestOpts = {}): Promi
   );
   audit("ingest.describe", { sku, describer: described.describer });
 
-  const renditions = await buildRenditions(drop, sku, path.join(PUBLIC_MEDIA, sku));
+  const renditions = await buildRenditions(
+    drop,
+    masterFile,
+    sku,
+    path.join(PUBLIC_MEDIA, sku),
+  );
   const uploaded = await uploadRenditions(sku, renditions, [
-    ...(drop.stitchedMaster ? [drop.stitchedMaster] : []),
+    masterFile,
     ...Object.values(drop.cameraFiles).filter((f): f is string => !!f),
   ]);
   audit("ingest.upload", { sku, mode: uploaded.mode });
@@ -79,11 +93,11 @@ export async function ingestDiscovered(drop: Drop, opts: IngestOpts = {}): Promi
     media: {
       durationSec: Math.round(probed.durationSec * 100) / 100,
       fps: probed.fps,
-      stitchedResolution: "3840x1920",
+      stitchedResolution: `${probed.width}x${probed.height}`,
       colorPipeline: "Log3G10 / REDWideGamutRGB",
-      masterFormat: drop.stitchedMaster
-        ? "ProRes 4444 12-bit equirect"
-        : "ProRes 4444 12-bit equirect · pro stitch on delivery",
+      masterFormat: preparedMaster.source === "calibrated-nine-camera-stitch"
+        ? "ProRes 4444 12-bit equirect · calibrated nine-camera stitch"
+        : "ProRes 4444 12-bit equirect",
       cameraOriginals: "9x RED Komodo 6K R3D",
       timecode: drop.meta.timecode,
     },
@@ -105,6 +119,9 @@ export async function ingestDiscovered(drop: Drop, opts: IngestOpts = {}): Promi
     },
     renditions: {
       stitchedPreview: uploaded.stitchedPreviewUrl,
+      ...(uploaded.stagePreviewUrl
+        ? { stagePreview: uploaded.stagePreviewUrl }
+        : {}),
       cameraPreviews: uploaded.cameraPreviewUrls,
       poster: uploaded.posterUrl,
     },
@@ -112,7 +129,7 @@ export async function ingestDiscovered(drop: Drop, opts: IngestOpts = {}): Promi
     ingestedAt: new Date().toISOString(),
   };
 
-  publishPlate(plate);
+  await publishPlate(plate);
   audit("ingest.done", { sku, ms: Date.now() - t0 });
   return plate;
 }

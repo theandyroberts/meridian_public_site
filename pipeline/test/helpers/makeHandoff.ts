@@ -40,6 +40,24 @@ export async function makeHandoff(
           package_relative_path: rel, package_path: path.join(rootDir, rel),
           checksum_sha256: sha256(path.join(rootDir, rel)), checksum_verified: true });
       }
+      // Daemon tests exercise handoff state transitions, not the hours-long
+      // calibrated stitcher. Ship a tiny valid 2:1 live reference beside the
+      // nine feeds, mirroring a handoff that carries both source and preview.
+      const stitchedRel = path.join(
+        clipRel,
+        "assets",
+        `${token}__10_captured_live_stitch.mp4`,
+      );
+      await tinyVideo(path.join(rootDir, stitchedRel), c.seconds ?? 1);
+      assets.push({
+        role: "captured_live_stitch",
+        camera_number: null,
+        source_path: "/mmm/captured_live_stitch.mp4",
+        package_relative_path: stitchedRel,
+        package_path: path.join(rootDir, stitchedRel),
+        checksum_sha256: sha256(path.join(rootDir, stitchedRel)),
+        checksum_verified: true,
+      });
     } else if (assetType === "captured_live_stitch") {
       const rel = path.join(clipRel, "assets", `${token}__01_captured_live_stitch.mp4`);
       await tinyVideo(path.join(rootDir, rel), c.seconds ?? 1);

@@ -42,12 +42,15 @@ export async function reverifyHandoff(transferId: string): Promise<void> {
 
 export async function publishPlateAction(sku: string): Promise<void> {
   await requireAdmin();
-  publishDraft(sku);
+  await publishDraft(sku);
   revalidatePath("/admin/drafts");
 }
 
 export async function rejectPlateAction(sku: string, formData: FormData): Promise<void> {
   await requireAdmin();
-  rejectDraft(sku, String(formData.get("reason") ?? "rejected from admin"));
+  await rejectDraft(
+    sku,
+    String(formData.get("reason") ?? "rejected from admin"),
+  );
   revalidatePath("/admin/drafts");
 }

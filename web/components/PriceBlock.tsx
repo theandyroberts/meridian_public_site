@@ -42,11 +42,11 @@ export function PriceBlock({ plate }: { plate: Plate }) {
           </span>
         </div>
         <div className="row">
-          <span>Stitched 360×180 master</span>
-          <span>included</span>
+          <span>{plate.composite ? "Finishing / master delivery" : "Stitched 360×180 master"}</span>
+          <span>{plate.composite ? "confirm delivery scope" : "included"}</span>
         </div>
         <div className="row">
-          <span>9× R3D camera originals</span>
+          <span>{plate.composite ? "Camera originals" : "9× R3D camera originals"}</span>
           <span>on request</span>
         </div>
         <div className="row">

@@ -1,0 +1,53 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { publicMediaUrl } from "../lib/publicMediaUrl";
+
+test("local development can use remote previews without changing the site URL", () => {
+  for (const suffix of ["", "/"]) {
+    const environment = {
+      siteUrl: "http://localhost:3000",
+      mediaBaseUrl: `https://storage.example.com/storage/v1/object/public/plate-previews${suffix}`,
+    };
+    assert.equal(
+      publicMediaUrl("/media/PL-4180192/poster.jpg", environment),
+      "https://storage.example.com/storage/v1/object/public/plate-previews/PL-4180192/poster.jpg",
+    );
+    assert.equal(
+      publicMediaUrl("https://cdn.example.com/preview.mp4", environment),
+      "https://cdn.example.com/preview.mp4",
+    );
+  }
+});
+
+test("staging resolves local catalog paths through Supabase Storage", () => {
+  for (const siteUrl of [
+    "https://staging.theplatelab.site",
+    "https://staging.theplatelab.studio",
+    "https://staging.platelabstudio.com",
+  ]) {
+    assert.equal(
+      publicMediaUrl("/media/PL-4180192/poster.jpg", {
+        siteUrl,
+        supabaseUrl: "https://supabase-staging.theplatelab.site",
+      }),
+      "https://supabase-staging.theplatelab.site/storage/v1/object/public/plate-previews/PL-4180192/poster.jpg",
+    );
+  }
+});
+
+test("production and already-hosted assets are unchanged", () => {
+  assert.equal(
+    publicMediaUrl("/media/PL-4180192/poster.jpg", {
+      siteUrl: "https://theplatelab.studio",
+      supabaseUrl: "https://supabase.theplatelab.site",
+    }),
+    "/media/PL-4180192/poster.jpg",
+  );
+  assert.equal(
+    publicMediaUrl("https://cdn.example.com/poster.jpg", {
+      siteUrl: "https://staging.theplatelab.site",
+      supabaseUrl: "https://supabase-staging.theplatelab.site",
+    }),
+    "https://cdn.example.com/poster.jpg",
+  );
+});

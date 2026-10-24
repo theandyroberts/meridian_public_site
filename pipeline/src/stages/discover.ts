@@ -33,6 +33,10 @@ export const dropMetaSchema = z.object({
   sceneHints: z.array(z.string()).default([]),
   /** 'log' masters get the preview viewing grade; 'graded' masters are web-ready. */
   colorState: z.enum(["log", "graded"]).default("log"),
+  /** Portable stitchlab calibration id. Defaults to the validated current rig profile. */
+  calibrationProfile: z.string().min(1).optional(),
+  /** Explicit operator approval for a supplied 2:1 master with no stitchlab QC report. */
+  trustedStitchedMaster: z.boolean().default(false),
 });
 
 export type DropMeta = z.infer<typeof dropMetaSchema>;

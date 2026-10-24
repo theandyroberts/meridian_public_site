@@ -19,9 +19,9 @@ export const SHOT_TYPES = [
   "rural",
 ] as const;
 
-export const TIMES_OF_DAY = ["dawn", "day", "dusk", "night"] as const;
+export const TIMES_OF_DAY = ["dawn", "day", "dusk", "night", "unverified"] as const;
 
-export const WEATHER = ["clear", "cloudy", "rain", "fog", "snow"] as const;
+export const WEATHER = ["clear", "cloudy", "rain", "fog", "snow", "unverified"] as const;
 
 export const SEASONS = ["spring", "summer", "fall", "winter"] as const;
 
@@ -58,6 +58,15 @@ export const CAMERA_POSITIONS: Record<CameraId, string> = {
 
 const latLon = z.object({ lat: z.number(), lon: z.number() });
 
+const geocodedLocation = z.object({
+  label: z.string().min(1),
+  road: z.string().optional(),
+  neighbourhood: z.string().optional(),
+  city: z.string().optional(),
+  region: z.string().optional(),
+  country: z.string().optional(),
+});
+
 export const gpsSchema = z.object({
   source: z.string(), // e.g. "u-blox F9R RTK"
   start: latLon,
@@ -66,6 +75,14 @@ export const gpsSchema = z.object({
   path: z.array(latLon).min(2),
   avgSpeedMph: z.number().nonnegative(),
   maxSpeedMph: z.number().nonnegative(),
+  startLocation: geocodedLocation.optional(),
+  endLocation: geocodedLocation.optional(),
+  geocoding: z
+    .object({
+      provider: z.string(),
+      lookedUpAt: z.string(),
+    })
+    .optional(),
 });
 
 export const imuSchema = z.object({
@@ -77,11 +94,29 @@ export const imuSchema = z.object({
 export const objectLabelSchema = z.object({
   label: z.string(),
   confidence: z.number().min(0).max(1),
+  category: z
+    .enum([
+      "object",
+      "landmark",
+      "infrastructure",
+      "architecture",
+      "environment",
+      "road-feature",
+      "vehicle",
+    ])
+    .optional(),
+  evidence: z.enum(["visual", "gps", "operator", "combined"]).optional(),
 });
 
 export const renditionsSchema = z.object({
-  /** Watermarked equirect preview MP4, the master clock in the player. */
+  /** Watermarked horizontal ring preview MP4, the master clock in the player. */
   stitchedPreview: z.string(),
+  /**
+   * Watermarked 2:1 equirectangular full-sphere preview for LED-volume previs.
+   * Kept separate from stitchedPreview so a cropped ring is never stretched
+   * over the virtual stage.
+   */
+  stagePreview: z.string().optional(),
   /** Watermarked per-camera preview MP4s, keyed by camera id. */
   cameraPreviews: z.record(z.enum(CAMERA_IDS), z.string()),
   poster: z.string(),
@@ -121,6 +156,13 @@ export const plateSchema = z.object({
   gps: gpsSchema.optional(),
   imu: imuSchema,
 
+  composite: z.object({
+    id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    sourceFingerprint: z.string().min(1),
+    release: z.string().regex(/^[a-z0-9-]+$/),
+    approvedAt: z.string(),
+    coverageBottom: z.number().min(0).max(1),
+  }).optional(),
   status: z.enum(PLATE_STATUS).default("live"),
   /** Definitive library↔catalog link. MMM's immutable stock clip ID. */
   mmm: z.object({ stockClipId: z.string().min(1) }).optional(),

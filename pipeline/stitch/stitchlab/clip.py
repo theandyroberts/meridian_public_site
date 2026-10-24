@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -114,10 +115,26 @@ class RingClip:
     def __post_init__(self):
         self.drop_dir = Path(self.drop_dir)
         for letter in self.letters:
-            path = self.drop_dir / f"cam_{letter}.mov"
-            if not path.exists():
-                raise FileNotFoundError(f"missing ring camera file: {path}")
-            self.cams[letter] = self._probe(letter, path)
+            explicit = [
+                self.drop_dir / f"cam_{letter}.mov",
+                self.drop_dir / f"cam_{letter}.mp4",
+                self.drop_dir / f"cam_{letter}.MOV",
+                self.drop_dir / f"cam_{letter}.MP4",
+            ]
+            matches = [candidate for candidate in explicit if candidate.exists()]
+            if not matches:
+                matches = sorted(
+                    candidate
+                    for candidate in self.drop_dir.iterdir()
+                    if candidate.is_file()
+                    and re.match(rf"^{letter}\d{{3}}_.*\.(?:mov|mp4)$", candidate.name, re.I)
+                )
+            if len(matches) != 1:
+                raise FileNotFoundError(
+                    f"camera {letter}: expected one cam_{letter}.mov/mp4 or Spheris filename, "
+                    f"found {[str(candidate) for candidate in matches]}"
+                )
+            self.cams[letter] = self._probe(letter, matches[0])
 
         fpss = {c.fps for c in self.cams.values()}
         if len(fpss) != 1:

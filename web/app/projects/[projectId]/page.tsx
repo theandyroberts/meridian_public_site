@@ -1,0 +1,318 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { ProjectDetailsAutosave } from "@/components/ProjectDetailsAutosave";
+import { SceneImportPanel } from "@/components/SceneImportPanel";
+import { SceneInputWorkspace } from "@/components/SceneInputWorkspace";
+import { sceneClipCounts } from "@/lib/sceneClipCounts";
+import { createClient } from "@/lib/supabase/server";
+import { createScene, importScenes } from "../actions";
+
+type ProjectPageProps = {
+  params: Promise<{ projectId: string }>;
+  searchParams: Promise<{
+    added?: string;
+    created?: string;
+    deleted?: string;
+    error?: string;
+    imported?: string;
+    updated?: string;
+  }>;
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: ProjectPageProps) {
+  const { projectId } = await params;
+  const query = await searchParams;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(`/projects/${projectId}`)}`);
+  }
+
+  const [{ data: project }, { data: scenes }, { data: stages }] =
+    await Promise.all([
+      supabase
+        .from("projects")
+        .select(
+          "id, name, actual_title, client_name, description, due_date, production_approach, stage_profile_id, custom_stage_name",
+        )
+        .eq("id", projectId)
+        .maybeSingle(),
+      supabase
+        .from("scenes")
+        .select(
+          "id, scene_number, name, search_brief, vehicle, script_scene_number, script_pages, generated_keywords, keyword_generation_status, scene_clips(status)",
+        )
+        .eq("project_id", projectId)
+        .is("archived_at", null)
+        .order("sort_order")
+        .order("scene_number"),
+      supabase
+        .from("stage_profiles")
+        .select("id, name")
+        .eq("active", true)
+        .order("name"),
+    ]);
+
+  if (!project) notFound();
+
+  const stageProfile = stages?.find(
+    (stage) => stage.id === project.stage_profile_id,
+  );
+  const stageLabel =
+    project.production_approach === "listed_led_stage"
+      ? stageProfile?.name || "Listed LED stage"
+      : project.production_approach === "custom_led_stage"
+        ? project.custom_stage_name || "Custom LED stage"
+        : project.production_approach === "vfx_no_led_wall"
+          ? "VFX / no LED wall"
+          : "Stage undecided";
+  const stageChoice =
+    project.production_approach === "listed_led_stage" &&
+    project.stage_profile_id
+      ? `stage:${project.stage_profile_id}`
+      : project.production_approach === "custom_led_stage"
+        ? "keep_custom"
+        : project.production_approach;
+
+  return (
+    <main className="workspace-shell project-workspace">
+      <Link href="/projects" className="mono dim back-link">
+        ← Projects
+      </Link>
+
+      <header className="workspace-intro project-heading">
+        <div>
+          <h1>{project.name}</h1>
+          <p className="dim">
+            {project.client_name || "No client specified"}
+          </p>
+        </div>
+        <div className="project-heading-tools">
+          <span className="status-chip mono">
+            {stageLabel}
+          </span>
+          <details className="project-details-editor">
+            <summary className="secondary-button">Edit project</summary>
+            <div className="project-details-panel">
+              <div>
+                <p className="mono accent">Project details</p>
+                <h2>Edit project</h2>
+              </div>
+              <ProjectDetailsAutosave
+                project={{
+                  id: project.id,
+                  name: project.name,
+                  actualTitle: project.actual_title ?? "",
+                  clientName: project.client_name ?? "",
+                  dueDate: project.due_date ?? "",
+                  description: project.description ?? "",
+                }}
+                stages={stages ?? []}
+                stageChoice={stageChoice}
+                customStageName={project.custom_stage_name ?? undefined}
+              />
+            </div>
+          </details>
+        </div>
+      </header>
+
+      {query.error && <p className="auth-alert error">{query.error}</p>}
+      {query.created === "1" && (
+        <p className="auth-alert success">
+          Project created. Keep adding scenes below, or open any saved scene
+          when you are ready to choose clips.
+        </p>
+      )}
+      {query.added === "1" && (
+        <p className="auth-alert success">
+          Scene saved. Add the next scene while the shot list is in front of
+          you.
+        </p>
+      )}
+      {query.deleted === "1" && (
+        <p className="auth-alert success">
+          Scene deleted from this project.
+        </p>
+      )}
+      {query.imported && (
+        <p className="auth-alert success">
+          Imported {query.imported} approved scene
+          {query.imported === "1" ? "" : "s"} from JSON.
+        </p>
+      )}
+      {query.updated === "1" && (
+        <p className="auth-alert success">Project details updated.</p>
+      )}
+
+      <SceneInputWorkspace
+        sceneCount={scenes?.length ?? 0}
+        sceneTable={
+          <div className="scene-table-wrap">
+            <table className="scene-table">
+              <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Scene #</th>
+                  <th scope="col">Page(s)</th>
+                  <th scope="col">Scene</th>
+                  <th scope="col">Plate brief</th>
+                  <th scope="col">Vehicle</th>
+                  <th scope="col">Search</th>
+                  <th scope="col">Considering</th>
+                  <th scope="col">Selected</th>
+                  <th scope="col" aria-label="Open scene" />
+                </tr>
+              </thead>
+              <tbody>
+                {scenes?.map((scene) => {
+                  const href = `/projects/${project.id}/scenes/${scene.id}`;
+                  const keywordCount = scene.generated_keywords?.length ?? 0;
+                  const clipCounts = sceneClipCounts(scene.scene_clips);
+                  return (
+                    <tr key={scene.id}>
+                      <td className="scene-sequence mono">
+                        {String(scene.scene_number).padStart(2, "0")}
+                      </td>
+                      <td className="scene-script mono-md">
+                        {scene.script_scene_number || "—"}
+                      </td>
+                      <td className="scene-pages mono-md">
+                        {scene.script_pages || "—"}
+                      </td>
+                      <td className="scene-name-cell">
+                        <Link href={href}>{scene.name}</Link>
+                      </td>
+                      <td className="scene-brief">
+                        <Link href={href}>
+                          {scene.search_brief || "Add a plate brief"}
+                        </Link>
+                      </td>
+                      <td className="scene-vehicle mono">
+                        {scene.vehicle === "undecided"
+                          ? "—"
+                          : scene.vehicle.replaceAll("_", " ")}
+                      </td>
+                      <td>
+                        <span
+                          className={`scene-search-state mono ${
+                            keywordCount ? "is-ready" : ""
+                          }`}
+                        >
+                          {keywordCount
+                            ? `${keywordCount} terms`
+                            : scene.keyword_generation_status === "pending"
+                              ? "Pending"
+                              : "—"}
+                        </span>
+                      </td>
+                      <td className="scene-clip-count mono-md">
+                        {clipCounts.considering}
+                      </td>
+                      <td className="scene-clip-count is-selected mono-md">
+                        {clipCounts.selected}
+                      </td>
+                      <td className="scene-open-cell">
+                        <Link href={href} aria-label={`Open ${scene.name}`}>
+                          →
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        }
+        addScenePanel={
+          <aside className="add-scene-card" id="add-scene">
+            <h2>Add scene</h2>
+            <form action={createScene} className="workspace-form compact-form">
+              <input type="hidden" name="projectId" value={project.id} />
+              <label>
+                <span>Scene title</span>
+                <input
+                  name="sceneName"
+                  type="text"
+                  placeholder="Ransom’s getaway"
+                  maxLength={200}
+                  required
+                />
+              </label>
+              <div className="form-grid compact-metadata-grid">
+                <label>
+                  <span>Script scene <em>optional</em></span>
+                  <input
+                    name="scriptSceneNumber"
+                    type="text"
+                    placeholder="41"
+                    maxLength={40}
+                  />
+                </label>
+                <label>
+                  <span>Page(s) <em>optional</em></span>
+                  <input
+                    name="scriptPages"
+                    type="text"
+                    placeholder="74–75"
+                    maxLength={80}
+                  />
+                </label>
+                <label>
+                  <span>Vehicle</span>
+                  <select name="vehicle" defaultValue="sedan">
+                    <option value="sedan">Sedan</option>
+                    <option value="suv">SUV</option>
+                    <option value="sports_car">Sports car</option>
+                    <option value="none">No vehicle</option>
+                    <option value="undecided">Undecided</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                <span>Scene description / plate brief</span>
+                <textarea
+                  name="searchBrief"
+                  placeholder="Open coast, clear horizon, late afternoon…"
+                  rows={4}
+                />
+              </label>
+              <div className="stacked-form-actions">
+                <button
+                  type="submit"
+                  name="intent"
+                  value="add-another"
+                  className="primary-button"
+                >
+                  + Save and add another
+                </button>
+                <button
+                  type="submit"
+                  name="intent"
+                  value="find-plates"
+                  className="secondary-button"
+                >
+                  Save and find plates
+                </button>
+              </div>
+            </form>
+          </aside>
+        }
+        importPanel={
+          <SceneImportPanel
+            variant="existing-project"
+            projectId={project.id}
+            action={importScenes}
+          />
+        }
+      />
+    </main>
+  );
+}

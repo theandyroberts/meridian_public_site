@@ -86,6 +86,11 @@ QC_RESP_GATE = 0.15
 #: outside it one source never touches the output, so disagreement there is
 #: not a seam artifact a viewer could see.
 QC_BLEND_W_MIN = 0.02
+#: Sky cameras converge at the zenith. Longitude-only ownership produces
+#: three vertical tonal panels there because longitude is undefined at the
+#: pole. Blend by angular distance to each camera's optical axis instead; the
+#: same policy is already used by the separately approved sky-dome renderer.
+SKY_AXIS_FEATHER_DEG = 8.0
 
 
 # --------------------------------------------------------------------- helpers
@@ -696,6 +701,8 @@ class NineStitcher:
         self.ring_router = None  # r2-1 lever 3: per-frame ring seam routing
         self.seam_row: np.ndarray | None = None  # per-column frozen sky-ring seam
         self.alpha: np.ndarray | None = None  # (band_h, eq_w) sky ownership
+        self.coverage_hole_mask = np.zeros((self.band_h, self.eq_w), np.uint8)
+        self.coverage_hole_boxes: list[tuple[int, int, int, int, int]] = []
         self._sky_weights: dict[str, np.ndarray] | None = None
         self._sky_weights_vig: dict[str, np.ndarray] | None = None
         self.sky_colw: dict[str, np.ndarray] = {}
@@ -1109,20 +1116,57 @@ class NineStitcher:
             seam.sel_diag = best_diag
 
     def _build_sky_weights(self) -> None:
-        """Per-sky-cam column arcs with horizontal feather, normalized per
-        pixel over valid coverage, gains folded in (mirrors RingStitcher)."""
-        eps = 1e-4
-        w_raw = {}
+        """Per-sky-camera optical-axis ownership, normalized over coverage.
+
+        The old full-sphere compositor selected sky cameras by longitude.
+        That is reasonable near the horizon but degenerates into three hard
+        vertical panels at the zenith, where every longitude represents the
+        same point. Optical-axis distance keeps ownership continuous over the
+        pole and matches the dedicated sky-dome renderer's geometry.
+
+        ``sky_colw`` is retained as seam provenance for QC/parallax reports;
+        it no longer drives the pixels in the overhead tier.
+        """
+        eps = 1e-6
         for k, l in enumerate(self.sky_order):
             left = self.sky_seams[(k - 1) % 3].col_unwrapped % self.eq_w
             right = self.sky_seams[k].col_unwrapped % self.eq_w
             colw = _col_weight(self.eq_w, left, right, float(self.feather_h))
             self.sky_colw[l] = colw
-            w_raw[l] = (colw[None, :] + eps) * self.sky_maps[l][2].astype(np.float32)
+
+        rays = geometry.equirect_rays(self.eq_w, self.eq_h)[:, : self.sky_r1]
+        axis_dist = {}
+        for l, cam in self.sky_cams.items():
+            rot = geometry.rotation(cam.yaw, cam.pitch, cam.roll)
+            axis = rot @ np.array([0.0, 0.0, 1.0])
+            dot = np.clip(
+                axis[0] * rays[0] + axis[1] * rays[1] + axis[2] * rays[2],
+                -1.0,
+                1.0,
+            )
+            axis_dist[l] = np.degrees(np.arccos(dot))
+        del rays
+
+        stack = np.stack([axis_dist[l] for l in SKY])
+        best = stack.min(axis=0)
+        w_raw = {}
+        for k, l in enumerate(SKY):
+            weight = np.clip(
+                1.0 - (stack[k] - best) / SKY_AXIS_FEATHER_DEG,
+                0.0,
+                1.0,
+            )
+            w_raw[l] = np.where(
+                self.sky_maps[l][2],
+                weight,
+                0.0,
+            ).astype(np.float32)
+        del stack, axis_dist
+
         total = np.zeros((self.sky_r1, self.eq_w), np.float32)
         for arr in w_raw.values():
             total += arr
-        safe = np.where(total > 0, total, 1.0)
+        safe = np.where(total > eps, total, 1.0)
         self._sky_weights = {l: (arr / safe) * self.sky_gains[l] for l, arr in w_raw.items()}
         # Compose-path weights with the vignette correction folded in (the
         # QC/luma path corrects in _warp_sky_luma instead; keep them separate
@@ -1205,6 +1249,9 @@ class NineStitcher:
         alpha = np.where(sky_cov, ramp, 0.0)
         alpha[~ring_cov] = np.where(sky_cov[~ring_cov], 1.0, 0.0)
         self.alpha = alpha.astype(np.float32)
+        self.coverage_hole_mask, self.coverage_hole_boxes = _internal_coverage_holes(
+            sky_cov | ring_cov,
+        )
 
     # ---------------------------------------------------------------- compose
 
@@ -1267,13 +1314,23 @@ class NineStitcher:
         canvas[: self.sky_r1 - s0] += alpha[: self.sky_r1 - s0, :, None] * acc_sky[s0:]
         rslice = slice(self.ring.r0 - s0, self.r1_9 - s0)
         canvas[rslice] += (1.0 - alpha[rslice, :, None]) * acc_ring
-        return from_linear(canvas)
+        frame = from_linear(canvas)
+        return _fill_internal_coverage_holes(
+            frame,
+            self.coverage_hole_mask,
+            self.coverage_hole_boxes,
+        )
 
     # ----------------------------------------------------------------- report
 
     def report(self) -> dict:
         return {
             "band9": {"r0": self.r0_9, "r1": self.r1_9, "height": self.band_h},
+            "coverage_hole_fill": {
+                "policy": "small-fully-enclosed-only",
+                "components": len(self.coverage_hole_boxes),
+                "pixels": int(np.count_nonzero(self.coverage_hole_mask)),
+            },
             "composite_mode": self.composite,
             "sky_ring_boundary": (
                 {"policy": "ring-coverage-edge", "feather_half_px": self.EDGE_FEATHER,
@@ -1287,6 +1344,10 @@ class NineStitcher:
             "sky_gains": self.sky_gains,
             "sky_vignette_v2_v4": {l: [round(a, 4), round(b, 4)] for l, (a, b) in self.sky_vig_params.items()},
             "sky_flatfield": getattr(self, "sky_flatfield_stats", None),
+            "sky_weight_policy": {
+                "mode": "optical-axis-distance",
+                "feather_deg": SKY_AXIS_FEATHER_DEG,
+            },
             "feather_v_px": self.feather_v,
             "feather_h_px": self.feather_h,
             "polar_cap_lat_deg": POLAR_CAP_LAT_DEG,
@@ -1726,12 +1787,86 @@ def _qc_indices(usable: int, n: int, cal_set: set[int]) -> list[int]:
     return idx
 
 
+def _internal_coverage_holes(
+    covered: np.ndarray,
+    max_area_ratio: float = 0.002,
+) -> tuple[np.ndarray, list[tuple[int, int, int, int, int]]]:
+    """Return small, fully enclosed holes in an otherwise covered band.
+
+    The nadir and crop-edge gaps are real missing coverage and must stay
+    black.  Tiny interior islands are calibration slivers between lenses;
+    filling them from their immediate real-pixel neighborhood prevents black
+    wedges in a 360 viewer without inventing broad scene content.
+    """
+    if covered.ndim != 2:
+        raise ValueError(f"coverage mask must be 2-D, got {covered.shape}")
+    missing = (~covered.astype(bool)).astype(np.uint8)
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(missing, 8)
+    h, w = covered.shape
+    max_area = max(16, int(h * w * max_area_ratio))
+    mask = np.zeros((h, w), np.uint8)
+    boxes: list[tuple[int, int, int, int, int]] = []
+    for label in range(1, n):
+        x, y, bw, bh, area = (int(v) for v in stats[label])
+        enclosed = x > 0 and y > 0 and x + bw < w and y + bh < h
+        if not enclosed or area > max_area:
+            continue
+        component = labels == label
+        mask[component] = 255
+        boxes.append((x, y, bw, bh, area))
+    return mask, boxes
+
+
+def _fill_internal_coverage_holes(
+    frame: np.ndarray,
+    mask: np.ndarray,
+    boxes: list[tuple[int, int, int, int, int]],
+) -> np.ndarray:
+    """Inpaint only tight crops around precomputed internal coverage holes."""
+    if not boxes:
+        return frame
+    out = frame.copy()
+    h, w = frame.shape[:2]
+    for x, y, bw, bh, _ in boxes:
+        pad = 8
+        x0, y0 = max(0, x - pad), max(0, y - pad)
+        x1, y1 = min(w, x + bw + pad), min(h, y + bh + pad)
+        out[y0:y1, x0:x1] = cv2.inpaint(
+            out[y0:y1, x0:x1],
+            mask[y0:y1, x0:x1],
+            3,
+            cv2.INPAINT_TELEA,
+        )
+    return out
+
+
+def _full_equirect_frame(nine: NineStitcher, band: np.ndarray) -> np.ndarray:
+    """Place the covered nine-camera band at its calibrated latitude.
+
+    The rig has no nadir camera, so pixels below the ring coverage remain
+    black.  Keeping those pixels in the frame is still essential: omitting
+    them changes the equirectangular latitude mapping and produces a non-2:1
+    movie that 360 players cannot project correctly.
+    """
+    expected = (nine.band_h, nine.eq_w, 3)
+    if band.shape != expected:
+        raise ValueError(f"nine-camera band is {band.shape}; expected {expected}")
+    if not (0 <= nine.r0_9 < nine.r1_9 <= nine.eq_h):
+        raise ValueError(
+            f"nine-camera band rows [{nine.r0_9}, {nine.r1_9}) "
+            f"fall outside 0..{nine.eq_h}",
+        )
+    frame = np.zeros((nine.eq_h, nine.eq_w, 3), dtype=np.uint8)
+    frame[nine.r0_9 : nine.r1_9] = band
+    return frame
+
+
 def _encoder_argv(clip: RingClip, nine: NineStitcher, out_mov: Path) -> list[str]:
-    """ProRes encode of the 9-cam band; identical color pinning to render.py."""
+    """ProRes encode of a 2:1 equirectangular frame; color pinned as render.py."""
     return [
         "ffmpeg", "-v", "error", "-nostdin", "-y",
         "-f", "rawvideo", "-pix_fmt", "bgr24",
-        "-s", f"{nine.eq_w}x{nine.band_h}",
+        "-s", f"{nine.eq_w}x{nine.eq_h}",
         "-r", f"{clip.fps:g}",
         "-i", "pipe:0",
         "-vf",
@@ -2051,7 +2186,8 @@ def cmd_stitch9(args) -> int:
             timings["warmup_prepass_s"] = time.perf_counter() - t0
             metrics["warmup_prepass_frames"] = warmup_n
 
-        # Full ProRes render of the 9-cam band (implemented; run only when asked).
+        # Full 2:1 ProRes render.  Camera coverage occupies a calibrated band
+        # inside the equirectangular canvas; the uncovered nadir stays black.
         mov_path = out_dir / f"{Path(args.drop).resolve().name}_nineband_prores.mov"
         enc_argv = _encoder_argv(clip, nine, mov_path)
         clip.ffmpeg_calls.append(enc_argv)
@@ -2063,7 +2199,8 @@ def cmd_stitch9(args) -> int:
         primary_exc = None
         try:
             for i, frames in source.iter_frames():
-                enc.stdin.write(nine.compose_frame(frames, frame_idx=i).tobytes())
+                band = nine.compose_frame(frames, frame_idx=i)
+                enc.stdin.write(_full_equirect_frame(nine, band).tobytes())
                 n_done += 1
         except BaseException as e:
             primary_exc = e

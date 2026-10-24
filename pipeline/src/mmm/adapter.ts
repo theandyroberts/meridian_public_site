@@ -16,6 +16,12 @@ export class ClipAdaptError extends Error {
 const SEASONS_BY_MONTH = ["winter","winter","spring","spring","spring","summer",
   "summer","summer","fall","fall","fall","winter"] as const;
 
+const LEGACY_GA_DTLA_CALIBRATION = "legacy-xl-ga-dtla-2024-v2";
+
+function isLegacyGaDtlaClip(stockClipId: string): boolean {
+  return /^SPH-STK-LEGACY-\d{8}-GA-DTLA-/i.test(stockClipId);
+}
+
 function titleCase(slug: string): string {
   return slug.replace(/-/g, " ").toLowerCase().replace(/(^|\s)\w/g, (m) => m.toUpperCase());
 }
@@ -46,7 +52,13 @@ export function adaptClip(rootDir: string, clip: HandoffClip): { drop: Drop; sto
   let stitchedMaster: string | undefined;
   for (const asset of clip.assets) {
     const abs = path.join(rootDir, asset.package_relative_path);
-    if (type === "captured_live_stitch") { stitchedMaster = abs; continue; }
+    // Some handoffs include a live full-sphere reference alongside the nine
+    // source feeds. Keep it: master preparation will verify its 2:1 geometry
+    // and otherwise fall back to the calibrated cameras.
+    if (type === "captured_live_stitch" || asset.role === "captured_live_stitch") {
+      stitchedMaster = abs;
+      continue;
+    }
     if (asset.camera_number != null) {
       cameraFiles[CAMERA_NUMBER_TO_POSITION[asset.camera_number]] = abs;
     }
@@ -54,15 +66,19 @@ export function adaptClip(rootDir: string, clip: HandoffClip): { drop: Drop; sto
 
   const { shootDate, locationSlug } = parseStockClipId(clip.stock_clip_id);
   const month = Number(shootDate.slice(5, 7)) - 1;
+  const legacyGaDtla = isLegacyGaDtlaClip(clip.stock_clip_id);
   const meta: DropMeta = {
     shootDate,
-    rig: "Spheris XL 01",
+    rig: legacyGaDtla ? "Legacy XL" : "Spheris XL 01",
     location: { name: locationSlug, city: locationSlug, region: "—", country: "US" },
     timeOfDay: "day",
     weather: "clear",
     season: SEASONS_BY_MONTH[month] ?? "summer",
     shotType: "urban",
     stageCompat: ["led-volume", "green-screen", "projection"],
+    colorState: "log",
+    ...(legacyGaDtla ? { calibrationProfile: LEGACY_GA_DTLA_CALIBRATION } : {}),
+    trustedStitchedMaster: false,
     sceneHints: [
       ...clip.metadata.operator_tags,
       ...(clip.metadata.operator_notes ? [clip.metadata.operator_notes] : []),

@@ -1,0 +1,42 @@
+{
+  "format": "platelab-calibration-v1",
+  "id": "legacy-xl-ga-dtla-2024-v1",
+  "description": "UAT candidate for the January 2024 GA DTLA Legacy XL package. Ring geometry starts from the validated six-camera Spheris solve; sky poses include the PL-7014298 phase-correlation refinement and remain subject to operator approval before batch use.",
+  "source": "Mercy01 v1 ring geometry plus PL-7014298 four-frame sky phase solve at 1920x960, 2026-08-08",
+  "pano": { "projection": "equirectangular", "hfov": 360.0 },
+  "lenses": [
+    {
+      "index": 0,
+      "projection": "rectilinear",
+      "focal_mm": 13.022223118569132,
+      "sensor_diag_mm": 30.56,
+      "a": -0.002321299333107584,
+      "b": -0.010584551183742647,
+      "c": 0.055746529359239703,
+      "shift_long": 0.012145600618993566,
+      "shift_short": 0.0002780842285932775
+    },
+    {
+      "index": 1,
+      "projection": "rectilinear",
+      "focal_mm": 9.885289691638663,
+      "sensor_diag_mm": 30.56,
+      "a": -0.031119423970311227,
+      "b": 0.11977755440505834,
+      "c": -0.1392133965302454,
+      "shift_long": 0.009451539232292415,
+      "shift_short": 0.01689592077096173
+    }
+  ],
+  "cameras": [
+    { "letter": "A", "lens": 0, "size": [6144, 3240], "yaw": 0.0, "pitch": 10.04887026885882, "roll": 0.47119473692282554 },
+    { "letter": "B", "lens": 0, "size": [6144, 3240], "yaw": 59.63090917270404, "pitch": 7.783908248899593, "roll": -1.4449457791573082 },
+    { "letter": "C", "lens": 0, "size": [6144, 3240], "yaw": 120.84045442327107, "pitch": 12.06411922346507, "roll": -1.1049777627310107 },
+    { "letter": "D", "lens": 0, "size": [6144, 3240], "yaw": 179.65100082820743, "pitch": 7.752039742054848, "roll": 0.6145647903003635 },
+    { "letter": "E", "lens": 0, "size": [6144, 3240], "yaw": -120.83094897454009, "pitch": 9.764858167461938, "roll": -0.3920529699800852 },
+    { "letter": "F", "lens": 0, "size": [6144, 3240], "yaw": -59.71499874150544, "pitch": 10.02518216396868, "roll": -0.09309815712495606 },
+    { "letter": "G", "lens": 1, "size": [6144, 3240], "yaw": 4.449824461674317, "pitch": 51.59067874896563, "roll": 5.818874822601976 },
+    { "letter": "H", "lens": 1, "size": [6144, 3240], "yaw": 131.01478412471424, "pitch": 48.567078746561675, "roll": 10.364841073163399 },
+    { "letter": "J", "lens": 1, "size": [6144, 3240], "yaw": -122.42794558502202, "pitch": 58.90274226570209, "roll": -1.9982855863715198 }
+  ]
+}

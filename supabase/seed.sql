@@ -1,0 +1,2 @@
+-- Seed only non-sensitive reference data here. User accounts are created
+-- through Supabase Auth and production catalog data is imported separately.

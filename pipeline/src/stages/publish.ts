@@ -2,14 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { catalogSchema, plateSchema, type Catalog, type Plate } from "@platelab/shared";
 import { CATALOG_PATH } from "../paths.js";
+import {
+  publishPlateToSupabase,
+  plateFromSupabase,
+  publishedMmmIdsFromSupabase,
+  removePlateFromSupabase,
+  usesSupabaseCatalog,
+} from "./publishSupabase.js";
 
-/**
- * Advisory lockfile around catalog.json read-modify-write. Two processes
- * touch catalog.json — this daemon (publishPlate/removePlate) and the admin
- * dashboard (web/lib/admin/catalogAdmin.ts, publishDraft/rejectDraft) — so
- * without a lock a lost-update race is possible. Twin implementation lives
- * in web/lib/admin/catalogAdmin.ts; keep the two in sync.
- */
+/** Advisory lock for the local JSON compatibility backend. */
 function withCatalogLock<T>(catalogPath: string, fn: () => T): T {
   const lockPath = `${catalogPath}.lock`;
   const timeoutMs = 5000;
@@ -51,8 +52,15 @@ export function loadCatalog(): Catalog {
 }
 
 /** Validate and upsert one plate, then atomically rewrite the catalog. */
-export function publishPlate(plate: Plate): Catalog {
+export async function publishPlate(plate: Plate): Promise<Catalog> {
   plateSchema.parse(plate);
+  if (usesSupabaseCatalog()) {
+    await publishPlateToSupabase(plate);
+    return {
+      generatedAt: new Date().toISOString(),
+      plates: [plate],
+    };
+  }
   return withCatalogLock(CATALOG_PATH, () => {
     const catalog = loadCatalog();
     const idx = catalog.plates.findIndex((p) => p.sku === plate.sku);
@@ -70,7 +78,17 @@ export function publishPlate(plate: Plate): Catalog {
   });
 }
 
-export function removePlate(sku: string, reason: string): Catalog {
+export async function removePlate(
+  sku: string,
+  reason: string,
+): Promise<Catalog> {
+  if (usesSupabaseCatalog()) {
+    await removePlateFromSupabase(sku);
+    return {
+      generatedAt: new Date().toISOString(),
+      plates: [],
+    };
+  }
   return withCatalogLock(CATALOG_PATH, () => {
     const catalog = loadCatalog();
     const idx = catalog.plates.findIndex((p) => p.sku === sku);
@@ -83,4 +101,20 @@ export function removePlate(sku: string, reason: string): Catalog {
     fs.renameSync(tmp, CATALOG_PATH);
     return catalog;
   });
+}
+
+export async function loadPublishedMmmIds(): Promise<string[]> {
+  if (usesSupabaseCatalog()) {
+    return publishedMmmIdsFromSupabase();
+  }
+  return loadCatalog().plates.flatMap((plate) =>
+    plate.mmm?.stockClipId ? [plate.mmm.stockClipId] : [],
+  );
+}
+
+export async function loadPlate(sku: string): Promise<Plate | undefined> {
+  if (usesSupabaseCatalog()) {
+    return plateFromSupabase(sku);
+  }
+  return loadCatalog().plates.find((plate) => plate.sku === sku);
 }
