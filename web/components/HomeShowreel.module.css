@@ -1,0 +1,32 @@
+.showreel {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.showreel video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.playback {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #ffffff80;
+  border-radius: 4px;
+  background: #000b;
+  color: #fff;
+  cursor: pointer;
+}
+
+.playback:hover { background: #000; }
+.playback:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
