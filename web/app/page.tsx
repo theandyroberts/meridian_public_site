@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getLivePlates } from "@/lib/catalog";
-import { BrandArtwork } from "@/components/Logo";
+import { ComingSoonGlobe } from "@/components/ComingSoonGlobe";
 import { HeroSearch } from "@/components/HeroSearch";
 import { PlateCard } from "@/components/PlateCard";
 import { ComingSoon } from "@/components/ComingSoon";
@@ -28,7 +28,7 @@ export default async function HomePage() {
       <section className="hero">
         <div className="wrap" style={{ position: "relative" }}>
           <div className="hero-globe">
-            <BrandArtwork size={420} />
+            <ComingSoonGlobe />
           </div>
           <p className="mono accent" style={{ marginBottom: 24 }}>
             360×180 Environments · VFX · LED Volumes · Virtual Production
