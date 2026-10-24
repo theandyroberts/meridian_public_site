@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { getLivePlates } from "@/lib/catalog";
 import { ComingSoonGlobe } from "@/components/ComingSoonGlobe";
 import { HeroSearch } from "@/components/HeroSearch";
+import { HomeShowreel } from "@/components/HomeShowreel";
 import { PlateCard } from "@/components/PlateCard";
 import { ComingSoon } from "@/components/ComingSoon";
 import { PER_MINUTE_USD, formatUsd } from "@platelab/shared";
@@ -24,7 +25,8 @@ export default async function HomePage() {
   const featured = plates.slice(0, 6);
 
   return (
-    <main>
+    <main className="home-page">
+      <HomeShowreel />
       <section className="hero">
         <div className="wrap" style={{ position: "relative" }}>
           <div className="hero-globe">

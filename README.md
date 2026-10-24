@@ -71,6 +71,32 @@ Run the quick-start commands above.
 The app runs locally against staging data; this is not an offline database copy.
 No admin or service-role key is required to browse published clips.
 
+### Homepage showreel
+
+The full homepage plays `/media/site/mustang-study14-reflections-4k.mp4` muted, inline and on
+repeat above the existing hero. Its poster is
+`/media/site/mustang-study14-reflections-poster.jpg`. Both are runtime assets under
+`web/public/media/site/`, not Git assets. Provision them into the staging media
+mount before deploying the homepage change. The public coming-soon page is
+unchanged.
+
+On the full homepage only, the reel begins at the top of the viewport behind a
+fixed header with an 80%-opaque background. Navigation remains fully opaque;
+other pages retain the normal in-flow sticky header.
+
+Use the clean 74-second, 3840x2160, 24 fps Study14 Reflections render, not
+`hero_sizzle_reel.mov` (a desktop recording with viewer controls). The master was
+exported directly from the LED wall viewer's scene canvas, with plate reflections
+enabled. Its render manifest is alongside the master in `Study14-Reflections`.
+Create the H.264 web derivative without cropping or changing frame timing:
+
+```bash
+mkdir -p web/public/media/site
+MASTER="/Volumes/Extreme SSD/PlateLab Exports/Study14-Reflections/PlateLab_Mustang_Study14_Reflections_4K_ProRes422HQ.mov"
+ffmpeg -n -i "$MASTER" -map 0:v:0 -an -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -color_primaries bt709 -color_trc bt709 -colorspace bt709 -movflags +faststart web/public/media/site/mustang-study14-reflections-4k.mp4
+ffmpeg -n -ss 50 -i "$MASTER" -frames:v 1 -vf scale=1920:-1 -q:v 2 -update 1 web/public/media/site/mustang-study14-reflections-poster.jpg
+```
+
 ## Ingest pipeline
 
 Run the read-only check before spending stitch time or changing the catalog:

@@ -2228,6 +2228,23 @@ body::before {
 .site-header{--header-logo-width:260px;background:linear-gradient(to right,#000 0,#000 calc(var(--header-logo-width) + 20px),rgba(14,14,16,.96) calc(var(--header-logo-width) + 220px),rgba(14,14,16,.88) 100%)}
 .site-header .wrap{max-width:none;width:100%;margin:0;padding:0 clamp(16px,4vw,64px) 0 0;gap:24px}
 .site-header .site-logo{width:var(--header-logo-width)}
+/* Only the homepage reel runs behind the navigation. */
+body:has(> .home-page) > .site-header {
+  position: fixed;
+  inset: 0 0 auto;
+  background: rgba(14, 14, 16, 0.8);
+  backdrop-filter: none;
+}
+body:has(> .home-page) .site-header .site-nav a {
+  color: var(--paper);
+}
+body:has(> .home-page) .site-header .site-nav a:hover,
+body:has(> .home-page) .site-header .site-nav a:focus-visible {
+  color: var(--orange);
+}
+body:has(> .home-page) .site-header .site-nav .cta:hover {
+  color: var(--ink);
+}
 @media(max-width:720px){.site-header{--header-logo-width:200px}.site-header .wrap{gap:12px}}
 @media(max-width:520px){
   .site-header{--header-logo-width:150px}
